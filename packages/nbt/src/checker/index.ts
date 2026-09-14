@@ -308,13 +308,11 @@ export function path(
 	registry: core.FullResourceLocation,
 	id: core.FullResourceLocation | readonly core.FullResourceLocation[] | undefined,
 ): core.SyncChecker<NbtPathNode> {
+	return pathTypeDefinition({ kind: 'dispatcher', registry, parallelIndices: getIndices(id) })
+}
+
+export function pathTypeDefinition(typeDef: mcdoc.McdocType): core.SyncChecker<NbtPathNode> {
 	return (node, ctx) => {
-		// TODO: support dispatcher
-		const typeDef: mcdoc.McdocType = {
-			kind: 'dispatcher',
-			registry,
-			parallelIndices: getIndices(id),
-		}
 		// Create a linked list representation
 		const leaf = { type: 'leaf', range: core.Range.create(node.range.end) } as const
 		let link: NbtPathLink = { path: node, node: leaf }

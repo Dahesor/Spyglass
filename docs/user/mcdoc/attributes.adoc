@@ -130,12 +130,13 @@ A string containing SNBT. It has one option which is the type that the stringifi
 ----
 
 === `nbt_path`
-A string containing an NBT path.
+A string containing an NBT path. An optional type specifies the data structure that the path accesses.
 
 .Syntax
 [source, mcdoc]
 ----
 #[nbt_path] string
+#[nbt_path=minecraft:storage[[storage]]] string
 ----
 
 === `objective`

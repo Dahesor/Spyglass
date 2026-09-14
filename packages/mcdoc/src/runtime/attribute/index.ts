@@ -4,6 +4,7 @@ import type {
 	McdocCheckerContext,
 	SimplifiedMcdocType,
 	SimplifiedMcdocTypeNoUnion,
+	SimplifyContext,
 } from '../checker/index.js'
 import type { McdocCompleterContext } from '../completer/index.js'
 import type { McdocAttributeValidator } from './validator.js'
@@ -36,6 +37,7 @@ export interface McdocAttribute<C = unknown> {
 		config: C,
 		inferred: Exclude<McdocType, UnionType>,
 		ctx: McdocCheckerContext<T>,
+		context: SimplifyContext<T>,
 	) => core.SyncChecker<core.AstNode> | undefined
 	stringMocker?: (
 		config: C,

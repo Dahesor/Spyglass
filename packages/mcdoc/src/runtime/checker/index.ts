@@ -371,7 +371,7 @@ function attachTypeInfo<T>(node: CheckerTreeRuntimeNode<T>, ctx: McdocCheckerCon
 			groupNode.desc,
 			groupNode.originalTypeDef,
 		)
-		handleNodeAttachers(node.node, typeDef, ctx)
+		handleNodeAttachers(node, typeDef, ctx)
 
 		if (node.entryNode.runtimeKey && groupNode.keyDefinition) {
 			ctx.attachTypeInfo?.(
@@ -379,7 +379,11 @@ function attachTypeInfo<T>(node: CheckerTreeRuntimeNode<T>, ctx: McdocCheckerCon
 				groupNode.keyDefinition,
 				groupNode.desc,
 			)
-			handleNodeAttachers(node.entryNode.runtimeKey, groupNode.keyDefinition, ctx)
+			handleNodeAttachers(
+				{ node: node.entryNode.runtimeKey, entryNode: node.entryNode },
+				groupNode.keyDefinition,
+				ctx,
+			)
 		}
 	} else if (definitions.length > 1) {
 		ctx.attachTypeInfo?.(
@@ -413,10 +417,11 @@ function attachTypeInfo<T>(node: CheckerTreeRuntimeNode<T>, ctx: McdocCheckerCon
 }
 
 function handleNodeAttachers<T>(
-	runtimeValue: RuntimeNode<T>,
+	value: SimplifyValueNode<T>,
 	typeDef: SimplifiedMcdocTypeNoUnion,
 	ctx: McdocCheckerContext<T>,
 ) {
+	const runtimeValue = value.node
 	const { nodeAttacher, stringAttacher } = ctx
 	if (!nodeAttacher && !stringAttacher) {
 		return
@@ -443,7 +448,10 @@ function handleNodeAttachers<T>(
 				node.children = [child]
 			})
 		}
-		const checker = handler.checker?.(config, runtimeValue.inferredType, ctx)
+		const checker = handler.checker?.(config, runtimeValue.inferredType, ctx, {
+			ctx,
+			node: value,
+		})
 		if (checker && nodeAttacher) {
 			nodeAttacher(runtimeValue.originalNode, (node) => {
 				checker(node, ctx)
