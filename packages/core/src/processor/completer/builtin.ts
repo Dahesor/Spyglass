@@ -175,7 +175,10 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 	const descriptions = new Map<string, string | undefined>()
 
 	const getPool = (category: string) => {
-		const symbols = ctx.symbols.getVisibleSymbols(category, ctx.doc.uri)
+		const symbols = ctx.symbols.getScopedSymbols(category, {
+			doc: ctx.doc,
+			node: node as ResourceLocationNode,
+		})
 		for (const [key, symbol] of Object.entries(symbols)) {
 			if (SymbolUtil.isDeclared(symbol)) {
 				for (const label of optimizePool([key])) {
@@ -253,7 +256,10 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 	})
 
 	if (node.options.category) {
-		const symbols = ctx.symbols.getVisibleSymbols(node.options.category, ctx.doc.uri)
+		const symbols = ctx.symbols.getScopedSymbols(node.options.category, {
+			doc: ctx.doc,
+			node: node as ResourceLocationNode,
+		})
 		const thisKey = Object.entries(symbols).flatMap(([key, symbol]) => {
 			if ((symbol.declaration?.[0] ?? symbol.definition?.[0])?.uri === ctx.doc.uri) {
 				return [key]
@@ -358,7 +364,10 @@ export function escapeString(value: string, quote?: Quote) {
 
 export const symbol: Completer<SymbolBaseNode> = (node, ctx) => {
 	const path = node.options.parentPath ?? []
-	const symbols = ctx.symbols.query(ctx.doc, node.options.category, ...path).visibleMembers
+	const symbols = ctx.symbols.getScopedSymbols(node.options.category, {
+		doc: ctx.doc,
+		node: node as SymbolBaseNode,
+	}, path)
 	return Object.entries(symbols)
 		.filter(([k, v]) => SymbolUtil.isDeclared(v))
 		.map(([k, v]) =>

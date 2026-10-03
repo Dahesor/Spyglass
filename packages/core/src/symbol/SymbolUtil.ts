@@ -300,6 +300,23 @@ export class SymbolUtil extends EventDispatcher<{
 		return SymbolUtil.filterVisibleSymbols(uri, map)
 	}
 
+	getScopedSymbols(category: string, doc: DocAndNode, path: readonly string[] = []): SymbolMap {
+		const symbols = { ...this.query(doc.doc, category, ...path).visibleMembers }
+		const tables: SymbolTable[] = []
+		let node: AstNode | undefined = doc.node
+		while (node) {
+			if (node.locals) {
+				tables.push(node.locals)
+			}
+			node = node.parent
+		}
+		for (const table of tables.reverse()) {
+			const result = SymbolUtil.lookupTable(table, category, path)
+			Object.assign(symbols, path.length ? result.symbol?.members : table[category])
+		}
+		return symbols
+	}
+
 	static toUri(uri: DocAndNode | TextDocument | string): string {
 		if (typeof uri === 'string') {
 			return uri

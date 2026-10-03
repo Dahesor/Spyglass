@@ -10,6 +10,7 @@ export interface DocNode extends core.AstNode {
 	isFunctionHeader?: boolean
 	isImplicitFunction?: boolean
 	valid: boolean
+	visibility?: core.SymbolVisibility
 }
 
 export interface DocDirectiveNode extends core.AstNode {

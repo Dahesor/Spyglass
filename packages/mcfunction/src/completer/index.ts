@@ -69,7 +69,7 @@ export function command(
 			),
 			...argumentTreeNodes.flatMap(([_name, treeNode]) =>
 				core.Arrayable.toArray(getMockNodes(treeNode, prevNodes, ctx)).flatMap((n) =>
-					core.completer.dispatch(n, ctx)
+					core.completer.dispatch({ ...n, parent: node as unknown as core.AstNode }, ctx)
 				)
 			),
 		]

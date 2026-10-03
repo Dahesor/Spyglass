@@ -24,8 +24,8 @@ class SymbolDocTarget extends DefaultDocTarget {
 		if (!core.SymbolNode.is(tag) || tag.options.category !== this.category) {
 			return
 		}
-		ctx.symbols.query(ctx.doc, this.category, tag.value).enter({
-			data: { visibility: core.SymbolVisibility.Public },
+		ctx.symbols.query({ doc: ctx.doc, node: tag }, this.category, tag.value).enter({
+			data: { visibility: node.visibility ?? core.SymbolVisibility.Public },
 			usage: { type: 'declaration', node: tag },
 		})
 	}
@@ -46,11 +46,17 @@ class SymbolDocTarget extends DefaultDocTarget {
 			const completionNode = ctx.offset < tag.range.start
 				? core.SymbolNode.mock(ctx.offset, { category: this.category })
 				: tag
-			return core.completer.symbol(completionNode, ctx)
+			return core.completer.symbol(
+				{ ...completionNode, parent: tag.parent as core.AstNode },
+				ctx,
+			)
 		}
 		if (!tag.value) {
 			return core.completer.symbol(
-				core.SymbolNode.mock(ctx.offset, { category: this.category }),
+				{
+					...core.SymbolNode.mock(ctx.offset, { category: this.category }),
+					parent: tag.parent as core.AstNode,
+				},
 				ctx,
 			)
 		}
@@ -129,12 +135,35 @@ export class FunctionDocTarget extends DefaultDocTarget {
 				)
 				return
 			}
+			if (node.visibility === core.SymbolVisibility.File) {
+				ctx.symbols.clear({
+					uri: ctx.doc.uri,
+					contributor: 'uri_binder',
+					predicate: event =>
+						event.symbol.category === 'function' && event.symbol.identifier === identifier,
+				})
+				ctx.meta.getCustom<Map<string, string>>('impdoc:private_function')!.get('uris')!.set(
+					ctx.doc.uri,
+					identifier,
+				)
+				const query = ctx.symbols.query({ doc: ctx.doc, node: field }, 'function', identifier)
+				query.enter({
+					data: { visibility: core.SymbolVisibility.File },
+					usage: { type: 'definition', range: core.Range.create(0) },
+				})
+				field.symbol = query.symbol
+				return
+			}
 			field.symbol = currentFunction
 			return
 		}
-		ctx.symbols.query(ctx.doc, 'function', core.ResourceLocationNode.toString(field, 'full'))
+		ctx.symbols.query(
+			{ doc: ctx.doc, node: field },
+			'function',
+			core.ResourceLocationNode.toString(field, 'full'),
+		)
 			.enter({
-				data: { visibility: core.SymbolVisibility.Public },
+				data: { visibility: node.visibility ?? core.SymbolVisibility.Public },
 				usage: { type: 'declaration', node: field },
 			})
 	}
@@ -151,7 +180,10 @@ export class FunctionDocTarget extends DefaultDocTarget {
 		if (ctx.offset <= resource.range.end || !resource.path) {
 			return core.completer.resourceLocation(
 				ctx.offset < resource.range.start || ctx.offset > resource.range.end
-					? core.ResourceLocationNode.mock(ctx.offset, { category: 'function' })
+					? {
+						...core.ResourceLocationNode.mock(ctx.offset, { category: 'function' }),
+						parent: resource.parent as core.AstNode,
+					}
 					: resource,
 				ctx,
 			)
