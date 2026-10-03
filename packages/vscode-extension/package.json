@@ -355,6 +355,12 @@
       },
       "editor.semanticTokenColorCustomizations": {
         "rules": {
+          "*.documentation:mcfunction": {
+            "bold": false
+          },
+          "*.documentation.declaration:mcfunction": {
+            "bold": true
+          },
           "vector": {
             "underline": true
           }

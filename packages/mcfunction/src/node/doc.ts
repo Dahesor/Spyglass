@@ -15,6 +15,7 @@ export interface DocNode extends core.AstNode {
 export interface DocDirectiveNode extends core.AstNode {
 	type: 'mcfunction:doc_directive'
 	identifier: string
+	identifierRange: core.Range
 	arguments: string[]
 	isInline: boolean
 	valid: boolean
