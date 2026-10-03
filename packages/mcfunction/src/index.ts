@@ -1,4 +1,5 @@
 import * as core from '@spyglassmc/core'
+import { entry as bindEntry } from './binder/entry.js'
 import * as colorizer from './colorizer/index.js'
 import type { DocNode, LiteralCommandChildNode } from './node/index.js'
 import { bindDoc, completeDoc } from './parser/doc.js'
@@ -17,6 +18,8 @@ export const initialize: core.SyncProjectInitializer = ({ meta }) => {
 	registerDocDirectives(meta)
 	colorizer.register(meta)
 	meta.registerBinder<DocNode>('mcfunction:doc', bindDoc)
+	meta.registerCustom('impdoc:private_function', 'uris', new Map<string, string>())
+	meta.registerBinder('mcfunction:entry', bindEntry)
 	meta.registerCompleter<DocNode>('mcfunction:doc', completeDoc)
 	meta.registerCompleter<LiteralCommandChildNode>(
 		'mcfunction:command_child/literal',

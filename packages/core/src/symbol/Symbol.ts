@@ -351,6 +351,17 @@ export const enum SymbolVisibility {
 	Restricted,
 }
 
+export const enum SymbolIsotopeScope {
+	/** Visible within single file.
+	 * A local scoped isotope should not be record in the global symbol table.
+	 */
+	Local = -1,
+	/** Visible within certain glob */
+	Private = 0,
+	/** Visible within a namespace */
+	Namespace = 1,
+}
+
 export interface SymbolPath {
 	category: string
 	path: readonly string[]
@@ -420,8 +431,40 @@ export interface SymbolMetadata {
 	visibility?: SymbolVisibility
 	/**
 	 * An array of regular expressions in string form. Only exists if `visibility` is set to {@link SymbolVisibility.Restricted}.
+	 * @deprecated Use {@link Symbol.isotopes} instead.
 	 */
 	visibilityRestriction?: string[]
+}
+
+/**
+ * An isotope of a symbol is a different set of metadata associated with the same symbol.\
+ * Isotopes must have restricted scope.\
+ * Different isotopes can take effect in different contexts.
+ */
+export interface SymbolIsotope extends Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+	identifier: string
+	/**
+	 * The scope of this isotope. Smaller scopes always have higher priority over larger scopes.
+	 */
+	scope: SymbolIsotopeScope
+	/**
+	 * The override level of this isotope. Higher levels are priorized.
+	 */
+	overrideLevel?: number
+	/**
+	 * The documentation for this Isotope.
+	 */
+	desc?: string
+	/** Custom information about this isotope. */
+	data?: any
+	/** The namespace which this isotope can be accessed in.
+	 * Only applicable if {@link scope} is namespace.
+	 */
+	namespace?: string[]
+	/**
+	 * The contexts in which this isotope is visible.
+	 */
+	visibleWithin?: string[]
 }
 
 export const SymbolUsageTypes = Object.freeze(
@@ -448,7 +491,13 @@ export interface Symbol extends SymbolMetadata, Partial<Record<SymbolUsageType, 
 	 */
 	parentSymbol?: Symbol
 	path: readonly string[]
+	/**
+	 * {@link SymbolIsotope} of this symbol.
+	 * A valid Isotope will take priority over the base symbol metadata.
+	 */
+	isotopes?: SymbolIsotope[]
 }
+
 export namespace Symbol {
 	export function get(
 		table: SymbolTable | Iterable<SymbolTable>,

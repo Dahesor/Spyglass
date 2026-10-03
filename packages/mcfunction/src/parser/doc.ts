@@ -211,25 +211,43 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	if (!node.valid) {
 		return
 	}
-	const target = ctx.meta.getCustom<DocTargets>('impdoc:target')?.get(node.directive.value)
-	if (!target) {
+	const docTarget = ctx.meta.getCustom<DocTargets>('impdoc:target')?.get(node.directive.value)
+	if (!docTarget) {
 		return
 	}
+	// must handle access modifiers first before symbols binding
+	const accessModifierSeen: string[] = []
+	for (const occurrence of node.docDirectives) {
+		const docDirective = getDocDirective(ctx.meta, docTarget, occurrence.identifier)
+		if (
+			!occurrence.valid || !docDirective
+			|| (!docDirective.allowDuplicates && accessModifierSeen.includes(docDirective.identifier))
+		) {
+			continue
+		}
+		accessModifierSeen.push(docDirective.identifier)
+		if (docDirective.isAccessModifier) {
+			docDirective.modifyAccess(occurrence, node, ctx)
+		}
+	}
 	const errors = ctx.err.errors.length
-	target.binder(node, ctx)
+	docTarget.binder(node, ctx)
 	if (ctx.err.errors.length !== errors) {
 		return
 	}
 	const seenDirectives: string[] = []
-	for (const directive of node.docDirectives) {
-		if (directive.valid) {
-			handleDocDirective(directive, target, node, ctx, seenDirectives)
+	for (const docDirective of node.docDirectives) {
+		if (docDirective.valid) {
+			handleDocDirective(docDirective, docTarget, node, ctx, seenDirectives)
 		}
 	}
 	core.traversePreOrder(node, () => true, child => !!child.symbol, child => {
 		const symbol = child.symbol!
 		ctx.symbols.query({ doc: ctx.doc, node: child }, symbol.category, ...symbol.path).amend({
-			data: { desc: node.description ?? '' },
+			data: {
+				desc: node.description ?? '',
+				visibility: symbol.visibility ?? core.SymbolVisibility.Public,
+			},
 		})
 	})
 })
@@ -351,9 +369,6 @@ function handleDocDirective(
 		return undefined
 	}
 	seenDirectives.push(identifier)
-	if (directive.isAccessModifier) {
-		directive.modifyAccess(occurrence, node, ctx)
-	}
 	return directive.handleDirective(occurrence, node, ctx)
 }
 

@@ -150,7 +150,7 @@ export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, c
 	}
 	if (node.options.category) {
 		ctx.symbols.query(
-			ctx.doc,
+			{ doc: ctx.doc, node },
 			node.isTag ? `tag/${node.options.category}` : node.options.category,
 			sanitizedRaw,
 		).enter({
@@ -168,7 +168,7 @@ export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, c
 export const symbol = SyncBinder.create<SymbolBaseNode>((node, ctx) => {
 	if (node.value) {
 		const path = node.options.parentPath ? [...node.options.parentPath, node.value] : [node.value]
-		ctx.symbols.query(ctx.doc, node.options.category, ...path).enter({
+		ctx.symbols.query({ doc: ctx.doc, node }, node.options.category, ...path).enter({
 			data: { subcategory: node.options.subcategory },
 			usage: { type: node.options.usageType, node, accessType: node.options.accessType },
 		})
