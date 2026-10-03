@@ -153,7 +153,7 @@ export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, c
 			{ doc: ctx.doc, node },
 			node.isTag ? `tag/${node.options.category}` : node.options.category,
 			sanitizedRaw,
-		).enter({
+		)[ctx.doc.languageId === 'mcfunction' ? 'enterCommand' : 'enter']({
 			usage: { type: node.options.usageType, node, accessType: node.options.accessType },
 		})
 	}
@@ -168,10 +168,11 @@ export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, c
 export const symbol = SyncBinder.create<SymbolBaseNode>((node, ctx) => {
 	if (node.value) {
 		const path = node.options.parentPath ? [...node.options.parentPath, node.value] : [node.value]
-		ctx.symbols.query({ doc: ctx.doc, node }, node.options.category, ...path).enter({
-			data: { subcategory: node.options.subcategory },
-			usage: { type: node.options.usageType, node, accessType: node.options.accessType },
-		})
+		ctx.symbols.query({ doc: ctx.doc, node }, node.options.category, ...path)
+			[ctx.doc.languageId === 'mcfunction' ? 'enterCommand' : 'enter']({
+				data: { subcategory: node.options.subcategory },
+				usage: { type: node.options.usageType, node, accessType: node.options.accessType },
+			})
 	}
 })
 

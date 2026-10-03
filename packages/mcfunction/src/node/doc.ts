@@ -1,5 +1,20 @@
 import type * as core from '@spyglassmc/core'
 
+/** Access policy resolved by a doc directive before the target is bound. */
+export type DocAccess =
+	| {
+		visibility:
+			| core.SymbolVisibility.Public
+			| core.SymbolVisibility.File
+			| core.SymbolVisibility.Block
+	}
+	| {
+		visibility: core.SymbolVisibility.Restricted
+		isotope: Pick<core.SymbolIsotope, 'scope' | 'overrideLevel' | 'namespace'> & {
+			visibleWithin: string[]
+		}
+	}
+
 export interface DocNode extends core.AstNode {
 	type: 'mcfunction:doc'
 	children: core.AstNode[]
@@ -10,7 +25,7 @@ export interface DocNode extends core.AstNode {
 	isFunctionHeader?: boolean
 	isImplicitFunction?: boolean
 	valid: boolean
-	visibility?: core.SymbolVisibility
+	access?: DocAccess
 }
 
 export interface DocDirectiveNode extends core.AstNode {

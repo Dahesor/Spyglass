@@ -13,7 +13,7 @@ import type {
 import { ColorPresentation, completer, traversePreOrder } from '../processor/index.js'
 import { Range } from '../source/index.js'
 import type { SymbolLocation, SymbolUsageType } from '../symbol/index.js'
-import { SymbolUsageTypes } from '../symbol/index.js'
+import { SymbolUsageTypes, SymbolUtil } from '../symbol/index.js'
 import {
 	CodeActionProviderContext,
 	ColorizerContext,
@@ -186,7 +186,10 @@ export class Service {
 			this.debug(`Getting hover for ${doc.uri} # ${doc.version} @ ${offset}`)
 			let node = AstNode.findDeepestChild({ node: file, needle: offset })
 			while (node) {
-				const symbol = this.project.symbols.resolveAlias(node.symbol)
+				const symbol = SymbolUtil.viewFromContext(
+					this.project.symbols.resolveAlias(node.symbol),
+					doc.uri,
+				)
 				if (symbol) {
 					const hover =
 						`\`\`\`typescript\n(${symbol.category}${
@@ -265,7 +268,10 @@ export class Service {
 			)
 			let node = AstNode.findDeepestChild({ node: file, needle: offset })
 			while (node) {
-				const symbol = this.project.symbols.resolveAlias(node.symbol)
+				const symbol = SymbolUtil.viewFromContext(
+					this.project.symbols.resolveAlias(node.symbol),
+					doc.uri,
+				)
 				if (symbol) {
 					const rawLocations: SymbolLocation[] = []
 					for (const usage of searchedUsages) {
