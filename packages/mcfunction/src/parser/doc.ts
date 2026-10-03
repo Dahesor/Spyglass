@@ -163,6 +163,7 @@ function parseDirective(src: core.Source, isInline: boolean): DocDirectiveNode {
 	const start = src.cursor
 	src.skip()
 	const identifier = src.readUntil(...core.Whitespaces)
+	const identifierRange = core.Range.create(start, src)
 	const args: string[] = []
 	if (!isInline) {
 		while (src.skipSpace().canReadInLine()) {
@@ -173,6 +174,7 @@ function parseDirective(src: core.Source, isInline: boolean): DocDirectiveNode {
 		type: 'mcfunction:doc_directive',
 		range: core.Range.create(start, src),
 		identifier,
+		identifierRange,
 		arguments: args,
 		isInline,
 		valid: false,
@@ -349,22 +351,57 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 })
 
 export const completeDoc: core.Completer<DocNode> = (node, ctx) => {
+	const docTargets = ctx.meta.getCustom<DocTargets>('impdoc:target')
+	const docTarget = docTargets?.get(node.directive.value)
+	const docDirectives = [...(ctx.meta.getCustom<DocDirective>('impdoc:directive')?.values() ?? [])]
+	const accepts = (docDirective: DocDirective, candidate: DocTargets) =>
+		docDirective.isCommon || candidate.acceptedDirectives.includes(docDirective.identifier)
+	const inlineDocDirectives = docDirectives.filter(docDirective =>
+		docDirective.isAccessModifier && !docDirective.hasMandatoryArgument
+	)
+	const completeDirectives = (pool: DocDirective[], range: core.RangeLike) =>
+		pool.map(docDirective =>
+			core.CompletionItem.create(`@${docDirective.identifier}`, range, {
+				kind: core.CompletionKind.Property,
+			})
+		)
+	const occurrence = node.docDirectives.find(docDirective =>
+		core.Range.contains(docDirective.range, ctx.offset, true)
+	)
+	if (occurrence) {
+		if (ctx.offset > occurrence.identifierRange.end) {
+			return []
+		}
+		return completeDirectives(
+			occurrence.isInline
+				? inlineDocDirectives
+				: docDirectives.filter(directive => docTarget && accepts(directive, docTarget)),
+			occurrence.identifierRange,
+		)
+	}
 	if (
-		node.docDirectives.some(directive => core.Range.contains(directive.range, ctx.offset, true))
+		node.children.some(child =>
+			child.type === 'comment' && core.Range.contains(child.range, ctx.offset, true)
+		)
 	) {
 		return []
 	}
-	if (node.children.some(child => child.type === 'comment' && ctx.offset >= child.range.start)) {
+	if (ctx.offset < node.range.start + 2) {
 		return []
 	}
-	if (ctx.offset < node.directive.range.start) {
-		return []
+	const emptyImplicitFunction = node.isImplicitFunction && node.fields[0]?.range.start
+			=== node.fields[0]?.range.end
+	if (
+		ctx.offset <= node.directive.range.end
+		&& (!node.isImplicitFunction || emptyImplicitFunction)
+	) {
+		const range = ctx.offset < node.directive.range.start
+			? core.Range.create(ctx.offset)
+			: node.directive.range
+		const items = core.completer.literal({ ...node.directive, range }, ctx)
+		return node.docDirectives.some(directive => directive.isInline)
+			? items
+			: [...items, ...completeDirectives(inlineDocDirectives, range)]
 	}
-	if (!node.isImplicitFunction && ctx.offset <= node.directive.range.end) {
-		return core.completer.literal(node.directive, ctx)
-	}
-	return ctx.meta.getCustom<DocTargets>('impdoc:target')?.get(node.directive.value)?.completer(
-		node,
-		ctx,
-	) ?? []
+	return docTarget?.completer(node, ctx) ?? []
 }
