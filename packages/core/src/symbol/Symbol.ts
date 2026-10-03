@@ -446,6 +446,9 @@ export interface SymbolMetadata {
  * Different isotopes can take effect in different contexts.
  */
 export interface SymbolIsotope extends Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+	/** This isotope is owned by its doc declaration locations. */
+	docDeclaration?: boolean
+
 	identifier: string
 	/**
 	 * The scope of this isotope. Smaller scopes always have higher priority over larger scopes.
@@ -460,7 +463,7 @@ export interface SymbolIsotope extends Partial<Record<SymbolUsageType, SymbolLoc
 	 */
 	desc?: string
 	/** Custom information about this isotope. */
-	data?: any
+	data?: unknown
 	/** The namespace which this isotope can be accessed in.
 	 * Only applicable if {@link scope} is namespace.
 	 */
@@ -526,6 +529,9 @@ export namespace Symbol {
 }
 
 export interface SymbolLocationMetadata {
+	docDeclaration?: boolean
+	originalUsageType?: SymbolUsageType
+
 	/**
 	 * @default SymbolAccessType.Read
 	 */

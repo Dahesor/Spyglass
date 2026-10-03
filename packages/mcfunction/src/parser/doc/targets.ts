@@ -1,18 +1,19 @@
 import * as core from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type { DocNode } from '../../node/index.js'
-import { DefaultDocTarget, registerDocTarget } from '../doc.js'
+import { declareDocSymbol, DefaultDocTarget, registerDocTarget } from '../doc.js'
 
 export function registerDocTargets(meta: core.MetaRegistry): void {
-	registerDocTarget(meta, new TagDocTarget())
 	registerDocTarget(meta, new FunctionDocTarget())
-	registerDocTarget(meta, new ObjectiveDocTarget())
-	registerDocTarget(meta, new ScoreDocTarget())
+	registerDocTarget(meta, new SymbolDocTarget('tag', 'tag'))
+	registerDocTarget(meta, new SymbolDocTarget('objective', 'objective'))
+	registerDocTarget(meta, new SymbolDocTarget('team', 'team'))
+	registerDocTarget(meta, new SymbolDocTarget('score', 'score_holder', false))
 }
 
 class SymbolDocTarget extends DefaultDocTarget {
 	constructor(
-		public override identifier: string,
+		public override readonly identifier: string,
 		private readonly category: string,
 		private readonly unquotable = true,
 	) {
@@ -24,10 +25,7 @@ class SymbolDocTarget extends DefaultDocTarget {
 		if (!core.SymbolNode.is(tag) || tag.options.category !== this.category) {
 			return
 		}
-		ctx.symbols.query({ doc: ctx.doc, node: tag }, this.category, tag.value).enter({
-			data: { visibility: node.visibility ?? core.SymbolVisibility.Public },
-			usage: { type: 'declaration', node: tag },
-		})
+		declareDocSymbol(node, tag, this.category, tag.value, ctx)
 	}
 
 	override completer(
@@ -100,8 +98,8 @@ export class ScoreDocTarget extends SymbolDocTarget {
 	}
 }
 
-export class FunctionDocTarget extends DefaultDocTarget {
-	override identifier = 'function'
+class FunctionDocTarget extends DefaultDocTarget {
+	override readonly identifier = 'function'
 
 	override parser(src: core.Source, ctx: core.ParserContext, node: DocNode): boolean {
 		const errors = ctx.err.errors.length
@@ -120,10 +118,18 @@ export class FunctionDocTarget extends DefaultDocTarget {
 			return
 		}
 		if (node.isFunctionHeader) {
-			const currentFunction = Object.values(
-				ctx.symbols.getVisibleSymbols('function', ctx.doc.uri),
-			)
-				.find(symbol => symbol.definition?.some(location => location.uri === ctx.doc.uri))
+			const currentFunction = Object.values(ctx.symbols.global.function ?? {}).find(symbol => {
+				let found = false
+				core.SymbolUtil.forEachLocationOfSymbol(symbol, ({ type, location }) => {
+					if (
+						(type === 'definition' || type === 'implementation')
+						&& location.uri === ctx.doc.uri
+					) {
+						found = true
+					}
+				})
+				return found
+			})
 			const identifier = core.ResourceLocationNode.toString(field, 'full')
 			if (!currentFunction || currentFunction.identifier !== identifier) {
 				ctx.err.report(
@@ -135,7 +141,7 @@ export class FunctionDocTarget extends DefaultDocTarget {
 				)
 				return
 			}
-			if (node.visibility === core.SymbolVisibility.File) {
+			if (node.access?.visibility === core.SymbolVisibility.File) {
 				ctx.symbols.clear({
 					uri: ctx.doc.uri,
 					contributor: 'uri_binder',
@@ -149,23 +155,28 @@ export class FunctionDocTarget extends DefaultDocTarget {
 				const query = ctx.symbols.query({ doc: ctx.doc, node: field }, 'function', identifier)
 				query.enter({
 					data: { visibility: core.SymbolVisibility.File },
-					usage: { type: 'definition', range: core.Range.create(0) },
+					usage: { type: 'implementation', range: core.Range.create(0) },
 				})
+				declareDocSymbol(node, field, 'function', identifier, ctx)
 				field.symbol = query.symbol
 				return
 			}
-			field.symbol = currentFunction
+			// Preserve file identity as an implementation under a matching doc declaration.
+			for (const location of currentFunction.definition ?? []) {
+				if (location.uri === ctx.doc.uri) {
+					location.originalUsageType = 'definition'
+				}
+			}
+			declareDocSymbol(node, field, 'function', identifier, ctx)
 			return
 		}
-		ctx.symbols.query(
-			{ doc: ctx.doc, node: field },
+		declareDocSymbol(
+			node,
+			field,
 			'function',
 			core.ResourceLocationNode.toString(field, 'full'),
+			ctx,
 		)
-			.enter({
-				data: { visibility: node.visibility ?? core.SymbolVisibility.Public },
-				usage: { type: 'declaration', node: field },
-			})
 	}
 
 	override completer(

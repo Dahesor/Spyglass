@@ -25,6 +25,7 @@ import type { CompleterContext, MetaRegistry } from '../../service/index.js'
 import { LinterConfigValue } from '../../service/index.js'
 import type { RangeLike } from '../../source/index.js'
 import { Range } from '../../source/index.js'
+import type { Symbol } from '../../symbol/index.js'
 import { SymbolUtil } from '../../symbol/index.js'
 import type { ColorTokenType } from '../colorizer/index.js'
 import type { Completer } from './Completer.js'
@@ -179,16 +180,16 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 			doc: ctx.doc,
 			node: node as ResourceLocationNode,
 		})
-		for (const [key, symbol] of Object.entries(symbols)) {
-			if (SymbolUtil.isDeclared(symbol)) {
+		const declarations: string[] = []
+		for (const [key, raw] of Object.entries(symbols)) {
+			const symbol = SymbolUtil.viewFromContext(raw, ctx.doc.uri)
+			if (symbol && SymbolUtil.isDeclared(symbol)) {
+				declarations.push(key)
 				for (const label of optimizePool([key])) {
 					descriptions.set(`${category}\0${label}`, symbol.desc)
 				}
 			}
 		}
-		const declarations = Object.entries(symbols).flatMap(([key, symbol]) =>
-			SymbolUtil.isDeclared(symbol) ? [key] : []
-		)
 		return optimizePool(declarations)
 	}
 	const optimizePool = (pool: readonly string[]) => {
@@ -369,7 +370,10 @@ export const symbol: Completer<SymbolBaseNode> = (node, ctx) => {
 		node: node as SymbolBaseNode,
 	}, path)
 	return Object.entries(symbols)
-		.filter(([k, v]) => SymbolUtil.isDeclared(v))
+		.map(([k, v]) => [k, SymbolUtil.viewFromContext(v, ctx.doc.uri)] as const)
+		.filter((entry): entry is readonly [string, Symbol] =>
+			!!entry[1] && SymbolUtil.isDeclared(entry[1])
+		)
 		.map(([k, v]) =>
 			CompletionItem.create(k, node, { kind: CompletionKind.Variable, documentation: v.desc })
 		)
