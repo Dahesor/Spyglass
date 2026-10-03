@@ -1,9 +1,16 @@
 import * as core from '@spyglassmc/core'
 import { localize } from '@spyglassmc/locales'
-import type { CommandNode, CommandOptions, MacroNode, McfunctionNode } from '../node/index.js'
+import type {
+	CommandNode,
+	CommandOptions,
+	DocNode,
+	MacroNode,
+	McfunctionNode,
+} from '../node/index.js'
 import type { RootTreeNode } from '../tree/index.js'
 import type { ArgumentParserGetter } from './argument.js'
 import { command } from './command.js'
+import { doc } from './doc.js'
 import { macro } from './macro.js'
 
 export interface McfunctionOptions {
@@ -25,9 +32,9 @@ function mcfunction(
 		}
 
 		while (src.skipWhitespace().canReadInLine()) {
-			let result: core.CommentNode | CommandNode | MacroNode | core.ErrorNode
+			let result: core.CommentNode | CommandNode | MacroNode | DocNode | core.ErrorNode
 			if (src.peek() === '#') {
-				result = comment(src, ctx) as core.CommentNode
+				result = src.tryPeek('#>') ? doc(src, ctx) : comment(src, ctx) as core.CommentNode
 			} else if (src.peek() === '$') {
 				const start = src.cursor
 				if (options.macros) {

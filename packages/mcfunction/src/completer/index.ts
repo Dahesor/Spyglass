@@ -1,7 +1,7 @@
 import type { DeepReadonly } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
 import type { CommandChildNode, McfunctionNode } from '../node/index.js'
-import { CommandNode } from '../node/index.js'
+import { CommandNode, DocNode } from '../node/index.js'
 import type { ArgumentTreeNode, RootTreeNode } from '../tree/index.js'
 import { categorizeTreeChildren, redirect, resolveParentTreeNode } from '../tree/index.js'
 
@@ -23,6 +23,8 @@ export function entry(
 		const childNode = core.AstNode.findChild(node, ctx.offset, true)
 		if (CommandNode.is(childNode)) {
 			return command(tree, getMockNodes)(childNode ?? CommandNode.mock(ctx.offset), ctx)
+		} else if (DocNode.is(childNode)) {
+			return core.completer.dispatch(childNode, ctx)
 		} else {
 			return []
 		}

@@ -172,9 +172,17 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 	const includeEmptyNamespace = !node.options.requireCanonical && node.namespace === ''
 	const includeDefaultNamespace = node.options.requireCanonical || config?.ruleValue !== true
 	const excludeDefaultNamespace = !node.options.requireCanonical && config?.ruleValue !== false
+	const descriptions = new Map<string, string | undefined>()
 
 	const getPool = (category: string) => {
 		const symbols = ctx.symbols.getVisibleSymbols(category, ctx.doc.uri)
+		for (const [key, symbol] of Object.entries(symbols)) {
+			if (SymbolUtil.isDeclared(symbol)) {
+				for (const label of optimizePool([key])) {
+					descriptions.set(`${category}\0${label}`, symbol.desc)
+				}
+			}
+		}
 		const declarations = Object.entries(symbols).flatMap(([key, symbol]) =>
 			SymbolUtil.isDeclared(symbol) ? [key] : []
 		)
@@ -234,7 +242,15 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 				: []),
 		]
 
-	const items = pool.map((v) => CompletionItem.create(v, node, { kind: CompletionKind.Function }))
+	const items = pool.map((v) => {
+		const isTag = v.startsWith(ResourceLocation.TagPrefix)
+		const category = isTag ? `tag/${node.options.category}` : node.options.category
+		const label = isTag ? v.slice(ResourceLocation.TagPrefix.length) : v
+		return CompletionItem.create(v, node, {
+			kind: CompletionKind.Function,
+			documentation: descriptions.get(`${category}\0${label}`),
+		})
+	})
 
 	if (node.options.category) {
 		const symbols = ctx.symbols.getVisibleSymbols(node.options.category, ctx.doc.uri)
@@ -345,7 +361,9 @@ export const symbol: Completer<SymbolBaseNode> = (node, ctx) => {
 	const symbols = ctx.symbols.query(ctx.doc, node.options.category, ...path).visibleMembers
 	return Object.entries(symbols)
 		.filter(([k, v]) => SymbolUtil.isDeclared(v))
-		.map(([k, v]) => CompletionItem.create(k, node, { kind: CompletionKind.Variable }))
+		.map(([k, v]) =>
+			CompletionItem.create(k, node, { kind: CompletionKind.Variable, documentation: v.desc })
+		)
 }
 
 export function registerCompleters(meta: MetaRegistry) {
