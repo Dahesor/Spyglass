@@ -422,13 +422,14 @@ connection.onDefinition(async ({ textDocument: { uri }, position }) => {
 		return undefined
 	}
 	const { doc, node } = docAndNode
-	const ans = await service.getSymbolLocations(node, doc, toCore.offset(position, doc), [
-		'definition',
-		'declaration',
-		'implementation',
-		'typeDefinition',
-	])
-	return toLS.locationLink(ans, doc, capabilities.textDocument?.definition?.linkSupport)
+	const offset = toCore.offset(position, doc)
+	for (const usage of ['definition', 'declaration', 'implementation'] as const) {
+		const ans = await service.getSymbolLocations(node, doc, offset, [usage])
+		if (ans?.locations?.length) {
+			return toLS.locationLink(ans, doc, capabilities.textDocument?.definition?.linkSupport)
+		}
+	}
+	return undefined
 })
 connection.onImplementation(async ({ textDocument: { uri }, position }) => {
 	const docAndNode = await service.project.ensureClientManagedChecked(uri)

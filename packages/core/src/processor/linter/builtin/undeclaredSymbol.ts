@@ -10,7 +10,9 @@ import { SymbolUtil, SymbolVisibility } from '../../../symbol/index.js'
 import type { Linter } from '../Linter.js'
 
 export const undeclaredSymbol: Linter<AstNode> = (node, ctx) => {
-	if (!node.symbol || SymbolUtil.isDeclared(node.symbol)) {
+	if (
+		!node.symbol || SymbolUtil.isDeclared(SymbolUtil.viewFromContext(node.symbol, ctx.doc.uri))
+	) {
 		return
 	}
 	const action = getAction(ctx.ruleValue as Config, node.symbol, ctx)

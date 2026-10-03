@@ -1,6 +1,6 @@
 import * as core from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
-import type { DocDirectiveNode, DocNode } from '../node/index.js'
+import type { DocAccess, DocDirectiveNode, DocNode } from '../node/index.js'
 
 export type DocDirectiveOverride = ReadonlyMap<
 	string,
@@ -44,7 +44,7 @@ export interface DocDirective {
 		directive: core.DeepReadonly<DocDirectiveNode>,
 		node: DocNode,
 		ctx: core.BinderContext,
-	): void
+	): DocAccess | undefined
 	handleDirective(
 		directive: core.DeepReadonly<DocDirectiveNode>,
 		node: DocNode,
@@ -53,9 +53,9 @@ export interface DocDirective {
 }
 
 export class DefaultDocTarget implements DocTargets {
-	identifier: string = 'default'
-	acceptedDirectives: string[] = []
-	directiveOverrides: DocDirectiveOverride = new Map()
+	readonly identifier: string = 'default'
+	readonly acceptedDirectives: string[] = []
+	readonly directiveOverrides: DocDirectiveOverride = new Map()
 	parser(_src: core.Source, _ctx: core.ParserContext, _node: DocNode): boolean {
 		return true
 	}
@@ -69,16 +69,17 @@ export class DefaultDocTarget implements DocTargets {
 }
 
 export class DefaultDocDirective implements DocDirective {
-	identifier: string = 'null'
-	isCommon: boolean = true
-	allowDuplicates: boolean = false
-	isAccessModifier: boolean = false
-	hasMandatoryArgument: boolean = false
+	readonly identifier: string = 'null'
+	readonly isCommon: boolean = true
+	readonly allowDuplicates: boolean = false
+	readonly isAccessModifier: boolean = false
+	readonly hasMandatoryArgument: boolean = false
 	modifyAccess(
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
 		_ctx: core.BinderContext,
-	): void {
+	): DocAccess | undefined {
+		return undefined
 	}
 	handleDirective(
 		_directive: core.DeepReadonly<DocDirectiveNode>,
@@ -86,6 +87,36 @@ export class DefaultDocDirective implements DocDirective {
 		_ctx: core.BinderContext,
 	): string {
 		return ''
+	}
+}
+
+/** Writes a symbol declaration for a doc block */
+export function declareDocSymbol(
+	node: DocNode,
+	field: core.AstNode,
+	category: string,
+	identifier: string,
+	ctx: core.BinderContext,
+): void {
+	const query = ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
+	const usage = { type: 'declaration' as const, node: field, docDeclaration: true }
+	if (node.access?.visibility === core.SymbolVisibility.Restricted) {
+		query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
+			data: {
+				...node.access.isotope,
+				docDeclaration: true,
+				desc: node.description ?? '',
+			},
+			usage,
+		})
+	} else {
+		query.enter({
+			data: {
+				visibility: node.access?.visibility ?? core.SymbolVisibility.Public,
+				desc: node.description ?? '',
+			},
+			usage,
+		})
 	}
 }
 
@@ -215,7 +246,8 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	if (!docTarget) {
 		return
 	}
-	// must handle access modifiers first before symbols binding
+	// Resolve the access policy before binding the target.
+	node.access = undefined
 	const accessModifierSeen: string[] = []
 	for (const occurrence of node.docDirectives) {
 		const docDirective = getDocDirective(ctx.meta, docTarget, occurrence.identifier)
@@ -227,7 +259,10 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 		}
 		accessModifierSeen.push(docDirective.identifier)
 		if (docDirective.isAccessModifier) {
-			docDirective.modifyAccess(occurrence, node, ctx)
+			const access = docDirective.modifyAccess(occurrence, node, ctx)
+			if (access) {
+				node.access = access
+			}
 		}
 	}
 	const errors = ctx.err.errors.length
@@ -243,6 +278,9 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	}
 	core.traversePreOrder(node, () => true, child => !!child.symbol, child => {
 		const symbol = child.symbol!
+		if (node.access?.visibility === core.SymbolVisibility.Restricted) {
+			return
+		}
 		ctx.symbols.query({ doc: ctx.doc, node: child }, symbol.category, ...symbol.path).amend({
 			data: {
 				desc: node.description ?? '',
