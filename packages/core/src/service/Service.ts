@@ -276,11 +276,7 @@ export class Service {
 		offset: number,
 	): Promise<SymbolLocations | undefined> {
 		return this.getSymbolLocationsByPriority(file, doc, offset, symbol => {
-			const fromFile = [symbol, ...(symbol.isotopes ?? [])].some(owner =>
-				owner.definition?.some(location => location.fromFile)
-				|| owner.implementation?.some(location => location.fromFile)
-			)
-			return fromFile
+			return SymbolUtil.isFromFile(symbol)
 				? [['definition'], ['implementation'], ['declaration']]
 				: [['definition'], ['declaration'], ['implementation']]
 		})
