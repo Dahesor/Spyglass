@@ -526,9 +526,9 @@ export namespace Symbol {
 }
 
 export interface SymbolLocationMetadata {
-	docDeclaration?: boolean
+	fromDocDeclaration?: boolean
+	fromFile?: boolean
 	originalUsageType?: SymbolUsageType
-
 	/**
 	 * @default SymbolAccessType.Read
 	 */

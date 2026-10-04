@@ -1,9 +1,33 @@
-import { SymbolFormatter, UriBinderContext } from '@spyglassmc/core'
+import { SymbolFormatter, SymbolUtil, UriBinderContext } from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import { uriBinder } from '@spyglassmc/mcdoc/lib/uri_processors.js'
 import { describe, it } from 'node:test'
 
 describe('mcdoc uriBinder()', () => {
+	it('keeps module definitions independent of scoped doc declarations', t => {
+		const project = mockProjectData({ roots: ['file:///root/'] })
+		const uri = 'file:///root/example.mcdoc'
+		const docUri = 'file:///root/private/doc.mcfunction'
+		project.symbols.contributeAs(
+			'uri_binder',
+			() => uriBinder([uri], UriBinderContext.create(project)),
+		)
+		project.symbols.contributeAs('binder', () => {
+			project.symbols.query(docUri, 'mcdoc', '::example').enterIsotope('doc', {
+				data: { scope: 0, visibleWithin: ['**/private/**'], docDeclaration: true },
+				usage: { type: 'declaration', fromDocDeclaration: true },
+			})
+		})
+		const symbol = project.symbols.global.mcdoc!['::example']
+		t.assert.equal(symbol.subcategory, 'module')
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.definition?.[0].uri, uri)
+		t.assert.equal(symbol.definition?.[0].fromFile, undefined)
+		t.assert.equal(symbol.definition?.[0].originalUsageType, undefined)
+		t.assert.equal(symbol.isotopes?.[0].implementation?.length ?? 0, 0)
+		project.symbols.clear({ uri: docUri })
+		t.assert.equal(symbol.definition?.length, 1)
+		t.assert.equal(symbol.definition?.[0].uri, uri)
+	})
 	const suites: { uris: string[] }[] = [
 		{
 			uris: [

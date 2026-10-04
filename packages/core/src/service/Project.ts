@@ -750,6 +750,7 @@ export class Project extends EventDispatcher<{
 		}
 		try {
 			this.#bindingInProgressUris.add(doc.uri)
+			this.bindUri(doc.uri)
 			const binder = this.meta.getBinder(node.type)
 			const ctx = BinderContext.create(this, { doc })
 			ctx.symbols.clear({ contributor: 'binder', uri: doc.uri })
