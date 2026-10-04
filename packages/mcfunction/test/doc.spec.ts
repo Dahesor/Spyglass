@@ -1,5 +1,6 @@
 import * as core from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
+import { localize } from '@spyglassmc/locales'
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { entry, initialize } from '../lib/index.js'
@@ -238,5 +239,115 @@ describe('doc access and command usages', () => {
 			complete(root + 'outside.mcfunction').some(item => item.label === 'coins'),
 			false,
 		)
+	})
+})
+
+describe('doc directive descriptions', () => {
+	function setupDescriptions(t: { after: (fn: () => Promise<unknown>) => void }, text: string) {
+		const project = mockProjectData({ logger: core.Logger.noop() })
+		const service = new core.Service({
+			logger: project.logger,
+			project: { cacheRoot: project.cacheRoot, externals: project.externals, projectRoots: [] },
+		})
+		t.after(() => service.project.close())
+		initialize(service.project)
+		const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
+		const parse = () => {
+			const ctx = core.ParserContext.create(service.project, { doc })
+			const node = parseDoc(new core.Source(text).skip(), ctx)
+			const file: core.FileNode<core.AstNode> = {
+				type: 'file',
+				range: core.Range.create(0, text.length),
+				children: [node],
+				locals: {},
+				parserErrors: ctx.err.errors,
+			}
+			core.AstNode.setParents(file)
+			return { node, file }
+		}
+		const complete = (node: core.DeepReadonly<core.AstNode>, offset: number) =>
+			service.project.meta.getCompleter('mcfunction:doc')(
+				node,
+				core.CompleterContext.create(service.project, { doc, offset }),
+			)
+		return { service, doc, parse, complete }
+	}
+
+	for (const inline of [true, false]) {
+		const text = inline ? '\n#> @private objective coins' : '\n#> objective coins\n# @private'
+		it(`shows the actual built-in directive description in completion and hover (inline: ${inline})`, t => {
+			const env = setupDescriptions(t, text)
+			const { node, file } = env.parse()
+			t.assert.deepEqual(file.parserErrors, [])
+			const offset = text.indexOf('@private') + 2
+			const expected = localize('mcfunction.doc.directive.desc.private')
+			t.assert.notEqual(expected, 'mcfunction.doc.directive.desc.private')
+			t.assert.equal(
+				env.complete(node, offset).find(item => item.label === '@private')?.documentation,
+				expected,
+			)
+			t.assert.equal(env.service.getHover(file, env.doc, offset)?.markdown, expected)
+		})
+		it(`joins localized descriptions with rendered line breaks (inline: ${inline})`, t => {
+			const env = setupDescriptions(t, text)
+			class DescribedPrivate extends DefaultDocDirective {
+				override readonly identifier = 'private'
+				override readonly isAccessModifier = true
+				override get description() {
+					return ['mcfunction.doc.directive.desc.private', 'mcfunction.doc.directive.desc.local']
+				}
+			}
+			registerDocDirective(env.service.project.meta, new DescribedPrivate())
+			const { node, file } = env.parse()
+			const offset = text.indexOf('@private') + 2
+			const first = localize('mcfunction.doc.directive.desc.private')
+			const second = localize('mcfunction.doc.directive.desc.local')
+			const expected = `${first}  \n${second}`
+			t.assert.equal(
+				env.complete(node, offset).find(item => item.label === '@private')?.documentation,
+				expected,
+			)
+			t.assert.equal(env.service.getHover(file, env.doc, offset)?.markdown, expected)
+		})
+	}
+	for (const keys of [undefined, []]) {
+		it(`omits completion documentation and hover when the description is absent or empty (${keys})`, t => {
+			const text = '\n#> @private objective coins'
+			const env = setupDescriptions(t, text)
+			class UndescribedPrivate extends DefaultDocDirective {
+				override readonly identifier = 'private'
+				override readonly isAccessModifier = true
+				override get description() {
+					return keys
+				}
+			}
+			registerDocDirective(env.service.project.meta, new UndescribedPrivate())
+			const { node, file } = env.parse()
+			const offset = text.indexOf('@private') + 2
+			t.assert.equal(
+				env.complete(node, offset).find(item => item.label === '@private')?.documentation,
+				undefined,
+			)
+			t.assert.equal(env.service.getHover(file, env.doc, offset), undefined)
+		})
+	}
+	it('documents directives suggested after the doc marker', t => {
+		const env = setupDescriptions(t, '\n#> ')
+		const { node } = env.parse()
+		t.assert.equal(
+			env.complete(node, env.doc.getText().length).find(item => item.label === '@public')?.documentation,
+			localize('mcfunction.doc.directive.desc.public'),
+		)
+	})
+	it('provides localized descriptions for all built-in block directives', t => {
+		const text = '\n#> function demo:test\n# @'
+		const env = setupDescriptions(t, text)
+		const { node } = env.parse()
+		const completions = env.complete(node, text.length)
+		t.assert.equal(completions.some(item => item.label === '@input'), true)
+		for (const item of completions) {
+			t.assert.equal(typeof item.documentation, 'string')
+			t.assert.equal(item.documentation?.includes('mcfunction.doc.directive.desc.'), false)
+		}
 	})
 })

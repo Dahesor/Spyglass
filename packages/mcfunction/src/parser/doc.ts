@@ -12,7 +12,7 @@ export type DocDirectiveOverride = ReadonlyMap<
 */
 export interface DocTargets {
 	/** Its identifier, for example, `tag` */
-	identifier: string
+	readonly identifier: string
 	/**
 	 * Its own parser for fields.
 	 * @returns Whether the fields are valid.
@@ -31,15 +31,17 @@ export interface DocTargets {
 */
 export interface DocDirective {
 	/** Its identifier, for example, `public` */
-	identifier: string
+	readonly identifier: string
 	/** If this directive can be used for any doc target. */
-	isCommon: boolean
+	readonly isCommon: boolean
 	/** If this directive is an access modifier */
-	isAccessModifier: boolean
+	readonly isAccessModifier: boolean
 	/** If it requires one or more arguments */
-	hasMandatoryArgument: boolean
+	readonly hasMandatoryArgument: boolean
 	/** If it may appear multiple times */
-	allowDuplicates: boolean
+	readonly allowDuplicates: boolean
+	/** Its description. Should be a list of localize key */
+	readonly description?: string[]
 	modifyAccess(
 		directive: core.DeepReadonly<DocDirectiveNode>,
 		node: DocNode,
@@ -74,6 +76,9 @@ export class DefaultDocDirective implements DocDirective {
 	readonly allowDuplicates: boolean = false
 	readonly isAccessModifier: boolean = false
 	readonly hasMandatoryArgument: boolean = false
+	get description(): string[] | undefined {
+		return ['mcfunction.doc.directive.desc.' + this.identifier]
+	}
 	modifyAccess(
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
@@ -303,6 +308,7 @@ export const completeDoc: core.Completer<DocNode> = (node, ctx) => {
 		pool.map(docDirective =>
 			core.CompletionItem.create(`@${docDirective.identifier}`, range, {
 				kind: core.CompletionKind.Property,
+				documentation: getDirectiveDescription(docDirective),
 			})
 		)
 	const occurrence = node.docDirectives.find(docDirective =>
@@ -346,6 +352,12 @@ export const completeDoc: core.Completer<DocNode> = (node, ctx) => {
 	return docTarget?.completer(node, ctx) ?? []
 }
 
+function getDirectiveDescription(directive: DocDirective): string | undefined {
+	return directive.description?.length
+		? directive.description.map(key => localize(key)).join('  \n')
+		: undefined
+}
+
 function getDocDirective(
 	meta: core.MetaRegistry,
 	target: DocTargets,
@@ -362,6 +374,7 @@ function getDocDirective(
 		isAccessModifier: directive.isAccessModifier,
 		hasMandatoryArgument: directive.hasMandatoryArgument,
 		allowDuplicates: directive.allowDuplicates,
+		description: directive.description ?? undefined,
 		modifyAccess: (occurrence, node, ctx) =>
 			overrides?.modifyAccess
 				? overrides.modifyAccess(occurrence, node, ctx)
@@ -384,13 +397,16 @@ function handleDocDirective(
 	const range = occurrence.range
 	const directive = getDocDirective(ctx.meta, target, identifier)
 	if (!directive) {
-		ctx.err.report(localize('mcfunction.doc.directive.unknown', localeQuote(identifier)), range)
+		ctx.err.report(
+			localize('mcfunction.doc.directive.diagnostic.unknown', localeQuote(identifier)),
+			range,
+		)
 		return undefined
 	}
 	if (!directive.isCommon && !target.acceptedDirectives.includes(directive.identifier)) {
 		ctx.err.report(
 			localize(
-				'mcfunction.doc.directive.disallowed',
+				'mcfunction.doc.directive.diagnostic.disallowed',
 				localeQuote(identifier),
 				localeQuote(target.identifier),
 			),
@@ -400,7 +416,7 @@ function handleDocDirective(
 	}
 	if (!directive.allowDuplicates && seenDirectives.includes(identifier)) {
 		ctx.err.report(
-			localize('mcfunction.doc.directive.duplicate', localeQuote(identifier)),
+			localize('mcfunction.doc.directive.diagnostic.duplicate', localeQuote(identifier)),
 			occurrence.identifierRange,
 			core.ErrorSeverity.Warning,
 		)
@@ -441,15 +457,16 @@ function validateDirective(
 	const docDirective = ctx.meta.getCustom<DocDirective>('impdoc:directive')?.get(node.identifier)
 	if (!docDirective) {
 		ctx.err.report(
-			localize('mcfunction.doc.directive.unknown', localeQuote(node.identifier)),
+			localize('mcfunction.doc.directive.diagnostic.unknown', localeQuote(node.identifier)),
 			node,
 		)
 		return false
 	}
+	node.hover = getDirectiveDescription(docDirective)
 	if (target && !docDirective.isCommon && !target.acceptedDirectives.includes(node.identifier)) {
 		ctx.err.report(
 			localize(
-				'mcfunction.doc.directive.disallowed',
+				'mcfunction.doc.directive.diagnostic.disallowed',
 				localeQuote(node.identifier),
 				localeQuote(target.identifier),
 			),
@@ -458,12 +475,12 @@ function validateDirective(
 		return false
 	}
 	if (node.isInline && (!docDirective.isAccessModifier || docDirective.hasMandatoryArgument)) {
-		ctx.err.report(localize('mcfunction.doc.directive.inline'), node)
+		ctx.err.report(localize('mcfunction.doc.directive.diagnostic.inline'), node)
 		return false
 	}
 	if (!node.isInline && docDirective.hasMandatoryArgument && !node.arguments.length) {
 		ctx.err.report(
-			localize('mcfunction.doc.directive.argument', localeQuote(node.identifier)),
+			localize('mcfunction.doc.directive.diagnostic.argument', localeQuote(node.identifier)),
 			node,
 		)
 		return false
