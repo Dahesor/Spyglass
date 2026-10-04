@@ -792,7 +792,12 @@ export class Project extends EventDispatcher<{
 
 		node.linterErrors = []
 		try {
-			for (const [ruleName, rawValue] of Object.entries(this.config.lint)) {
+			// Temporary. make sure 'noAccessToSymbol' rule is always on
+			const rules = [
+				['noAccessToSymbol', true] as const,
+				...Object.entries(this.config.lint).filter(([name]) => name !== 'noAccessToSymbol'),
+			]
+			for (const [ruleName, rawValue] of rules) {
 				const result = LinterConfigValue.destruct(rawValue)
 				if (!result) {
 					// Rule is disabled (i.e. set to `null`) in the config.

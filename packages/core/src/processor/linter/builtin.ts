@@ -5,6 +5,7 @@ import { isAllowedCharacter } from '../../parser/index.js'
 import type { MetaRegistry, QuoteConfig } from '../../service/index.js'
 import { SymbolLinterConfig } from '../../service/index.js'
 import { McdocCategories } from '../../symbol/index.js'
+import { noAccessToSymbol } from './builtin/noAccessToSymbol.js'
 import { undeclaredSymbol } from './builtin/undeclaredSymbol.js'
 import type { Linter } from './Linter.js'
 
@@ -127,6 +128,11 @@ export function registerLinters(meta: MetaRegistry) {
 	meta.registerLinter('undeclaredSymbol', {
 		configValidator: configValidator.symbolLinterConfig,
 		linter: undeclaredSymbol,
+		nodePredicate: (n) => n.symbol && !McdocCategories.includes(n.symbol.category as any),
+	})
+	meta.registerLinter('noAccessToSymbol', {
+		configValidator: (_name, value) => typeof value === 'boolean',
+		linter: noAccessToSymbol,
 		nodePredicate: (n) => n.symbol && !McdocCategories.includes(n.symbol.category as any),
 	})
 }
