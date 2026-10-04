@@ -131,7 +131,7 @@ describe('doc access and command usages', () => {
 		const env = setup()
 		const uri = root + 'private/doc.mcfunction'
 		env.project.symbols.contributeAs('uri_binder', () => {
-			env.project.symbols.query(uri, 'function', 'demo:private/doc').enter({
+			env.project.symbols.query(uri, 'function', 'demo:private/doc').enterFileDefinition({
 				usage: { type: 'definition' },
 			})
 		})

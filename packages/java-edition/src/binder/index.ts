@@ -328,7 +328,7 @@ export const uriBinder: UriBinder = (uris: readonly string[], ctx: UriBinderCont
 	for (const uri of uris) {
 		const parts = dissectUri(uri, ctx)
 		if (parts) {
-			ctx.symbols.query(uri, parts.category, `${parts.namespace}:${parts.identifier}`).enter({
+			ctx.symbols.query(uri, parts.category, `${parts.namespace}:${parts.identifier}`).enterFileDefinition({
 				usage: { type: 'definition' },
 			})
 		}

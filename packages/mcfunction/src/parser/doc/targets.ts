@@ -9,6 +9,16 @@ export function registerDocTargets(meta: core.MetaRegistry): void {
 	registerDocTarget(meta, new SymbolDocTarget('objective', 'objective'))
 	registerDocTarget(meta, new SymbolDocTarget('team', 'team'))
 	registerDocTarget(meta, new SymbolDocTarget('score', 'score_holder', false))
+
+	core.NormalFileCategories.forEach(registry => {
+		if (registry === 'function') {
+			return
+		}
+		registerDocTarget(meta, new RegistryDocTarget(registry, registry))
+	})
+	core.DataMiscCategories.forEach(registry => {
+		registerDocTarget(meta, new RegistryDocTarget(registry, registry))
+	})
 }
 
 class SymbolDocTarget extends DefaultDocTarget {
@@ -80,38 +90,74 @@ class SymbolDocTarget extends DefaultDocTarget {
 	}
 }
 
-export class TagDocTarget extends SymbolDocTarget {
-	constructor() {
-		super('tag', 'tag')
+class RegistryDocTarget extends DefaultDocTarget {
+	constructor(
+		public override readonly identifier: string,
+		private readonly registry: core.ResourceLocationCategory,
+	) {
+		super()
 	}
-}
 
-export class ObjectiveDocTarget extends SymbolDocTarget {
-	constructor() {
-		super('objective', 'objective')
+	override binder(node: DocNode, ctx: core.BinderContext): void {
+		const field = node.fields[0]
+		if (!core.ResourceLocationNode.is(field)) {
+			return
+		}
+		declareDocSymbol(
+			node,
+			field,
+			this.registry,
+			core.ResourceLocationNode.toString(field, 'full'),
+			ctx,
+		)
 	}
-}
 
-export class ScoreDocTarget extends SymbolDocTarget {
-	constructor() {
-		super('score', 'score_holder', false)
+	override completer(
+		node: core.DeepReadonly<DocNode>,
+		ctx: core.CompleterContext,
+	): core.CompletionItem[] {
+		const field = node.fields[0]
+		if (field?.type !== 'resource_location') {
+			return []
+		}
+		const resource = field as core.DeepReadonly<core.ResourceLocationNode>
+		if (ctx.offset <= resource.range.end || !resource.path) {
+			return core.completer.resourceLocation(
+				ctx.offset < resource.range.start || ctx.offset > resource.range.end
+					? {
+						...core.ResourceLocationNode.mock(ctx.offset, { category: this.registry }),
+						parent: resource.parent as core.AstNode,
+					}
+					: resource,
+				ctx,
+			)
+		}
+		return []
 	}
-}
-
-class FunctionDocTarget extends DefaultDocTarget {
-	override readonly identifier = 'function'
 
 	override parser(src: core.Source, ctx: core.ParserContext, node: DocNode): boolean {
 		const errors = ctx.err.errors.length
 		const field = core.stopBefore(
-			core.resourceLocation({ category: 'function', usageType: 'declaration' }),
+			core.resourceLocation({ category: this.registry, usageType: 'declaration' }),
 			core.Whitespaces,
 		)(src, ctx)
 		node.fields.push(field)
 		node.children.push(field)
 		return ctx.err.errors.length === errors
 	}
-
+}
+class FunctionDocTarget extends RegistryDocTarget {
+	constructor() {
+		super('function', 'function')
+	}
+	override acceptedDirectives: string[] = [
+		'chatonly',
+		'reads',
+		'writes',
+		'input',
+		'context',
+		'returns',
+	]
 	override binder(node: DocNode, ctx: core.BinderContext): void {
 		const field = node.fields[0]
 		if (!core.ResourceLocationNode.is(field)) {
@@ -123,6 +169,7 @@ class FunctionDocTarget extends DefaultDocTarget {
 				core.SymbolUtil.forEachLocationOfSymbol(symbol, ({ type, location }) => {
 					if (
 						(type === 'definition' || type === 'implementation')
+						&& (location.fromFile || location.contributor === 'uri_binder')
 						&& location.uri === ctx.doc.uri
 					) {
 						found = true
@@ -155,17 +202,15 @@ class FunctionDocTarget extends DefaultDocTarget {
 				const query = ctx.symbols.query({ doc: ctx.doc, node: field }, 'function', identifier)
 				query.enter({
 					data: { visibility: core.SymbolVisibility.File },
-					usage: { type: 'implementation', range: core.Range.create(0) },
+					usage: {
+						type: 'implementation',
+						range: core.Range.create(0),
+						fromFile: true,
+					},
 				})
 				declareDocSymbol(node, field, 'function', identifier, ctx)
 				field.symbol = query.symbol
 				return
-			}
-			// Preserve file identity as an implementation under a matching doc declaration.
-			for (const location of currentFunction.definition ?? []) {
-				if (location.uri === ctx.doc.uri) {
-					location.originalUsageType = 'definition'
-				}
 			}
 			declareDocSymbol(node, field, 'function', identifier, ctx)
 			return
@@ -177,28 +222,5 @@ class FunctionDocTarget extends DefaultDocTarget {
 			core.ResourceLocationNode.toString(field, 'full'),
 			ctx,
 		)
-	}
-
-	override completer(
-		node: core.DeepReadonly<DocNode>,
-		ctx: core.CompleterContext,
-	): core.CompletionItem[] {
-		const field = node.fields[0]
-		if (field?.type !== 'resource_location') {
-			return []
-		}
-		const resource = field as core.DeepReadonly<core.ResourceLocationNode>
-		if (ctx.offset <= resource.range.end || !resource.path) {
-			return core.completer.resourceLocation(
-				ctx.offset < resource.range.start || ctx.offset > resource.range.end
-					? {
-						...core.ResourceLocationNode.mock(ctx.offset, { category: 'function' }),
-						parent: resource.parent as core.AstNode,
-					}
-					: resource,
-				ctx,
-			)
-		}
-		return []
 	}
 }

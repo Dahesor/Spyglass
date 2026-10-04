@@ -99,7 +99,7 @@ export function declareDocSymbol(
 	ctx: core.BinderContext,
 ): void {
 	const query = ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
-	const usage = { type: 'declaration' as const, node: field, docDeclaration: true }
+	const usage = { type: 'declaration' as const, node: field, fromDocDeclaration: true }
 	if (node.access?.visibility === core.SymbolVisibility.Restricted) {
 		query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 			data: {

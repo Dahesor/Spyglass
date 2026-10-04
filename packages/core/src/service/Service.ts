@@ -12,7 +12,7 @@ import type {
 } from '../processor/index.js'
 import { ColorPresentation, completer, traversePreOrder } from '../processor/index.js'
 import { Range } from '../source/index.js'
-import type { SymbolLocation, SymbolUsageType } from '../symbol/index.js'
+import type { Symbol, SymbolLocation, SymbolUsageType } from '../symbol/index.js'
 import { SymbolUsageTypes, SymbolUtil } from '../symbol/index.js'
 import {
 	CodeActionProviderContext,
@@ -260,37 +260,73 @@ export class Service {
 		searchedUsages: readonly SymbolUsageType[] = SymbolUsageTypes,
 		currentFileOnly = false,
 	): Promise<SymbolLocations | undefined> {
-		try {
-			this.debug(
-				`Getting symbol locations of usage '${
-					searchedUsages.join(',')
-				}' for ${doc.uri} # ${doc.version} @ ${offset} with currentFileOnly=${currentFileOnly}`,
+		return this.getSymbolLocationsByPriority(
+			file,
+			doc,
+			offset,
+			() => [searchedUsages],
+			currentFileOnly,
+		)
+	}
+
+	/** File definitions prefer implementations over doc declarations */
+	async getDefinitionLocations(
+		file: FileNode<AstNode>,
+		doc: TextDocument,
+		offset: number,
+	): Promise<SymbolLocations | undefined> {
+		return this.getSymbolLocationsByPriority(file, doc, offset, symbol => {
+			const fromFile = [symbol, ...(symbol.isotopes ?? [])].some(owner =>
+				owner.definition?.some(location => location.fromFile)
+				|| owner.implementation?.some(location => location.fromFile)
 			)
+			return fromFile
+				? [['definition'], ['implementation'], ['declaration']]
+				: [['definition'], ['declaration'], ['implementation']]
+		})
+	}
+
+	private async getSymbolLocationsByPriority(
+		file: FileNode<AstNode>,
+		doc: TextDocument,
+		offset: number,
+		usageGroups: (symbol: Symbol) => readonly (readonly SymbolUsageType[])[],
+		currentFileOnly = false,
+	): Promise<SymbolLocations | undefined> {
+		try {
 			let node = AstNode.findDeepestChild({ node: file, needle: offset })
 			while (node) {
-				const symbol = SymbolUtil.viewFromContext(
-					this.project.symbols.resolveAlias(node.symbol),
-					doc.uri,
-				)
-				if (symbol) {
-					const rawLocations: SymbolLocation[] = []
-					for (const usage of searchedUsages) {
-						let locs = symbol[usage] ?? []
-						if (currentFileOnly) {
-							locs = locs.filter((l) => l.uri === doc.uri)
+				const raw = this.project.symbols.resolveAlias(node.symbol)
+				const symbol = SymbolUtil.viewFromContext(raw, doc.uri)
+				if (raw && symbol) {
+					for (const searchedUsages of usageGroups(raw)) {
+						this.debug(
+							`Getting symbol locations of usage '${
+								searchedUsages.join(',')
+							}' for ${doc.uri} # ${doc.version} @ ${offset} with currentFileOnly=${currentFileOnly}`,
+						)
+						const rawLocations: SymbolLocation[] = []
+						for (const usage of searchedUsages) {
+							let locs = symbol[usage] ?? []
+							if (currentFileOnly) {
+								locs = locs.filter((l) => l.uri === doc.uri)
+							}
+							rawLocations.push(...locs)
 						}
-						rawLocations.push(...locs)
-					}
-					const locations: SymbolLocation[] = []
-					for (const loc of rawLocations) {
-						const mappedUri = fileUtil.isFileUri(loc.uri)
-							? loc.uri
-							: await this.project.fs.mapToDisk(loc.uri)
-						if (mappedUri) {
-							locations.push({ ...loc, uri: mappedUri })
+						const locations: SymbolLocation[] = []
+						for (const loc of rawLocations) {
+							const mappedUri = fileUtil.isFileUri(loc.uri)
+								? loc.uri
+								: await this.project.fs.mapToDisk(loc.uri)
+							if (mappedUri) {
+								locations.push({ ...loc, uri: mappedUri })
+							}
+						}
+						if (locations.length) {
+							return SymbolLocations.create(node.range, locations)
 						}
 					}
-					return SymbolLocations.create(node.range, locations.length ? locations : undefined)
+					return SymbolLocations.create(node.range, undefined)
 				}
 				node = node.parent
 			}
