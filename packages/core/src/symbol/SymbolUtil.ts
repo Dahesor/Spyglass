@@ -452,7 +452,7 @@ export class SymbolUtil extends EventDispatcher<{
 				contributor,
 			)
 		}
-		if (addition.usage?.docDeclaration) {
+		if (addition.usage?.fromDocDeclaration) {
 			this.reconcileDocUsages(ans)
 		}
 		this.emit('symbolAmended', { symbol: ans })
@@ -590,7 +590,7 @@ export class SymbolUtil extends EventDispatcher<{
 		if (addition.usage?.node) {
 			addition.usage.node.symbol = symbol
 		}
-		if (addition.usage?.docDeclaration) {
+		if (addition.usage?.fromDocDeclaration) {
 			this.reconcileDocUsages(symbol)
 		}
 		return isotope
@@ -601,14 +601,19 @@ export class SymbolUtil extends EventDispatcher<{
 		const expired = new Set(
 			isotopes.filter(isotope =>
 				isotope.docDeclaration
-				&& !isotope.declaration?.some(location => location.docDeclaration)
+				&& !isotope.declaration?.some(location => location.fromDocDeclaration)
 			),
 		)
 		const active = isotopes.filter(isotope => !expired.has(isotope))
-		const publicDoc = symbol.declaration?.some(location => location.docDeclaration)
+		const publicDoc = symbol.declaration?.some(location => location.fromDocDeclaration)
 		const owners = [symbol, ...isotopes]
-		// Select against the live declarations, but retain expired owners until their commands move out.
 		symbol.isotopes = active.length ? active : undefined
+		this.reconcileFileDefinitions(symbol, owners, [
+			...(publicDoc ? [symbol] : []),
+			...active.filter(isotope =>
+				isotope.declaration?.some(location => location.fromDocDeclaration)
+			),
+		])
 		for (const owner of owners) {
 			for (const type of SymbolUsageTypes) {
 				const locations = owner[type]
@@ -616,11 +621,11 @@ export class SymbolUtil extends EventDispatcher<{
 					continue
 				}
 				owner[type] = locations.filter(location => {
-					if (!location.originalUsageType) {
+					if (location.fromFile || !location.originalUsageType) {
 						return true
 					}
 					const isotope = SymbolUtil.selectIsotope(symbol, location.uri)
-					const target = isotope?.declaration?.some(value => value.docDeclaration)
+					const target = isotope?.declaration?.some(value => value.fromDocDeclaration)
 						? isotope
 						: symbol
 					const targetType = location.originalUsageType === 'definition'
@@ -645,6 +650,66 @@ export class SymbolUtil extends EventDispatcher<{
 			if (!hasBaseDeclaration) {
 				delete symbol.desc
 				delete symbol.data
+			}
+		}
+	}
+
+	/** Associate file definitions with its every doc declaration */
+	private reconcileFileDefinitions(
+		symbol: Symbol,
+		owners: (Symbol | SymbolIsotope)[],
+		declarations: (Symbol | SymbolIsotope)[],
+	): void {
+		// Ignore mcdoc symbols
+		if (symbol.category === 'mcdoc') {
+			return
+		}
+		const definitions = new Map<string, SymbolLocation>()
+		const keyOf = (location: SymbolLocation): string =>
+			JSON.stringify([location.uri, location.contributor, location.range, location.fullRange])
+		for (const owner of owners) {
+			for (const type of SymbolUsageTypes) {
+				for (const location of owner[type] ?? []) {
+					if (location.fromFile) {
+						definitions.set(keyOf(location), location)
+					}
+				}
+			}
+		}
+		if (!definitions.size) {
+			return
+		}
+		const targets = declarations.length ? declarations : [symbol]
+		const targetUsageType = declarations.length ? 'implementation' : 'definition'
+		const retained = new Map<Symbol | SymbolIsotope, Set<string>>()
+		for (const owner of owners) {
+			const keys = new Set<string>()
+			retained.set(owner, keys)
+			for (const type of SymbolUsageTypes) {
+				const locations = owner[type]
+				if (!locations) {
+					continue
+				}
+				owner[type] = locations.filter(location => {
+					if (!location.fromFile) {
+						return true
+					}
+					const key = keyOf(location)
+					if (targets.includes(owner) && type === targetUsageType && !keys.has(key)) {
+						keys.add(key)
+						return true
+					}
+					this.emit('symbolLocationRemoved', { symbol, type, location })
+					return false
+				})
+			}
+		}
+		for (const owner of targets) {
+			for (const [key, location] of definitions) {
+				if (!retained.get(owner)?.has(key)) {
+					;(owner[targetUsageType] ??= []).push(location)
+					this.emit('symbolLocationCreated', { symbol, type: targetUsageType, location })
+				}
 			}
 		}
 	}
@@ -722,7 +787,8 @@ export class SymbolUtil extends EventDispatcher<{
 			const location = SymbolLocation.create(doc, range, addition.fullRange, contributor, {
 				accessType: addition.accessType,
 				skipRenaming: addition.skipRenaming,
-				...(addition.docDeclaration ? { docDeclaration: true } : {}),
+				...(addition.fromDocDeclaration ? { fromDocDeclaration: true } : {}),
+				...(addition.fromFile ? { fromFile: true } : {}),
 				...(addition.originalUsageType
 					? { originalUsageType: addition.originalUsageType }
 					: {}),
@@ -1316,6 +1382,54 @@ export class SymbolQuery {
 		return this
 	}
 
+	/** Bind a symbol defined by the file itself, rather than its contents. */
+	enterFileDefinition(addition: SymbolAddition): this {
+		this._enterFileDefinition(addition)
+		return this
+	}
+
+	@DelayModeSupport((self: SymbolQuery) => self.util)
+	private _enterFileDefinition(addition: SymbolAddition): void {
+		const raw = this.util.lookup(this.category, this.path, this.#node).symbol
+		this.#symbol = raw
+		if (raw) {
+			this.#map = raw.parentMap
+		}
+		const usage: SymbolAdditionUsage = {
+			...addition.usage,
+			type: 'definition',
+			originalUsageType: 'definition',
+			fromFile: true,
+		}
+		if (this.#createdWithUri && SymbolAdditionUsageWithRange.is(usage)) {
+			usage.range = Range.create(0, 0)
+		}
+		const isotope = raw?.isotopes?.find(value =>
+			value.declaration?.some(location => location.fromDocDeclaration)
+		)
+		if (raw && isotope) {
+			this.util.amendSymbol(raw, { data: addition.data }, this.#doc, this.#currentContributor)
+			this.util.writeIsotope(
+				raw,
+				isotope.identifier,
+				{
+					usage: { ...usage, type: 'implementation' },
+				},
+				this.#doc,
+				this.#currentContributor,
+			)
+		} else {
+			this.enterImmediately({
+				...addition,
+				data: raw?.visibility === SymbolVisibility.Restricted
+					? { ...addition.data, visibility: SymbolVisibility.Public }
+					: addition.data,
+				usage,
+			})
+		}
+		this.util.reconcileDocUsages(this.#symbol!)
+	}
+
 	enterCommand(addition: SymbolAddition): this {
 		this._enterCommand(addition)
 		return this
@@ -1327,7 +1441,7 @@ export class SymbolQuery {
 		const isotope = raw && SymbolUtil.selectIsotope(raw, this.#doc.uri)
 		const originalType = addition.usage?.type ?? 'reference'
 		const usage = { ...addition.usage, originalUsageType: originalType }
-		if (raw && isotope?.declaration?.some(location => location.docDeclaration)) {
+		if (raw && isotope?.declaration?.some(location => location.fromDocDeclaration)) {
 			this.util.writeIsotope(
 				raw,
 				isotope.identifier,
@@ -1344,7 +1458,7 @@ export class SymbolQuery {
 			this.#map = raw.parentMap
 			return
 		}
-		const publicDoc = raw?.declaration?.some(location => location.docDeclaration)
+		const publicDoc = raw?.declaration?.some(location => location.fromDocDeclaration)
 		this.enterImmediately({
 			...addition,
 			data: originalType === 'definition' && raw?.visibility === SymbolVisibility.Restricted

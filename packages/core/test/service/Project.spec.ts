@@ -78,7 +78,10 @@ interface SetupResult {
 	project: Project
 }
 
-async function setup(files: Record<string, string>): Promise<SetupResult> {
+async function setup(
+	files: Record<string, string>,
+	initializers: ProjectInitializer[] = [],
+): Promise<SetupResult> {
 	const { fs } = memfs(files, '/')
 	const externals = getNodeJsExternals({
 		cacheRoot: CacheRoot,
@@ -90,7 +93,7 @@ async function setup(files: Record<string, string>): Promise<SetupResult> {
 		cacheRoot: CacheRoot,
 		defaultConfig: ConfigService.merge(VanillaConfig, { env: { dependencies: [] } }),
 		externals,
-		initializers: [testLanguageInitializer],
+		initializers: [testLanguageInitializer, ...initializers],
 		logger: Logger.noop(),
 		projectRoots: [ProjectRoot],
 	})
@@ -108,6 +111,36 @@ async function setup(files: Record<string, string>): Promise<SetupResult> {
 }
 
 describe('Project', () => {
+	it('restores missing file definitions before rebinding an edited document', async () => {
+		const uri = `${ProjectRoot}inner.spyglasstest`
+		const { project } = await setup({ '/root/inner.spyglasstest': 'foo' }, [({ meta }) => {
+			meta.registerUriBinder((uris, ctx) => {
+				for (const fileUri of uris) {
+					ctx.symbols.query(fileUri, 'function', 'test:folder/inner').enterFileDefinition({
+						usage: { type: 'definition' },
+					})
+				}
+			})
+		}])
+		try {
+			project.symbols.clear({ uri, contributor: 'uri_binder' })
+			project.symbols.contributeAs('binder', () => {
+				project.symbols.query(`${ProjectRoot}other.spyglasstest`, 'function', 'test:folder/inner')
+					.enterCommand({ usage: { type: 'reference' } })
+			})
+			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
+			await project.ensureClientManagedChecked(uri)
+			const symbol = project.symbols.global.function!['test:folder/inner']
+			assert.equal(symbol.definition?.length, 1)
+			assert.equal(symbol.definition?.[0].uri, uri)
+			assert.equal(symbol.definition?.[0].fromFile, true)
+			assert.equal(symbol.reference?.length, 1)
+			await project.onDidChange(uri, [{ text: 'foo' }], 1)
+			assert.equal(symbol.definition?.length, 1)
+		} finally {
+			await project.close()
+		}
+	})
 	describe('analyzeProject()', () => {
 		it('Should check all files and emit their errors', async () => {
 			const uriA = `${ProjectRoot}a.spyglasstest`

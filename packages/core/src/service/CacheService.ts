@@ -17,7 +17,7 @@ import type { Project } from './Project.js'
  * The format version of the cache. Should be increased when any changes that
  * could invalidate the cache are introduced to the Spyglass codebase.
  */
-export const LatestCacheVersion = 7
+export const LatestCacheVersion = 8
 
 /**
  * Checksums of cached files or roots.

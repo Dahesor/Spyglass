@@ -9,7 +9,7 @@ export const entry = core.AsyncBinder.create<McfunctionNode>(async (node, ctx) =
 	const identifier = privateFunctions.get(ctx.doc.uri)
 	if (identifier) {
 		ctx.symbols.contributeAs('uri_binder', () => {
-			ctx.symbols.query(ctx.doc.uri, 'function', identifier).enter({
+			ctx.symbols.query(ctx.doc.uri, 'function', identifier).enterFileDefinition({
 				usage: { type: 'definition' },
 			})
 		})
