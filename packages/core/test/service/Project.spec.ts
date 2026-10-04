@@ -18,6 +18,7 @@ import {
 	literal,
 	Logger,
 	Project,
+	resourceLocation,
 	UriStore,
 	VanillaConfig,
 } from '../../lib/index.js'
@@ -111,6 +112,46 @@ async function setup(
 }
 
 describe('Project', () => {
+	it('reports access errors through the project lint pipeline and keeps missing names undeclared', async () => {
+		const source = `${ProjectRoot}source.spyglasstest`
+		const outside = `${ProjectRoot}outside.spyglasstest`
+		const { project, errors } = await setup({ '/root/source.spyglasstest': 'demo:example' }, [({ meta }) => {
+			meta.registerLanguage('spyglasstest', {
+				extensions: ['.spyglasstest'],
+				parser: resourceLocation({ category: 'function', usageType: 'reference' }),
+			})
+			meta.registerUriBinder((uris, ctx) => {
+				if (uris.includes(source)) {
+					ctx.symbols.query(source, 'function', 'demo:example').enterFileDefinition({ usage: {} })
+				}
+			})
+		}])
+		try {
+			project.config = ConfigService.merge(project.config, { lint: { noAccessToSymbol: false } })
+			project.symbols.contributeAs('binder', () => {
+				project.symbols.query(`${ProjectRoot}private/doc.spyglasstest`, 'function', 'demo:example')
+					.enterIsotope('private', {
+						data: { scope: 0, visibleWithin: ['**/private/**'], docDeclaration: true },
+						usage: { type: 'declaration', fromDocDeclaration: true },
+					})
+			})
+			await project.onDidOpen(outside, 'spyglasstest', 0, 'demo:example')
+			await project.ensureClientManagedChecked(outside)
+			assert.equal(errors.get(outside)?.length, 1)
+			assert.ok(errors.get(outside)?.[0].message.includes('noAccessToSymbol'))
+			assert.equal(errors.get(outside)?.[0].info?.codeAction, undefined)
+			const inside = `${ProjectRoot}private/use.spyglasstest`
+			await project.onDidOpen(inside, 'spyglasstest', 0, 'demo:example')
+			await project.ensureClientManagedChecked(inside)
+			assert.deepEqual(errors.get(inside), [])
+			await project.onDidChange(outside, [{ text: 'demo:missing' }], 1)
+			await project.ensureClientManagedChecked(outside)
+			assert.equal(errors.get(outside)?.length, 1)
+			assert.ok(errors.get(outside)?.[0].message.includes('undeclaredSymbol'))
+		} finally {
+			await project.close()
+		}
+	})
 	it('restores missing file definitions before rebinding an edited document', async () => {
 		const uri = `${ProjectRoot}inner.spyglasstest`
 		const { project } = await setup({ '/root/inner.spyglasstest': 'foo' }, [({ meta }) => {

@@ -904,6 +904,32 @@ export class SymbolUtil extends EventDispatcher<{
 		return symbol.visibility !== SymbolVisibility.Restricted || !!this.selectIsotope(symbol, uri)
 	}
 
+	/** @returns `true` if the symbol is contributed by a file itself instead of its content. */
+	static isFromFile(symbol: Symbol | undefined): boolean {
+		if (!symbol) {
+			return false
+		}
+		symbol = contextualSymbols.get(symbol) ?? symbol
+		return [symbol, ...(symbol.isotopes ?? [])].some(owner =>
+			owner.definition?.some(location => location.fromFile)
+			|| owner.implementation?.some(location => location.fromFile)
+		)
+	}
+
+	/**
+	 * @param symbol The symbol to check access for.
+	 * @param uri The URI of the file from which access is being checked.
+	 * @returns `true` if a file symbol is defined but cannot be accessed here
+	 */
+	static hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
+		if (!symbol) {
+			return false
+		}
+		symbol = contextualSymbols.get(symbol) ?? symbol
+		return symbol.visibility === SymbolVisibility.Restricted
+			&& this.isFromFile(symbol) && !this.isVisible(symbol, uri)
+	}
+
 	/**
 	 * @returns If the symbol has declarations or definitions.
 	 */
