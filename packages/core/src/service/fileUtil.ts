@@ -22,7 +22,7 @@ export namespace fileUtil {
 		const baseUri = new Uri(base)
 		const targetUri = new Uri(target)
 
-		if (baseUri.origin !== targetUri.origin) {
+		if (baseUri.protocol !== targetUri.protocol || baseUri.host !== targetUri.host) {
 			// Different scheme, hostname, and/or port
 			return undefined
 		}

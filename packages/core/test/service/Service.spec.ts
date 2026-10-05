@@ -71,7 +71,7 @@ describe('Service.getDefinitionLocations()', () => {
 				if (fromFile && !usages.includes('definition') && !usages.includes('implementation')) {
 					symbol.isotopes = [{
 						identifier: 'other',
-						scope: 0,
+						source: 1, scope: 0,
 						visibleWithin: ['**/other/**'],
 						implementation: [location('implementation', true)],
 					}]
@@ -84,16 +84,16 @@ describe('Service.getDefinitionLocations()', () => {
 	}
 	it('uses the selected isotope and hides targets outside its scope', async t => {
 		const { service, symbol } = setup(t)
-		symbol.visibility = 3
+		symbol.visibility = 2
 		symbol.isotopes = [{
 			identifier: 'private',
-			scope: 0,
+			source: 1, scope: 0,
 			visibleWithin: ['**/private/**'],
 			declaration: [location('declaration')],
 			implementation: [location('implementation', true)],
 		}, {
 			identifier: 'other',
-			scope: 0,
+			source: 1, scope: 0,
 			visibleWithin: ['**/other/**'],
 			definition: [location('definition', true)],
 		}]

@@ -35,6 +35,17 @@ describe('fileUtil', () => {
 		}
 	})
 	describe('isSubUriOf()', () => {
+		for (const [uri, root, expected] of [
+			['archive://first/data/foo.json', 'archive://first/', true],
+			['archive://second/data/foo.json', 'archive://first/', false],
+			['file:///data/foo.json', 'archive://first/', false],
+			['archive://first/data/foo.json', 'file:///', false],
+			['file://server-a/share/foo.json', 'file://server-b/share/', false],
+		] as const) {
+			it(`distinguishes URI schemes and hosts: ${uri} under ${root}`, () => {
+				assert.equal(fileUtil.isSubUriOf(uri, root), expected)
+			})
+		}
 		const root: string = 'file:///c%3A/Users/admin/'
 		const suites: { uri: string; expected: boolean }[] = [
 			{ uri: 'file:///c%3A/Users/admin/', expected: true },

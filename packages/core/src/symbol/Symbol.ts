@@ -346,9 +346,21 @@ export const enum SymbolAccessType {
 
 export const enum SymbolVisibility {
 	Block,
+	/** Visible within the current file */
 	File,
-	Public,
+	/** Visible within some restricted scope */
 	Restricted,
+	/** Visible within the current project */
+	Internal,
+	/** Visible within the current project and to the public */
+	Public,
+}
+
+export const enum SymbolIsotopeProvider {
+	/** From a doc block */
+	DocBlock,
+	/** From an imported pack */
+	Imported,
 }
 
 export const enum SymbolIsotopeScope {
@@ -360,6 +372,8 @@ export const enum SymbolIsotopeScope {
 	Private = 0,
 	/** Visible within a namespace */
 	Namespace = 1,
+	/** Visible globally */
+	Global = 2,
 }
 
 export interface SymbolPath {
@@ -438,14 +452,18 @@ export interface SymbolMetadata {
 
 /**
  * An isotope of a symbol is a different set of metadata associated with the same symbol.\
- * Isotopes must have restricted scope.\
  * Different isotopes can take effect in different contexts.
  */
 export interface SymbolIsotope extends Partial<Record<SymbolUsageType, SymbolLocation[]>> {
-	/** This isotope is owned by its doc declaration locations. */
-	docDeclaration?: boolean
-
 	identifier: string
+	/**
+	 * Which source provides this isotope.
+	 */
+	source: SymbolIsotopeProvider
+	/**
+	 * The entity that provides this isotope.
+	 */
+	providerName?: unknown
 	/**
 	 * The scope of this isotope. Smaller scopes always have higher priority over larger scopes.
 	 */
@@ -640,6 +658,70 @@ export interface UnlinkedSymbolTable extends Partial<Record<AllCategory, Unlinke
 }
 
 export namespace SymbolTable {
+	export function getDependencyExports(table: SymbolTable, checksum: string): SymbolTable {
+		const filter = (map: UnlinkedSymbolMap): void => {
+			for (const [name, symbol] of Object.entries(map)) {
+				const visibility = symbol.visibility ?? SymbolVisibility.Public
+				const isotopes: SymbolIsotope[] = (
+					symbol.isotopes ?? []
+				).filter(isotope =>
+					// Do not allow re-importing symbols
+					isotope.source !== SymbolIsotopeProvider.Imported
+					&& isotope.scope === SymbolIsotopeScope.Namespace
+				).map(isotope => ({
+					...isotope,
+					identifier: JSON.stringify([checksum, 'isotope', isotope.identifier]),
+					source: SymbolIsotopeProvider.Imported,
+					providerName: checksum,
+				}))
+				if (visibility === SymbolVisibility.Public) {
+					const base: SymbolIsotope = {
+						identifier: JSON.stringify([checksum, 'base']),
+						source: SymbolIsotopeProvider.Imported,
+						providerName: checksum,
+						scope: SymbolIsotopeScope.Global,
+						desc: symbol.desc,
+						data: symbol.data,
+					}
+					for (const type of SymbolUsageTypes) {
+						base[type] = symbol[type]
+					}
+					isotopes.push(base)
+				} else if (
+					visibility !== SymbolVisibility.Internal
+					&& visibility !== SymbolVisibility.Restricted
+				) {
+					delete map[name]
+					continue
+				}
+				if (!isotopes.length) {
+					delete map[name]
+					continue
+				}
+				delete symbol.desc
+				delete symbol.data
+				for (const type of SymbolUsageTypes) {
+					delete symbol[type]
+				}
+				symbol.visibility = SymbolVisibility.Restricted
+				symbol.isotopes = isotopes
+				if (symbol.members) {
+					filter(symbol.members)
+				}
+			}
+		}
+		// Shared mcdoc tables can be large and are never part of these exports.
+		const exported = unlink(Object.fromEntries(Object.entries(table).filter(([category]) =>
+			category !== 'mcdoc' && category !== 'mcdoc/dispatcher'
+		)))
+		for (const map of Object.values(exported)) {
+			if (map) {
+				filter(map)
+			}
+		}
+		return link(exported)
+	}
+
 	/**
 	 * The passed-in parameter `table` won't be mutated.
 	 *

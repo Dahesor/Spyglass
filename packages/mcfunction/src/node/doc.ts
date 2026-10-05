@@ -5,6 +5,7 @@ export type DocAccess =
 	| {
 		visibility:
 			| core.SymbolVisibility.Public
+			| core.SymbolVisibility.Internal
 			| core.SymbolVisibility.File
 			| core.SymbolVisibility.Block
 	}
