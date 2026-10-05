@@ -16,6 +16,7 @@ import type {
 	SymbolUsageType,
 } from './Symbol.js'
 import {
+	SymbolIsotopeProvider,
 	SymbolIsotopeScope,
 	SymbolLocation,
 	SymbolPath,
@@ -565,6 +566,91 @@ export class SymbolUtil extends EventDispatcher<{
 		this.amendSymbolUsage(symbol, addition.usage, doc, contributor)
 	}
 
+	/** Merge already filtered imports without changing local base metadata or locations. */
+	importDependencySymbols(table: SymbolTable): void {
+		const hasImports = (symbol: Symbol): boolean =>
+			!!symbol.isotopes?.length
+			|| Object.values(symbol.members ?? {}).some(hasImports)
+		const merge = (source: SymbolMap, target: SymbolMap, parent?: Symbol): void => {
+			for (const entry of Object.values(source)) {
+				if (!hasImports(entry)) {
+					continue
+				}
+				let symbol = target[entry.identifier]
+				if (!symbol) {
+					symbol = target[entry.identifier] = {
+						category: entry.category,
+						identifier: entry.identifier,
+						path: entry.path,
+						parentMap: target,
+						parentSymbol: parent,
+						visibility: SymbolVisibility.Restricted,
+						subcategory: entry.subcategory,
+					}
+					this.emit('symbolCreated', { symbol })
+				}
+				for (const isotope of entry.isotopes ?? []) {
+					const existing = symbol.isotopes?.find(value =>
+						value.identifier === isotope.identifier
+					)
+					if (existing) {
+						for (const type of SymbolUsageTypes) {
+							for (const location of existing[type] ?? []) {
+								this.emit('symbolLocationRemoved', { symbol, type, location })
+							}
+						}
+						Object.assign(existing, isotope)
+					} else {
+						;(symbol.isotopes ??= []).push(isotope)
+					}
+					for (const type of SymbolUsageTypes) {
+						for (const location of isotope[type] ?? []) {
+							this.emit('symbolLocationCreated', { symbol, type, location })
+						}
+					}
+				}
+				if (entry.members) {
+					merge(entry.members, symbol.members ??= {}, symbol)
+				}
+			}
+		}
+		for (const [category, map] of Object.entries(table)) {
+			if (category === 'mcdoc' || category === 'mcdoc/dispatcher') {
+				continue
+			}
+			if (map) {
+				merge(map, this.global[category] ??= {})
+			}
+		}
+	}
+
+	/** Remove only contributions from a package, including metadata-only isotopes. */
+	removeDependencySymbols(checksum: string, trim = true): void {
+		SymbolUtil.forEachSymbol(this.global, symbol => {
+			symbol.isotopes = symbol.isotopes
+				?.filter(isotope => {
+					if (
+						isotope.source !== SymbolIsotopeProvider.Imported
+						|| isotope.providerName !== checksum
+					) {
+						return true
+					}
+					for (const type of SymbolUsageTypes) {
+						for (const location of isotope[type] ?? []) {
+							this.emit('symbolLocationRemoved', { symbol, type, location })
+						}
+					}
+					return false
+				})
+			if (SymbolUtil.isTrimmable(symbol)) {
+				this.#trimmableSymbols.add(SymbolPath.toString(symbol))
+			}
+		})
+		if (trim) {
+			this.trim(this.global)
+		}
+	}
+
 	/** Create or update one isotope by identifier */
 	writeIsotope(
 		symbol: Symbol,
@@ -576,13 +662,20 @@ export class SymbolUtil extends EventDispatcher<{
 		if (addition.data && 'scope' in addition.data && addition.data.scope === undefined) {
 			throw new Error('An isotope scope cannot be undefined.')
 		}
+		if (addition.data && 'source' in addition.data && addition.data.source === undefined) {
+			throw new Error('An isotope source cannot be undefined.')
+		}
 		symbol = contextualSymbols.get(symbol) ?? symbol
 		let isotope = symbol.isotopes?.find(value => value.identifier === identifier)
 		if (!isotope) {
-			if (addition.data?.scope === undefined) {
-				throw new Error('Creating an isotope requires a scope.')
+			if (addition.data?.scope === undefined || addition.data.source === undefined) {
+				throw new Error('Creating an isotope requires a scope and source.')
 			}
-			isotope = { identifier, scope: addition.data.scope }
+			isotope = {
+				identifier,
+				scope: addition.data.scope,
+				source: addition.data.source,
+			}
 			;(symbol.isotopes ??= []).push(isotope)
 		}
 		Object.assign(isotope, addition.data)
@@ -600,18 +693,32 @@ export class SymbolUtil extends EventDispatcher<{
 		const isotopes = symbol.isotopes ?? []
 		const expired = new Set(
 			isotopes.filter(isotope =>
-				isotope.docDeclaration
+				isotope.source === SymbolIsotopeProvider.DocBlock
 				&& !isotope.declaration?.some(location => location.fromDocDeclaration)
 			),
 		)
 		const active = isotopes.filter(isotope => !expired.has(isotope))
-		const publicDoc = symbol.declaration?.some(location => location.fromDocDeclaration)
-		const owners = [symbol, ...isotopes]
+		const baseHasDocDeclaration = symbol.declaration?.some(location =>
+			location.fromDocDeclaration
+		)
+		// If user deleted the @internal access modifier, we have to change its visibility to public.
+		// Temporary fix. We will consider ditching the base visibility all together later.
+		if (
+			!baseHasDocDeclaration && symbol.visibility === SymbolVisibility.Internal
+			&& symbol.implementation?.some(location => location.originalUsageType === 'definition')
+		) {
+			symbol.visibility = SymbolVisibility.Public
+		}
+		const owners = [
+			symbol,
+			...isotopes.filter(isotope => isotope.source === SymbolIsotopeProvider.DocBlock),
+		]
 		symbol.isotopes = active.length ? active : undefined
 		this.reconcileFileDefinitions(symbol, owners, [
-			...(publicDoc ? [symbol] : []),
+			...(baseHasDocDeclaration ? [symbol] : []),
 			...active.filter(isotope =>
-				isotope.declaration?.some(location => location.fromDocDeclaration)
+				isotope.source === SymbolIsotopeProvider.DocBlock
+				&& isotope.declaration?.some(location => location.fromDocDeclaration)
 			),
 		])
 		for (const owner of owners) {
@@ -625,11 +732,12 @@ export class SymbolUtil extends EventDispatcher<{
 						return true
 					}
 					const isotope = SymbolUtil.selectIsotope(symbol, location.uri)
-					const target = isotope?.declaration?.some(value => value.fromDocDeclaration)
+					const target = isotope?.source === SymbolIsotopeProvider.DocBlock
+							&& isotope.declaration?.some(value => value.fromDocDeclaration)
 						? isotope
 						: symbol
 					const targetType = location.originalUsageType === 'definition'
-							&& (target !== symbol || publicDoc)
+							&& (target !== symbol || baseHasDocDeclaration)
 						? 'implementation'
 						: location.originalUsageType
 					if (target === owner && targetType === type) {
@@ -642,10 +750,14 @@ export class SymbolUtil extends EventDispatcher<{
 				})
 			}
 		}
-		if (active.some(isotope => isotope.docDeclaration) || expired.size) {
+		if (
+			active.some(isotope => isotope.source === SymbolIsotopeProvider.DocBlock) || expired.size
+		) {
 			const hasBaseDeclaration = !!(symbol.declaration?.length || symbol.definition?.length)
 			symbol.visibility = hasBaseDeclaration
-				? SymbolVisibility.Public
+				? (symbol.visibility === SymbolVisibility.Internal
+					? SymbolVisibility.Internal
+					: SymbolVisibility.Public)
 				: SymbolVisibility.Restricted
 			if (!hasBaseDeclaration) {
 				delete symbol.desc
@@ -723,7 +835,8 @@ export class SymbolUtil extends EventDispatcher<{
 				// Visibility changes are only accepted if the change wouldn't result in the
 				// symbol being stored in a different symbol table.
 				const inGlobalTable = (v: SymbolVisibility | undefined) =>
-					v === undefined || v === SymbolVisibility.Public || v === SymbolVisibility.Restricted
+					v === undefined || v === SymbolVisibility.Public || v === SymbolVisibility.Internal
+					|| v === SymbolVisibility.Restricted
 				if (
 					symbol.visibility === addition.visibility
 					|| (inGlobalTable(symbol.visibility) && inGlobalTable(addition.visibility))
@@ -853,6 +966,7 @@ export class SymbolUtil extends EventDispatcher<{
 				continue
 			}
 			const patterns = isotope.visibleWithin
+				?? (isotope.scope === SymbolIsotopeScope.Global ? ['**'] : undefined)
 			if (!patterns?.length) {
 				continue
 			}
@@ -1000,7 +1114,8 @@ export class SymbolUtil extends EventDispatcher<{
 	}
 
 	static isVisibilityInGlobal(v: SymbolVisibility | undefined) {
-		return (v === undefined || v === SymbolVisibility.Public || v === SymbolVisibility.Restricted)
+		return (v === undefined || v === SymbolVisibility.Public || v === SymbolVisibility.Internal
+			|| v === SymbolVisibility.Restricted)
 	}
 
 	static areVisibilitiesCompatible(
@@ -1431,7 +1546,8 @@ export class SymbolQuery {
 			usage.range = Range.create(0, 0)
 		}
 		const isotope = raw?.isotopes?.find(value =>
-			value.declaration?.some(location => location.fromDocDeclaration)
+			value.source === SymbolIsotopeProvider.DocBlock
+			&& value.declaration?.some(location => location.fromDocDeclaration)
 		)
 		if (raw && isotope) {
 			this.util.amendSymbol(raw, { data: addition.data }, this.#doc, this.#currentContributor)
@@ -1467,7 +1583,10 @@ export class SymbolQuery {
 		const isotope = raw && SymbolUtil.selectIsotope(raw, this.#doc.uri)
 		const originalType = addition.usage?.type ?? 'reference'
 		const usage = { ...addition.usage, originalUsageType: originalType }
-		if (raw && isotope?.declaration?.some(location => location.fromDocDeclaration)) {
+		if (
+			raw && isotope?.source === SymbolIsotopeProvider.DocBlock
+			&& isotope.declaration?.some(location => location.fromDocDeclaration)
+		) {
 			this.util.writeIsotope(
 				raw,
 				isotope.identifier,
@@ -1773,6 +1892,9 @@ export namespace SymbolFormatter {
 				break
 			case SymbolVisibility.File:
 				stringVisibility = 'File'
+				break
+			case SymbolVisibility.Internal:
+				stringVisibility = 'Internal'
 				break
 			case SymbolVisibility.Restricted:
 				stringVisibility = 'Restricted'

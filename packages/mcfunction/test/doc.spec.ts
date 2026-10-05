@@ -44,7 +44,7 @@ describe('doc access and command usages', () => {
 			override readonly isAccessModifier = true
 			override modifyAccess() {
 				return {
-					visibility: 3 as const,
+					visibility: 2 as const,
 					isotope: {
 						scope: 1 as const,
 						overrideLevel: 7,
@@ -85,8 +85,8 @@ describe('doc access and command usages', () => {
 			t.assert.equal(env.view(outside)?.definition?.length, 1)
 			t.assert.equal(env.view(outside)?.declaration?.length ?? 0, 0)
 		})
-		for (const modifier of ['@public', '']) {
-			it(`public doc makes every command an implementation (${modifier}, commands first: ${commandsFirst})`, t => {
+		for (const modifier of ['@public', '@internal', '']) {
+			it(`project-wide doc makes every command an implementation (${modifier}, commands first: ${commandsFirst})`, t => {
 				const env = setup()
 				const commands = () => {
 					env.command(root + 'a.mcfunction')
@@ -102,6 +102,7 @@ describe('doc access and command usages', () => {
 				t.assert.equal(env.raw().declaration?.length, 1)
 				t.assert.equal(env.raw().implementation?.length, 2)
 				t.assert.equal(env.raw().definition?.length ?? 0, 0)
+				t.assert.equal(env.raw().visibility, modifier === '@internal' ? 3 : 4)
 			})
 		}
 	}
@@ -153,14 +154,15 @@ describe('doc access and command usages', () => {
 		t.assert.equal(symbol.isotopes?.length ?? 0, 0)
 	})
 
-	it('removing public documentation restores command definitions', t => {
+	it('removing internal documentation restores public command definitions', t => {
 		const env = setup()
 		const uri = root + 'doc.mcfunction'
-		env.declaration(uri, '@public')
+		env.declaration(uri, '@internal')
 		env.command(root + 'command.mcfunction')
 		env.project.symbols.clear({ uri, contributor: 'binder' })
 		t.assert.equal(env.raw().definition?.length, 1)
 		t.assert.equal(env.raw().implementation?.length ?? 0, 0)
+		t.assert.equal(env.raw().visibility, 4)
 	})
 
 	it('private folder matching treats glob punctuation literally', t => {

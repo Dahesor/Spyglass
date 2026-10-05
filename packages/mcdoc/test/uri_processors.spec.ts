@@ -14,7 +14,7 @@ describe('mcdoc uriBinder()', () => {
 		)
 		project.symbols.contributeAs('binder', () => {
 			project.symbols.query(docUri, 'mcdoc', '::example').enterIsotope('doc', {
-				data: { scope: 0, visibleWithin: ['**/private/**'], docDeclaration: true },
+				data: { scope: 0, visibleWithin: ['**/private/**'], source: 0 },
 				usage: { type: 'declaration', fromDocDeclaration: true },
 			})
 		})

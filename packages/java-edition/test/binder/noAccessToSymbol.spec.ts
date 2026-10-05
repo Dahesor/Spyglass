@@ -89,7 +89,7 @@ describe('noAccessToSymbol', () => {
 			assert.ok(errors[0].message.includes('noAccessToSymbol'))
 			t.assert.equal(errors[0].severity, 2)
 			t.assert.equal(errors[0].info?.codeAction, undefined)
-			t.assert.equal(env.raw().visibility, 3)
+			t.assert.equal(env.raw().visibility, 2)
 			t.assert.deepEqual(env.lint(root + 'data/demo/function/private/sub/use.mcfunction'), [])
 		})
 	}
@@ -123,7 +123,7 @@ describe('noAccessToSymbol', () => {
 			t.assert.equal(errors.length, 1)
 			assert.ok(errors[0].message.includes('noAccessToSymbol'))
 			t.assert.equal(errors[0].severity, 2)
-			t.assert.equal(env.raw().visibility, 3)
+			t.assert.equal(env.raw().visibility, 2)
 			t.assert.equal(env.raw().declaration?.length ?? 0, 0)
 			t.assert.equal(core.SymbolUtil.viewFromContext(env.raw(), outside), undefined)
 		})

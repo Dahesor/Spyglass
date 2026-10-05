@@ -26,7 +26,7 @@ describe('symbol isotopes', () => {
 		util.on('symbolLocationCreated', () => created++)
 		t.assert.throws(() =>
 			util.query(uri, 'tag', 'test').enterIsotope('isotope1', {
-				data: { scope: undefined, desc: 'must not be written' },
+				data: { source: 1, scope: undefined, desc: 'must not be written' },
 				usage: { type: 'reference' },
 			}), /scope cannot be undefined/)
 		t.assert.equal(base.isotopes![1].scope, 0)
@@ -36,7 +36,7 @@ describe('symbol isotopes', () => {
 		util.query(uri, 'tag', 'test').enterIsotope('isotope1', { data: { desc: 'updated' } })
 		t.assert.equal(base.isotopes![1].scope, 0)
 		t.assert.equal(base.isotopes![1].desc, 'updated')
-		util.query(uri, 'tag', 'test').enterIsotope('isotope1', { data: { scope: 1 } })
+		util.query(uri, 'tag', 'test').enterIsotope('isotope1', { data: { source: 1, scope: 1 } })
 		t.assert.equal(base.isotopes![1].scope, 1)
 	})
 
@@ -45,19 +45,19 @@ describe('symbol isotopes', () => {
 		SymbolTable.link({
 			tag: {
 				test: {
-					visibility: 2,
+					visibility: 4,
 					desc: 'base',
 					declaration: [{ uri: 'file:///base' }],
 					isotopes: [
 						{
 							identifier: 'isotope0',
-							scope: 1,
+							source: 1, scope: 1,
 							visibleWithin: ['**/demo/**'],
 							desc: 'namespace',
 						},
 						{
 							identifier: 'isotope1',
-							scope: 0,
+							source: 1, scope: 0,
 							visibleWithin: ['**/demo/**'],
 							overrideLevel: 1,
 							desc: 'first',
@@ -65,7 +65,7 @@ describe('symbol isotopes', () => {
 						},
 						{
 							identifier: 'isotope2',
-							scope: 0,
+							source: 1, scope: 0,
 							visibleWithin: ['**/demo/**'],
 							overrideLevel: 1,
 							desc: 'tie',
@@ -89,7 +89,7 @@ describe('symbol isotopes', () => {
 	it('falls back to public base but never to restricted base', t => {
 		const base = symbol()
 		t.assert.equal(SymbolUtil.viewFromContext(base, 'file:///other')?.desc, 'base')
-		base.visibility = 3
+		base.visibility = 2
 		t.assert.equal(SymbolUtil.viewFromContext(base, 'file:///other'), undefined)
 		t.assert.equal(SymbolUtil.viewFromContext(base, uri)?.desc, 'first')
 		base.isotopes = undefined
@@ -107,18 +107,18 @@ describe('symbol isotopes', () => {
 	it('checks namespace, ignores Local, and excludes nonmatching globs', t => {
 		const base = symbol()
 		base.isotopes = [
-			{ identifier: 'isotope3', scope: -1, visibleWithin: ['**'], desc: 'local' },
-			{ identifier: 'isotope4', scope: 0, visibleWithin: ['**/other/**'], desc: 'other' },
+			{ identifier: 'isotope3', source: 1, scope: -1, visibleWithin: ['**'], desc: 'local' },
+			{ identifier: 'isotope4', source: 1, scope: 0, visibleWithin: ['**/other/**'], desc: 'other' },
 			{
 				identifier: 'isotope5',
-				scope: 1,
+				source: 1, scope: 1,
 				namespace: ['other'],
 				visibleWithin: ['**'],
 				desc: 'wrong namespace',
 			},
 			{
 				identifier: 'isotope6',
-				scope: 1,
+				source: 1, scope: 1,
 				namespace: ['demo'],
 				visibleWithin: ['**'],
 				desc: 'demo',
@@ -146,7 +146,7 @@ describe('symbol isotopes', () => {
 		util.on('symbolLocationCreated', event => events.push(event.type))
 		util.contributeAs('binder', () => {
 			util.query(uri, 'tag', 'new').enterIsotope('doc', {
-				data: { scope: 0, visibleWithin: ['**/demo/**'], desc: 'first' },
+				data: { source: 1, scope: 0, visibleWithin: ['**/demo/**'], desc: 'first' },
 				usage: { type: 'declaration' },
 			})
 			util.query(uri, 'tag', 'new').enterIsotope('doc', {
@@ -169,7 +169,7 @@ describe('symbol isotopes', () => {
 		let removed = 0
 		util.on('symbolLocationRemoved', () => removed++)
 		util.query(uri, 'tag', 'test').enter({
-			data: { visibility: 3, desc: 'must not become base', data: 'secret' },
+			data: { visibility: 2, desc: 'must not become base', data: 'secret' },
 		})
 		t.assert.equal(base.desc, undefined)
 		t.assert.equal(base.data, undefined)
@@ -177,7 +177,7 @@ describe('symbol isotopes', () => {
 		t.assert.equal(base.isotopes?.length, 3)
 		t.assert.equal(removed, 1)
 		util.query(uri, 'tag', 'test').enter({
-			data: { visibility: 2, desc: 'new public', data: 'public' },
+			data: { visibility: 4, desc: 'new public', data: 'public' },
 		})
 		t.assert.equal(base.desc, 'new public')
 		t.assert.equal(base.data, 'public')
@@ -187,7 +187,7 @@ describe('symbol isotopes', () => {
 	it('never creates restricted base metadata or usages', t => {
 		const util = new SymbolUtil({})
 		util.query(uri, 'tag', 'restricted').enter({
-			data: { visibility: 3, desc: 'secret', data: 'secret' },
+			data: { visibility: 2, desc: 'secret', data: 'secret' },
 			usage: { type: 'declaration' },
 		})
 		const base = util.global.tag!['restricted']
@@ -204,7 +204,7 @@ describe('symbol isotopes', () => {
 		const query = delayed.query(uri, 'tag', 'delayed')
 		t.assert.equal(
 			query.enterIsotope('doc', {
-				data: { scope: 0, visibleWithin: ['**'], desc: 'first' },
+				data: { source: 1, scope: 0, visibleWithin: ['**'], desc: 'first' },
 				usage: { type: 'declaration' },
 			}).enterIsotope('doc', {
 				data: { desc: 'updated' },
@@ -258,8 +258,8 @@ describe('symbol isotopes', () => {
 		const reference = base.reference![0]
 		const definition = base.definition![0]
 		const query = util.query(uri, 'tag', 'migration')
-		query.enterIsotope('wide', { data: { scope: 1, visibleWithin: ['**/demo/**'] } })
-		query.enterIsotope('narrow', { data: { scope: 0, visibleWithin: ['**/narrow.mcfunction'] } })
+		query.enterIsotope('wide', { data: { source: 1, scope: 1, visibleWithin: ['**/demo/**'] } })
+		query.enterIsotope('narrow', { data: { source: 1, scope: 0, visibleWithin: ['**/narrow.mcfunction'] } })
 		query.migrateDefinitions('wide').migrateDefinitions('wide')
 		const wide = base.isotopes![0]
 		t.assert.deepEqual(wide.reference, [reference])
@@ -281,7 +281,7 @@ describe('symbol isotopes', () => {
 		const events: string[] = []
 		delayed.on('symbolLocationCreated', event => events.push(event.type))
 		delayed.query(uri, 'tag', 'migration').enterIsotope('doc', {
-			data: { scope: 0, visibleWithin: ['**/demo/**'] },
+			data: { source: 1, scope: 0, visibleWithin: ['**/demo/**'] },
 		}).migrateDefinitions('doc')
 		t.assert.equal(base.definition?.length, 1)
 		t.assert.equal(base.isotopes, undefined)
@@ -293,7 +293,7 @@ describe('symbol isotopes', () => {
 	})
 	it('writes public metadata and every usage type to base rather than the matching isotope', t => {
 		const base = symbol()
-		base.visibility = 3
+		base.visibility = 2
 		delete base.desc
 		delete base.declaration
 		const util = new SymbolUtil({ tag: { test: base } })
@@ -307,7 +307,7 @@ describe('symbol isotopes', () => {
 			] as const
 		) {
 			util.query(uri, 'tag', 'test').enter({
-				data: { visibility: 2, desc: 'public', data: 'base data' },
+				data: { visibility: 4, desc: 'public', data: 'base data' },
 				usage: { type },
 			})
 			t.assert.equal(base[type]?.length, 1)
@@ -349,7 +349,7 @@ describe('symbol isotopes', () => {
 
 	it('filters inaccessible symbols but returns raw restricted symbols when visible', t => {
 		const base = symbol()
-		base.visibility = 3
+		base.visibility = 2
 		const util = new SymbolUtil({ tag: { test: base } })
 		t.assert.equal(util.query(uri, 'tag', 'test').symbol, base)
 		t.assert.equal(util.getVisibleSymbols('tag', uri)['test'], base)

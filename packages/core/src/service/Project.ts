@@ -5,6 +5,7 @@ import type { Externals, IntervalId } from '../common/index.js'
 import {
 	bufferToString,
 	EventDispatcher,
+	getSha1,
 	Logger,
 	normalizeUri,
 	SingletonPromise,
@@ -17,7 +18,7 @@ import { file } from '../parser/index.js'
 import { traversePreOrder } from '../processor/index.js'
 import type { PosRangeLanguageError } from '../source/index.js'
 import { LanguageError, Range, Source } from '../source/index.js'
-import { SymbolUtil } from '../symbol/index.js'
+import { SymbolTable, SymbolUtil } from '../symbol/index.js'
 import { CacheService } from './CacheService.js'
 import type { Config, PartialConfig } from './Config.js'
 import { ConfigService, LinterConfigValue } from './Config.js'
@@ -236,6 +237,57 @@ export class Project extends EventDispatcher<{
 	symbols: SymbolUtil
 
 	#dependencyRoots: Set<RootUriString> | undefined
+	readonly #dependencyImports = new Map<string, { checksum: string; symbols: SymbolUtil }>()
+	readonly #dependencyChecksums = new Map<string, string>()
+	readonly #ignoredDependencyRoots = new Set<string>()
+	#activeDependencyRoot: string | undefined
+	#refreshLocalBindings = false
+
+	private isIgnoredDependency(uri: string): boolean {
+		for (const root of this.#ignoredDependencyRoots) {
+			if (fileUtil.isSubUriOf(uri, root)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	private ignoreDependency(root: RootUriString): void {
+		this.#ignoredDependencyRoots.add(root)
+		this.#dependencyRoots?.delete(root)
+		for (const uri of this.#dependencyFiles ?? []) {
+			if (fileUtil.isSubUriOf(uri, root)) {
+				this.#dependencyFiles!.delete(uri)
+				this.#symbolUpToDateUris.delete(uri)
+				this.symbols.clear({ uri })
+				delete this.cacheService.checksums.files[uri]
+				this.emit('documentErrored', { uri, errors: [] })
+			}
+		}
+	}
+
+	/** Select the appropriate symbol table for a given URI. */
+	private selectSymbolTable(uri: string): SymbolUtil {
+		if (uri.endsWith('.mcdoc')) {
+			return this.symbols
+		}
+		for (const [root, entry] of this.#dependencyImports) {
+			if (fileUtil.isSubUriOf(uri, root)) {
+				for (const category of ['mcdoc', 'mcdoc/dispatcher']) {
+					entry.symbols.global[category] = this.symbols.global[category] ??= {}
+				}
+				return entry.symbols
+			}
+		}
+		return this.symbols
+	}
+
+	private publishDependency(root: string): void {
+		const entry = this.#dependencyImports.get(root)!
+		const exported = SymbolTable.getDependencyExports(entry.symbols.global, entry.checksum)
+		this.symbols.removeDependencySymbols(entry.checksum, false)
+		this.symbols.importDependencySymbols(exported)
+	}
 	#dependencyFiles: Set<string> | undefined
 
 	#roots: readonly RootUriString[] = []
@@ -289,6 +341,7 @@ export class Project extends EventDispatcher<{
 	 */
 	getTrackedFiles(): string[] {
 		const supportedFiles = [...this.#dependencyFiles ?? [], ...this.watchedFiles]
+			.filter(uri => !this.isIgnoredDependency(uri))
 		this.logger.info(
 			`[Project#getTrackedFiles] Listed ${supportedFiles.length} supported files`,
 		)
@@ -372,6 +425,7 @@ export class Project extends EventDispatcher<{
 			this.symbols.clear({ uri })
 			this.tryClearingCache(uri)
 		}).on('ready', () => {
+			this.#refreshLocalBindings = false
 			this.#isReady = true
 			// Recheck client managed files after the READY process, as they may have incomplete results and are user-facing.
 			const promises: Promise<unknown>[] = []
@@ -453,6 +507,7 @@ export class Project extends EventDispatcher<{
 		}
 
 		this.#isReady = false
+		this.#ignoredDependencyRoots.clear()
 
 		this.#watcher = projectRootsWatcher
 
@@ -557,8 +612,58 @@ export class Project extends EventDispatcher<{
 		}
 		__profiler.task('Register Symbols')
 
-		for (const [uri, values] of Object.entries(this.cacheService.errors)) {
-			this.emit('documentErrored', { errors: values, uri })
+		const previousImports = new Map(this.cacheService.imports.map(({ uri, checksum }) => [uri, checksum]))
+		const obsoleteProviders = new Set<string>()
+		this.#dependencyImports.clear()
+		this.#dependencyChecksums.clear()
+		const packages = await Promise.all([...this.#dependencyRoots].map(async root => {
+			const files = [...this.#dependencyFiles!].filter(uri => fileUtil.isSubUriOf(uri, root)).sort()
+			const hashes = await Promise.all(files.map(async uri => [uri.slice(root.length), await this.fs.hash(uri)]))
+			return { root, files, checksum: await getSha1(JSON.stringify(hashes)) }
+		}))
+		// Keep an unchanged cached package ahead of newly added copies, regardless of config order.
+		packages.sort((a, b) => Number(previousImports.get(b.root) === b.checksum)
+			- Number(previousImports.get(a.root) === a.checksum))
+		const importedChecksums = new Set<string>()
+		for (const { root, files, checksum } of packages) {
+			if (importedChecksums.has(checksum)) {
+				this.ignoreDependency(root)
+				continue
+			}
+			importedChecksums.add(checksum)
+			this.#dependencyChecksums.set(root, checksum)
+			const previous = previousImports.get(root)
+			previousImports.delete(root)
+			if (previous === checksum) {
+				for (const uri of files) {
+					if (!uri.endsWith('.mcdoc')) {
+						this.#symbolUpToDateUris.add(uri)
+					}
+				}
+			} else {
+				if (previous !== undefined) {
+					obsoleteProviders.add(previous)
+				}
+				this.#dependencyImports.set(root, { checksum, symbols: new SymbolUtil({}) })
+			}
+		}
+		for (const checksum of previousImports.values()) {
+			obsoleteProviders.add(checksum)
+		}
+		for (const checksum of importedChecksums) {
+			obsoleteProviders.delete(checksum)
+		}
+		this.updateRoots()
+		this.#refreshLocalBindings = obsoleteProviders.size > 0 || this.#dependencyImports.size > 0
+		for (const provider of obsoleteProviders) {
+			this.symbols.removeDependencySymbols(provider)
+		}
+		const dependencyFilesToBind = [...this.#dependencyFiles].filter(uri =>
+			this.selectSymbolTable(uri) !== this.symbols
+		)
+
+		for (const uri of new Set([...this.getTrackedFiles(), ...Object.keys(this.cacheService.errors)])) {
+			this.emit('documentErrored', { errors: this.cacheService.getErrors(uri), uri })
 		}
 		__profiler.task('Pop Errors')
 
@@ -571,12 +676,27 @@ export class Project extends EventDispatcher<{
 		}
 		__profiler.task('Validate Cache')
 
-		if (addedFiles.length > 0) {
-			this.bindUri(addedFiles)
+		if (addedFiles.length > 0 || dependencyFilesToBind.length > 0) {
+			this.bindUri([
+				...new Set([
+					...addedFiles.filter(
+						uri => (!this.#dependencyFiles!.has(uri) || uri.endsWith('.mcdoc')),
+					),
+					...dependencyFilesToBind,
+				]),
+			])
+		}
+		for (const root of this.#dependencyImports.keys()) {
+			this.publishDependency(root)
 		}
 		__profiler.task('Bind URIs')
 
-		const files = [...addedFiles, ...changedFiles].sort(this.meta.uriSorter)
+		const localFiles = this.#refreshLocalBindings
+			? this.getTrackedFiles().filter(uri => !this.#dependencyFiles!.has(uri))
+			: [...addedFiles, ...changedFiles].filter(uri => !this.#dependencyFiles!.has(uri))
+		const files = [...new Set([...dependencyFilesToBind, ...localFiles])].sort(
+			this.meta.uriSorter,
+		)
 		__profiler.task('Sort URIs')
 
 		const fileCountByExtension = new Map<string, number>()
@@ -592,11 +712,23 @@ export class Project extends EventDispatcher<{
 		}
 
 		const __bindProfiler = this.profilers.get('project#ready#bind', 'top-n', 50)
-		for (const uri of files) {
+		for (const root of this.#dependencyImports.keys()) {
+			this.#activeDependencyRoot = root
+			for (const uri of files.filter(uri => fileUtil.isSubUriOf(uri, root))) {
+				await this.ensureBindingStarted(uri)
+				__bindProfiler.task(uri)
+			}
+			this.publishDependency(root)
+		}
+		this.#activeDependencyRoot = undefined
+		for (const uri of files.filter(uri => !this.#dependencyFiles!.has(uri))) {
 			await this.ensureBindingStarted(uri)
 			__bindProfiler.task(uri)
 		}
 		__bindProfiler.finalize()
+		this.#dependencyImports.clear()
+		this.symbols.trim(this.symbols.global)
+		this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({ uri, checksum }))
 		__profiler.task('Bind Files')
 
 		__profiler.finalize()
@@ -745,6 +877,77 @@ export class Project extends EventDispatcher<{
 
 	@SingletonPromise()
 	private async bind(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
+		const root = [...this.#dependencyChecksums.keys()].find(root =>
+			fileUtil.isSubUriOf(doc.uri, root)
+		)
+		if (this.isIgnoredDependency(doc.uri)) {
+			return
+		}
+		if (root && !doc.uri.endsWith('.mcdoc') && !this.#dependencyImports.has(root)) {
+			await this.rebindDependency(root, doc, node)
+			return
+		}
+		await this.bindDocument(doc, node)
+	}
+
+	/** Editing or opening a dependency must never bind its definitions into the local base. */
+	private async rebindDependency(
+		root: string,
+		doc: TextDocument,
+		node: FileNode<AstNode>,
+	): Promise<void> {
+		if (node.binderErrors) {
+			return
+		}
+		const files = [...this.#dependencyFiles ?? []].filter(uri => fileUtil.isSubUriOf(uri, root))
+			.sort()
+		const hashes = await Promise.all(files.map(async uri => [
+			uri.slice(root.length),
+			uri === doc.uri
+				? await getSha1(doc.getText())
+				: this.#clientManagedDocAndNodes.has(uri)
+				? await getSha1(this.#clientManagedDocAndNodes.get(uri)!.doc.getText())
+				: await this.fs.hash(uri),
+		]))
+		const checksum = await getSha1(JSON.stringify(hashes))
+		const previous = this.#dependencyChecksums.get(root)!
+		if ([...this.#dependencyChecksums].some(([uri, value]) => uri !== root && value === checksum)) {
+			this.symbols.removeDependencySymbols(previous)
+			this.#dependencyChecksums.delete(root)
+			this.ignoreDependency(root as RootUriString)
+			this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({ uri, checksum }))
+			this.updateRoots()
+			return
+		}
+		const symbols = new SymbolUtil({})
+		this.#dependencyImports.set(root, { checksum, symbols })
+		const activeRoot = this.#activeDependencyRoot
+		this.#activeDependencyRoot = root
+		try {
+			for (const uri of files) {
+				this.#symbolUpToDateUris.delete(uri)
+			}
+			this.bindUri(files)
+			await this.bindDocument(doc, node)
+			for (const uri of files) {
+				if (uri !== doc.uri) {
+					await this.ensureBindingStarted(uri)
+				}
+			}
+			if (checksum !== previous) {
+				this.symbols.removeDependencySymbols(previous, false)
+				this.publishDependency(root)
+				this.#dependencyChecksums.set(root, checksum)
+				this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({ uri, checksum }))
+				this.symbols.trim(this.symbols.global)
+			}
+		} finally {
+			this.#activeDependencyRoot = activeRoot
+			this.#dependencyImports.delete(root)
+		}
+	}
+
+	private async bindDocument(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
 		if (node.binderErrors) {
 			return
 		}
@@ -752,7 +955,10 @@ export class Project extends EventDispatcher<{
 			this.#bindingInProgressUris.add(doc.uri)
 			this.bindUri(doc.uri)
 			const binder = this.meta.getBinder(node.type)
-			const ctx = BinderContext.create(this, { doc })
+			const ctx = {
+				...BinderContext.create(this, { doc }),
+				symbols: this.selectSymbolTable(doc.uri),
+			}
 			ctx.symbols.clear({ contributor: 'binder', uri: doc.uri })
 			await ctx.symbols.contributeAsAsync('binder', async () => {
 				const proxy = StateProxy.create(node)
@@ -768,7 +974,7 @@ export class Project extends EventDispatcher<{
 
 	@SingletonPromise()
 	private async check(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
-		if (node.checkerErrors) {
+		if (node.checkerErrors || this.isIgnoredDependency(doc.uri)) {
 			return
 		}
 		try {
@@ -834,33 +1040,52 @@ export class Project extends EventDispatcher<{
 	// @SingletonPromise()
 	async ensureBindingStarted(uri: string): Promise<void> {
 		uri = this.normalizeUri(uri)
-		if (this.#symbolUpToDateUris.has(uri) || this.#bindingInProgressUris.has(uri)) {
+		if (this.isIgnoredDependency(uri) || this.#symbolUpToDateUris.has(uri) || this.#bindingInProgressUris.has(uri)) {
 			return
 		}
 
 		this.#bindingInProgressUris.add(uri)
 
 		const doc = await this.read(uri)
-		if (!doc || !(await this.cacheService.hasFileChangedSinceCache(doc))) {
+		if (
+			!doc || (!this.#refreshLocalBindings && this.selectSymbolTable(uri) === this.symbols
+				&& !(await this.cacheService.hasFileChangedSinceCache(doc)))
+		) {
 			return
 		}
 
 		const node = this.parse(doc)
 		await this.bind(doc, node)
+		for (const root of this.#dependencyImports.keys()) {
+			if (!uri.endsWith('.mcdoc') && root !== this.#activeDependencyRoot && fileUtil.isSubUriOf(uri, root)) {
+				this.publishDependency(root)
+			}
+		}
 		this.emit('documentUpdated', { doc, node })
 	}
 
 	private bindUri(param: string | string[]): void {
-		const ctx = UriBinderContext.create(this)
-		if (typeof param === 'string') {
-			ctx.symbols.clear({ contributor: 'uri_binder', uri: param })
-		}
-		ctx.symbols.contributeAs('uri_binder', () => {
-			const uris = Array.isArray(param) ? param : [param]
-			for (const binder of this.meta.uriBinders) {
-				binder(uris, ctx)
+		const groups = new Map<SymbolUtil, string[]>()
+		for (const uri of Array.isArray(param) ? param : [param]) {
+			if (this.isIgnoredDependency(uri)) {
+				continue
 			}
-		})
+			const symbols = this.selectSymbolTable(uri)
+			const group = groups.get(symbols) ?? []
+			group.push(uri)
+			groups.set(symbols, group)
+		}
+		for (const [symbols, uris] of groups) {
+			const ctx = { ...UriBinderContext.create(this), symbols }
+			if (typeof param === 'string') {
+				symbols.clear({ contributor: 'uri_binder', uri: param })
+			}
+			ctx.symbols.contributeAs('uri_binder', () => {
+				for (const binder of this.meta.uriBinders) {
+					binder(uris, ctx)
+				}
+			})
+		}
 	}
 
 	private static readonly AnalysisYieldInterval = 100
@@ -1045,7 +1270,7 @@ export class Project extends EventDispatcher<{
 	 *                 its file extension.
 	 */
 	public shouldExclude(uri: string, language?: string): boolean {
-		return (!this.isSupportedLanguage(uri, language) && !ConfigService.isConfigFile(uri))
+		return this.isIgnoredDependency(uri) || (!this.isSupportedLanguage(uri, language) && !ConfigService.isConfigFile(uri))
 			|| this.isUserExcluded(uri)
 	}
 
