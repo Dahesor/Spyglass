@@ -1,7 +1,7 @@
 /* istanbul ignore file */
 
 import type { DecompressedFile, Externals, Logger } from '../common/index.js'
-import { getSha1, Uri } from '../common/index.js'
+import { getSha1, normalizeUri, Uri } from '../common/index.js'
 import { TwoWayMap } from '../common/TwoWayMap.js'
 import type { Dependency } from './Dependency.js'
 import type { RootUriString } from './fileUtil.js'
@@ -223,7 +223,7 @@ export class FileUriSupporter implements UriProtocolSupporter {
 			let { uri } = dependency
 			try {
 				if (fileUtil.isFileUri(uri) && (await externals.fs.stat(uri)).isDirectory()) {
-					uri = fileUtil.ensureEndingSlash(uri)
+					uri = fileUtil.ensureEndingSlash(normalizeUri(uri))
 					roots.push(uri as RootUriString)
 					files.set(uri, await fileUtil.getAllFiles(externals, uri))
 				}

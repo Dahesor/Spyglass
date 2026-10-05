@@ -109,7 +109,7 @@ export function declareDocSymbol(
 		query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 			data: {
 				...node.access.isotope,
-				docDeclaration: true,
+				source: core.SymbolIsotopeProvider.DocBlock,
 				desc: node.description ?? '',
 			},
 			usage,

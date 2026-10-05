@@ -351,7 +351,7 @@ export async function getSha1(data: string | Uint8Array<ArrayBuffer>): Promise<s
 	if (typeof data === 'string') {
 		data = new TextEncoder().encode(data)
 	}
-	const hash = await crypto.subtle.digest('SHA-1', data.buffer)
+	const hash = await crypto.subtle.digest('SHA-1', data)
 	return bytesToHex(new Uint8Array(hash))
 }
 

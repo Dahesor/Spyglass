@@ -19,6 +19,8 @@ import {
 	Logger,
 	Project,
 	resourceLocation,
+	SymbolTable,
+	SymbolUtil,
 	UriStore,
 	VanillaConfig,
 } from '../../lib/index.js'
@@ -112,6 +114,313 @@ async function setup(
 }
 
 describe('Project', () => {
+	it('keeps archive dependencies separate and publishes once per binding phase', async t => {
+		const exports = t.mock.method(SymbolTable, 'getDependencyExports')
+		const bound: string[] = []
+		const { project } = await setup({
+			'/root/spyglass.json': JSON.stringify({ env: { dependencies: ['@first', '@second'] } }),
+			'/root/local.spyglasstest': 'foo',
+		}, [({ meta, externals }) => {
+			externals.archive.decompressBall = async bytes => [{
+				path: 'value.spyglasstest', type: 'file', mode: 0o644, mtime: '',
+				data: new TextEncoder().encode(bytes[0] === 1 ? 'foo' : 'bar'),
+			}]
+			for (const [name, id] of [['first', 1], ['second', 2]] as const) {
+				meta.registerDependencyProvider(`@${name}`, () => ({ type: 'tarball-ram', name, data: new Uint8Array([id]) }))
+			}
+			meta.registerLanguage('spyglasstest', { extensions: ['.spyglasstest'], parser: literal('foo', 'bar') })
+			meta.registerBinder<LiteralNode>('literal', (_node, ctx) => {
+				bound.push(ctx.doc.uri)
+				ctx.symbols.query(ctx.doc, 'function', ctx.doc.uri).enter({ usage: { type: 'definition' } })
+			})
+		}])
+		try {
+			assert.deepEqual(bound, ['archive://first/value.spyglasstest', 'archive://second/value.spyglasstest', `${ProjectRoot}local.spyglasstest`])
+			assert.equal(exports.mock.callCount(), 4)
+			for (const { uri, checksum } of project.cacheService.imports) {
+				const symbol = project.symbols.global.function![`${uri}value.spyglasstest`]
+				assert.equal(symbol.isotopes?.length, 1)
+				assert.equal(symbol.isotopes?.[0].providerName, checksum)
+			}
+			assert.equal(project.symbols.global.function![`${ProjectRoot}local.spyglasstest`].isotopes, undefined)
+		} finally {
+			await project.close()
+		}
+	})
+	for (const drive of ['C:', 'C%3A']) {
+		it(`filters dependency declarations with a noncanonical Windows drive ${drive}`, async () => {
+			const { fs } = memfs({
+				'/dependency/public.spyglasstest': 'public',
+				'/dependency/internal.spyglasstest': 'internal',
+				'/dependency/private.spyglasstest': 'private',
+			}, '/')
+			const originalExternals = getNodeJsExternals({
+				cacheRoot: CacheRoot, logger: Logger.noop(), nodeFsp: fs.promises as unknown as typeof fsp,
+			})
+			// Model Windows drive aliases while keeping the fixture portable.
+			const originalFs = originalExternals.fs
+			const path = (uri: { toString(): string }) => uri.toString().replace(/^file:\/\/\/[cC](?::|%3[aA])\//, 'file:///')
+			const externals: Externals = {
+				...originalExternals,
+				fs: {
+					...originalFs,
+					stat: uri => originalFs.stat(path(uri)),
+					readdir: uri => originalFs.readdir(path(uri)),
+					readFile: uri => originalFs.readFile(path(uri)),
+				},
+			}
+			const initializer: ProjectInitializer = ({ meta }) => {
+				meta.registerLanguage('spyglasstest', { extensions: ['.spyglasstest'], parser: literal('public', 'internal', 'private') })
+				meta.registerUriBinder((uris, ctx) => {
+					for (const uri of uris) {
+						ctx.symbols.query(uri, 'function', fileUtil.basename(uri)!).enterFileDefinition({ usage: {} })
+					}
+				})
+				meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
+					const query = ctx.symbols.query(ctx.doc, 'function', `${node.value}.spyglasstest`)
+					const usage = { type: 'declaration' as const, fromDocDeclaration: true }
+					if (node.value === 'private') {
+						query.enterIsotope('private', { data: { source: 0, scope: 0, visibleWithin: ['**/dependency/**'] }, usage })
+					} else {
+						query.enter({ data: { visibility: node.value === 'public' ? 4 : 3 }, usage })
+					}
+				})
+			}
+			const project = new Project({
+				cacheRoot: CacheRoot, externals, logger: Logger.noop(), initializers: [initializer],
+				projectRoots: [ProjectRoot],
+				defaultConfig: ConfigService.merge(VanillaConfig, { env: { dependencies: [`file:///${drive}/dependency/`] } }),
+			})
+			try {
+				await project.init()
+				await project.ready()
+				const symbols = project.symbols.global.function!
+				assert.equal(symbols['internal.spyglasstest'], undefined)
+				assert.equal(symbols['private.spyglasstest'], undefined)
+				assert.equal(symbols['public.spyglasstest'].visibility, 2)
+				assert.equal(symbols['public.spyglasstest'].declaration, undefined)
+				assert.equal(symbols['public.spyglasstest'].isotopes?.[0].implementation?.length, 1)
+				assert.equal(project.cacheService.imports[0].uri, 'file:///c:/dependency/')
+			} finally {
+				await project.close()
+			}
+		})
+	}
+	it('ignores duplicate checksums, prefers cached packages, and adopts a remaining copy', async () => {
+		const bound: string[] = []
+		const initializer: ProjectInitializer = ({ meta }) => {
+			meta.registerLanguage('spyglasstest', { extensions: ['.spyglasstest'], parser: literal('foo', 'bar') })
+			meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
+				bound.push(ctx.doc.uri)
+				ctx.symbols.query(ctx.doc, 'function', 'demo:duplicate').enter({
+					data: { desc: node.value }, usage: { type: 'definition' },
+				})
+			})
+		}
+		const first = 'file:///first/'
+		const copy = 'file:///copy/'
+		const other = 'file:///other/'
+		const { project } = await setup({
+			'/root/spyglass.json': JSON.stringify({ env: { dependencies: [first, copy] } }),
+			'/first/value.spyglasstest': 'foo',
+			'/copy/value.spyglasstest': 'foo',
+			'/other/value.spyglasstest': 'bar',
+		}, [initializer])
+		let reloaded: Project | undefined
+		try {
+			assert.deepEqual(bound, [`${first}value.spyglasstest`])
+			assert.deepEqual(project.cacheService.imports.map(value => value.uri), [first])
+			assert.equal(project.getTrackedFiles().includes(`${copy}value.spyglasstest`), false)
+			assert.equal(project.roots.includes(copy), false)
+			await project.onDidOpen(`${copy}value.spyglasstest`, 'spyglasstest', 0, 'foo')
+			assert.deepEqual(bound, [`${first}value.spyglasstest`])
+			await project.close()
+			await fileUtil.writeFile(project.externals, `${ProjectRoot}spyglass.json`,
+				JSON.stringify({ env: { dependencies: [copy, first] } }))
+			reloaded = new Project({
+				cacheRoot: CacheRoot, externals: project.externals, projectRoots: [ProjectRoot],
+				logger: Logger.noop(), initializers: [initializer],
+				defaultConfig: ConfigService.merge(VanillaConfig, { env: { dependencies: [] } }),
+			})
+			await reloaded.init()
+			await reloaded.ready()
+			assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [first])
+			assert.deepEqual(bound, [`${first}value.spyglasstest`])
+			reloaded.config = ConfigService.merge(reloaded.config, { env: { dependencies: [first] } })
+			await reloaded.restart()
+			assert.deepEqual(bound, [`${first}value.spyglasstest`])
+			reloaded.config = ConfigService.merge(reloaded.config, { env: { dependencies: [copy, other] } })
+			await reloaded.restart()
+			assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [copy, other])
+			assert.deepEqual(bound, [`${first}value.spyglasstest`, `${copy}value.spyglasstest`, `${other}value.spyglasstest`])
+			await reloaded.onDidOpen(`${other}value.spyglasstest`, 'spyglasstest', 0, 'foo')
+			assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [copy])
+			assert.equal(reloaded.shouldExclude(`${other}value.spyglasstest`), true)
+			const symbol = reloaded.symbols.global.function!['demo:duplicate']
+			assert.equal(symbol.isotopes?.length, 1)
+			assert.equal(SymbolUtil.viewFromContext(symbol, ProjectRoot)?.definition?.[0].uri,
+				`${copy}value.spyglasstest`)
+		} finally {
+			await project.close()
+			await reloaded?.close()
+		}
+	})
+	it('replaces a cached import when the package at the same URI changes', async () => {
+		const initializer: ProjectInitializer = ({ meta }) => {
+			meta.registerLanguage('spyglasstest', { extensions: ['.spyglasstest'], parser: literal('foo', 'bar') })
+			meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
+				ctx.symbols.query(ctx.doc, 'function', 'demo:cached').enter({
+					data: { desc: node.value }, usage: { type: 'definition' },
+				})
+			})
+		}
+		const { project } = await setup({
+			'/root/spyglass.json': JSON.stringify({ env: { dependencies: ['file:///dependency/'] } }),
+			'/dependency/value.spyglasstest': 'foo',
+		}, [initializer])
+		let reloaded: Project | undefined
+		try {
+			await project.close()
+			const previous = project.cacheService.imports[0]
+			await fileUtil.writeFile(project.externals, 'file:///dependency/value.spyglasstest', 'bar')
+			reloaded = new Project({
+				cacheRoot: CacheRoot, externals: project.externals, projectRoots: [ProjectRoot],
+				logger: Logger.noop(), initializers: [initializer],
+				defaultConfig: ConfigService.merge(VanillaConfig, { env: { dependencies: [] } }),
+			})
+			await reloaded.init()
+			await reloaded.ready()
+			const current = reloaded.cacheService.imports[0]
+			assert.equal(current.uri, previous.uri)
+			assert.notEqual(current.checksum, previous.checksum)
+			const symbol = reloaded.symbols.global.function!['demo:cached']
+			assert.equal(SymbolUtil.viewFromContext(symbol, ProjectRoot)?.desc, 'bar')
+			assert.deepEqual(symbol.isotopes?.map(isotope => isotope.providerName), [current.checksum])
+		} finally {
+			await project.close()
+			await reloaded?.close()
+		}
+	})
+	it('imports only dependency exports through spyglass.json and preserves them after cache reload', async () => {
+		const names = ['public', 'internal', 'private', 'namespace_internal', 'namespace_restricted',
+			'own_internal', 'shared', 'internal_shadow', 'use_dependency', 'external']
+		const bindCount = new Map<string, number>()
+		const dependencyReads: boolean[] = []
+		const initializer: ProjectInitializer = ({ meta }) => {
+			meta.registerLanguage('spyglasstest', { extensions: ['.spyglasstest'], parser: literal(...names) })
+			meta.registerUriBinder((uris, ctx) => {
+				for (const uri of uris.filter(uri => uri.endsWith('.spyglasstest'))) {
+					const name = fileUtil.basename(uri).replace('.spyglasstest', '')
+					ctx.symbols.query(uri, 'function', `demo:${name}`).enterFileDefinition({ usage: {} })
+				}
+			})
+			meta.registerBinder<LiteralNode>('literal', async (node, ctx) => {
+				bindCount.set(ctx.doc.uri, (bindCount.get(ctx.doc.uri) ?? 0) + 1)
+				const name = node.value
+				const identifier = name === 'internal_shadow' ? 'public' : name
+				const query = ctx.symbols.query({ doc: ctx.doc, node }, 'function', `demo:${identifier}`)
+				if (name === 'use_dependency') {
+					await ctx.ensureBindingStarted('file:///second_dependency/data/demo/function/external.spyglasstest')
+					dependencyReads.push(SymbolUtil.isDeclared(SymbolUtil.viewFromContext(ctx.symbols.query(ctx.doc, 'function', 'demo:external').symbol, ctx.doc.uri)))
+				}
+				if (name.includes('internal') || (name === 'shared' && ctx.doc.uri.startsWith(ProjectRoot))) {
+					query.enter({ data: { visibility: 3, desc: 'internal base', data: 'internal data' },
+						usage: { type: 'declaration', node, fromDocDeclaration: true } })
+				} else if (name === 'public' || name === 'shared') {
+					query.enter({ data: { visibility: 4, desc: 'public base' },
+						usage: { type: 'declaration', node, fromDocDeclaration: true } })
+				}
+				if (name.startsWith('namespace_') || name === 'private') {
+					query.enterIsotope(`private:${ctx.doc.uri}`, {
+						data: { scope: 0, visibleWithin: ['file:///dependency/**'], source: 0 },
+						usage: { type: 'declaration', node, fromDocDeclaration: true },
+					})
+				}
+				if (name.startsWith('namespace_')) {
+					query.enterIsotope(`namespace:${ctx.doc.uri}`, {
+						data: { scope: 1, namespace: ['demo'], visibleWithin: ['**/data/demo/**'],
+							desc: 'namespace documentation', source: 0 },
+						usage: { type: 'declaration', node, fromDocDeclaration: true },
+					})
+				}
+			})
+		}
+		const files: Record<string, string> = {
+			'/root/spyglass.json': JSON.stringify({ env: { dependencies: ['file:///dependency/', 'file:///second_dependency/', 'file:///hidden_dependency/'] } }),
+			'/hidden_dependency/data/demo/function/internal.spyglasstest': 'internal',
+			'/root/data/demo/function/own_internal.spyglasstest': 'own_internal',
+			'/root/data/demo/function/shared.spyglasstest': 'shared',
+			'/second_dependency/data/demo/function/public.spyglasstest': 'internal_shadow',
+			'/second_dependency/data/demo/function/external.spyglasstest': 'external',
+		}
+		for (const name of names.filter(name => !['own_internal', 'internal_shadow', 'external'].includes(name))) {
+			files[`/dependency/data/demo/function/${name}.spyglasstest`] = name
+		}
+		const { project } = await setup(files, [initializer])
+		const assertExports = (project: Project) => {
+			const symbols = project.symbols.global.function!
+			assert.equal(SymbolUtil.viewFromContext(symbols['demo:public'], ProjectRoot)?.desc, 'public base')
+			assert.equal(SymbolUtil.viewFromContext(symbols['demo:public'], ProjectRoot)?.implementation?.length, 1)
+			assert.equal(symbols['demo:internal'], undefined)
+			assert.equal(symbols['demo:private'], undefined)
+			assert.equal(symbols['demo:own_internal'].visibility, 3)
+			assert.equal(symbols['demo:shared'].visibility, 3)
+			assert.equal(symbols['demo:shared'].desc, 'internal base')
+			for (const name of ['namespace_internal', 'namespace_restricted']) {
+				const symbol = symbols[`demo:${name}`]
+				assert.equal(symbol.visibility, 2)
+				assert.equal(symbol.data, undefined)
+				assert.equal(symbol.desc, undefined)
+				assert.equal(symbol.implementation?.length ?? 0, 0)
+				assert.equal(symbol.isotopes?.length, 1)
+				const view = SymbolUtil.viewFromContext(symbol, `${ProjectRoot}data/demo/function/use.spyglasstest`)
+				assert.equal(view?.desc, 'namespace documentation')
+				assert.equal(view?.implementation?.length, 1)
+				assert.equal(SymbolUtil.viewFromContext(symbol, `${ProjectRoot}data/other/function/use.spyglasstest`), undefined)
+			}
+		}
+		try {
+			assertExports(project)
+			assert.deepEqual(dependencyReads, [false])
+			assert.equal(SymbolUtil.isDeclared(SymbolUtil.viewFromContext(
+				project.symbols.global.function!['demo:external'], ProjectRoot,
+			)), true)
+			await project.close()
+			assert.deepEqual(project.cacheService.imports.map(value => value.uri).sort(),
+				['file:///dependency/', 'file:///hidden_dependency/', 'file:///second_dependency/'])
+			const reloaded = new Project({ cacheRoot: CacheRoot, externals: project.externals,
+				projectRoots: [ProjectRoot], logger: Logger.noop(), initializers: [initializer],
+				defaultConfig: ConfigService.merge(VanillaConfig, { env: { dependencies: [] } }) })
+			try {
+				await reloaded.init()
+				assert.deepEqual(reloaded.cacheService.imports, project.cacheService.imports)
+				await reloaded.ready({ projectRootsWatcher: new TestFileWatcher(project.externals, [ProjectRoot]) })
+				assertExports(reloaded)
+				assert.equal(bindCount.get('file:///dependency/data/demo/function/internal.spyglasstest'), 1)
+				assert.equal(bindCount.get('file:///hidden_dependency/data/demo/function/internal.spyglasstest'), 1)
+				await reloaded.onDidOpen('file:///dependency/data/demo/function/internal.spyglasstest', 'spyglasstest', 0, 'internal')
+				assertExports(reloaded)
+				assert.deepEqual(dependencyReads, [false, false])
+				reloaded.symbols.query(`${ProjectRoot}private/doc.mcfunction`, 'function', 'demo:public')
+					.enterIsotope('local-doc', {
+						data: { source: 0, scope: 0, visibleWithin: [`${ProjectRoot}private/**`], desc: 'local private' },
+						usage: { type: 'declaration', fromDocDeclaration: true },
+					})
+				const raw = reloaded.symbols.global.function!['demo:public']
+				assert.equal(SymbolUtil.viewFromContext(raw, `${ProjectRoot}outside.mcfunction`)?.desc, 'public base')
+				reloaded.config = ConfigService.merge(reloaded.config, { env: { dependencies: ['file:///second_dependency/'] } })
+				await reloaded.restart()
+				assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), ['file:///second_dependency/'])
+				assert.equal(reloaded.symbols.global.function!['demo:public'], raw)
+				assert.equal(SymbolUtil.viewFromContext(raw, `${ProjectRoot}outside.mcfunction`), undefined)
+				assert.equal(SymbolUtil.viewFromContext(raw, `${ProjectRoot}private/use.mcfunction`)?.desc, 'local private')
+			} finally {
+				await reloaded.close()
+			}
+		} finally {
+			await project.close()
+		}
+	})
 	it('reports access errors through the project lint pipeline and keeps missing names undeclared', async () => {
 		const source = `${ProjectRoot}source.spyglasstest`
 		const outside = `${ProjectRoot}outside.spyglasstest`
@@ -131,7 +440,7 @@ describe('Project', () => {
 			project.symbols.contributeAs('binder', () => {
 				project.symbols.query(`${ProjectRoot}private/doc.spyglasstest`, 'function', 'demo:example')
 					.enterIsotope('private', {
-						data: { scope: 0, visibleWithin: ['**/private/**'], docDeclaration: true },
+						data: { scope: 0, visibleWithin: ['**/private/**'], source: 0 },
 						usage: { type: 'declaration', fromDocDeclaration: true },
 					})
 			})

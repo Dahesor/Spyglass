@@ -5,6 +5,7 @@ import { ResourceLocationNode } from '../../node/index.js'
 import type { BinderContext, MetaRegistry } from '../../service/index.js'
 import { ErrorReporter } from '../../service/index.js'
 import { ErrorSeverity } from '../../source/index.js'
+import { SymbolIsotopeProvider, type SymbolQuery, SymbolUtil } from '../../symbol/index.js'
 import { traversePreOrder } from '../util.js'
 import type { Binder } from './Binder.js'
 import { AsyncBinder, SyncBinder } from './Binder.js'
@@ -136,6 +137,20 @@ export const dispatchSync = SyncBinder.create<AstNode>((node, ctx) => {
 	}
 })
 
+function enterSymbolUsage(
+	query: SymbolQuery,
+	addition: Parameters<SymbolQuery['enter']>[0],
+	ctx: BinderContext,
+): void {
+	const isotope = query.symbol && SymbolUtil.selectIsotope(query.symbol, ctx.doc.uri)
+	if ((addition.usage?.type ?? 'reference') === 'reference'
+		&& isotope?.source === SymbolIsotopeProvider.Imported) {
+		query.enterIsotope(isotope.identifier, { usage: addition.usage })
+	} else {
+		query[ctx.doc.languageId === 'mcfunction' ? 'enterCommand' : 'enter'](addition)
+	}
+}
+
 export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, ctx) => {
 	const raw = ResourceLocationNode.toString(node, 'full')
 	let sanitizedRaw = ResourceLocation.lengthen(
@@ -149,13 +164,13 @@ export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, c
 			+ sanitizedRaw.substring(sepIndex + 1)
 	}
 	if (node.options.category) {
-		ctx.symbols.query(
+		enterSymbolUsage(ctx.symbols.query(
 			{ doc: ctx.doc, node },
 			node.isTag ? `tag/${node.options.category}` : node.options.category,
 			sanitizedRaw,
-		)[ctx.doc.languageId === 'mcfunction' ? 'enterCommand' : 'enter']({
+		), {
 			usage: { type: node.options.usageType, node, accessType: node.options.accessType },
-		})
+		}, ctx)
 	}
 	if (node.options.pool && !node.options.allowUnknown) {
 		if (!node.options.pool.includes(sanitizedRaw)) {
@@ -168,11 +183,10 @@ export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, c
 export const symbol = SyncBinder.create<SymbolBaseNode>((node, ctx) => {
 	if (node.value) {
 		const path = node.options.parentPath ? [...node.options.parentPath, node.value] : [node.value]
-		ctx.symbols.query({ doc: ctx.doc, node }, node.options.category, ...path)
-			[ctx.doc.languageId === 'mcfunction' ? 'enterCommand' : 'enter']({
-				data: { subcategory: node.options.subcategory },
-				usage: { type: node.options.usageType, node, accessType: node.options.accessType },
-			})
+		enterSymbolUsage(ctx.symbols.query({ doc: ctx.doc, node }, node.options.category, ...path), {
+			data: { subcategory: node.options.subcategory },
+			usage: { type: node.options.usageType, node, accessType: node.options.accessType },
+		}, ctx)
 	}
 })
 

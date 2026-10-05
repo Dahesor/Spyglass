@@ -17,7 +17,7 @@ import type { Project } from './Project.js'
  * The format version of the cache. Should be increased when any changes that
  * could invalidate the cache are introduced to the Spyglass codebase.
  */
-export const LatestCacheVersion = 8
+export const LatestCacheVersion = 9
 
 /**
  * Checksums of cached files or roots.
@@ -35,11 +35,17 @@ namespace Checksums {
 
 type ErrorCache = Record<string, readonly PosRangeLanguageError[]>
 
+interface CachedImport {
+	uri: string
+	checksum: string
+}
+
 /**
  * Format of cache JSON files.
  */
 interface CacheFile {
 	checksums: Checksums
+	imports: CachedImport[]
 	errors: ErrorCache
 	projectRoots: string[]
 	symbols: UnlinkedSymbolTable
@@ -63,6 +69,7 @@ interface ValidateResult {
 
 export class CacheService {
 	checksums = Checksums.create()
+	imports: CachedImport[] = []
 	errors: ErrorCache = {}
 	#hasValidatedFiles = false
 
@@ -109,8 +116,16 @@ export class CacheService {
 			}
 		})
 		this.project.on('documentErrored', ({ uri, errors }) => {
-			this.errors[uri] = errors
+			if (errors.length) {
+				this.errors[uri] = errors
+			} else {
+				delete this.errors[uri]
+			}
 		})
+	}
+
+	getErrors(uri: string): readonly PosRangeLanguageError[] {
+		return this.errors[uri] ?? []
 	}
 
 	#cacheFilePath: string | undefined
@@ -140,9 +155,14 @@ export class CacheService {
 			)) as CacheFile
 			__profiler.task('Read File')
 			if (cache.version === LatestCacheVersion) {
+				const symbols = SymbolTable.link(cache.symbols)
+				const errors = Object.fromEntries(
+					Object.entries(cache.errors ?? {}).filter(([, errors]) => errors.length),
+				)
 				this.checksums = cache.checksums
-				this.errors = cache.errors
-				ans.symbols = SymbolTable.link(cache.symbols)
+				this.imports = cache.imports
+				this.errors = errors
+				ans.symbols = symbols
 				__profiler.task('Link Symbols')
 			} else {
 				this.project.logger.info(
@@ -238,8 +258,11 @@ export class CacheService {
 				version: LatestCacheVersion,
 				projectRoots: this.project.projectRoots,
 				checksums: this.checksums,
+				imports: this.imports,
 				symbols: SymbolTable.unlink(this.project.symbols.global),
-				errors: this.errors,
+				errors: Object.fromEntries(
+					Object.entries(this.errors).filter(([, errors]) => errors.length),
+				),
 			}
 			__profiler.task('Unlink Symbols')
 
@@ -265,6 +288,7 @@ export class CacheService {
 	reset(): LoadResult {
 		this.#hasValidatedFiles = false
 		this.checksums = Checksums.create()
+		this.imports = []
 		this.errors = {}
 		return { symbols: {} }
 	}

@@ -63,7 +63,7 @@ describe('file-origin definitions and doc declarations', () => {
 				}
 				t.assert.equal(env.raw().definition?.length ?? 0, 0)
 				t.assert.equal(env.raw().implementation?.length ?? 0, 0)
-				t.assert.equal(env.raw().visibility, 3)
+				t.assert.equal(env.raw().visibility, 2)
 				t.assert.equal(env.view(outside), undefined)
 				const scoped = env.view(privateDoc)!
 				t.assert.equal(scoped.declaration?.length, 1)

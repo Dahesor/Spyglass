@@ -78,7 +78,12 @@ export class ProtectedDocDirective extends DefaultDocDirective {
 export class InternalDocDirective extends DefaultDocDirective {
 	override readonly identifier = 'internal'
 	override readonly isAccessModifier: boolean = true
-	// TODO
+	override modifyAccess(
+		_directive: core.DeepReadonly<DocDirectiveNode>,
+		_node: DocNode,
+	): DocAccess {
+		return { visibility: core.SymbolVisibility.Internal }
+	}
 }
 
 export class DeprecatedDocDirective extends DefaultDocDirective {
