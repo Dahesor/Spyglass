@@ -1,359 +1,296 @@
-import { SymbolTable, SymbolUtil } from '@spyglassmc/core'
+import {
+	GlobalSymbol,
+	Isotope,
+	SymbolIsotopeProvider as Provider,
+	SymbolIsotopeScope as Scope,
+	SymbolTable,
+	SymbolUsageTypes,
+	SymbolUtil,
+} from '@spyglassmc/core'
+import type { IsotopeScope, SymbolLocation } from '@spyglassmc/core'
 import { describe, it } from 'node:test'
 
-describe('symbol isotopes', () => {
-	it('refreshes cached glob matching after replacement and in-place edits', t => {
-		const base = symbol()
-		base.isotopes = [base.isotopes![1]]
-		const isotope = base.isotopes[0]
-		t.assert.equal(SymbolUtil.selectIsotope(base, uri), isotope)
-		isotope.visibleWithin = ['**/other/**']
-		t.assert.equal(SymbolUtil.selectIsotope(base, uri), undefined)
-		isotope.visibleWithin[0] = '**/demo/**'
-		t.assert.equal(SymbolUtil.selectIsotope(base, uri), isotope)
-		isotope.visibleWithin.push('**/other/**')
-		t.assert.equal(SymbolUtil.selectIsotope(base, 'file:///other/test'), isotope)
-		isotope.visibleWithin.length = 0
-		t.assert.equal(SymbolUtil.selectIsotope(base, uri), undefined)
-		isotope.visibleWithin.push('**/unmatched/**')
-		t.assert.equal(SymbolUtil.selectIsotope(base, uri), undefined)
+const uri = 'file:///pack/data/demo/function/test.mcfunction'
+const outside = 'file:///pack/data/other/function/test.mcfunction'
+function add(util: SymbolUtil, identifier: string, scope: IsotopeScope, overrideLevel = 0) {
+	util.query(uri, 'tag', 'test').enterIsotope(identifier, {
+		data: {
+			source: Provider.Regular,
+			scope,
+			desc: identifier,
+			overrideLevel,
+			...(scope < Scope.Project ? { visibleWithin: ['**/demo/**'] } : {}),
+		},
+		usage: { type: 'declaration' },
 	})
+	return util.global.tag!['test']
+}
 
-	it('rejects clearing scope before changing metadata or adding a usage', t => {
-		const base = symbol()
-		const util = new SymbolUtil({ tag: { test: base } })
-		let created = 0
-		util.on('symbolLocationCreated', () => created++)
-		t.assert.throws(() =>
-			util.query(uri, 'tag', 'test').enterIsotope('isotope1', {
-				data: { source: 1, scope: undefined, desc: 'must not be written' },
-				usage: { type: 'reference' },
-			}), /scope cannot be undefined/)
-		t.assert.equal(base.isotopes![1].scope, 0)
-		t.assert.equal(base.isotopes![1].desc, 'first')
-		t.assert.equal(base.isotopes![1].reference, undefined)
-		t.assert.equal(created, 0)
-		util.query(uri, 'tag', 'test').enterIsotope('isotope1', { data: { desc: 'updated' } })
-		t.assert.equal(base.isotopes![1].scope, 0)
-		t.assert.equal(base.isotopes![1].desc, 'updated')
-		util.query(uri, 'tag', 'test').enterIsotope('isotope1', { data: { source: 1, scope: 1 } })
-		t.assert.equal(base.isotopes![1].scope, 1)
+describe('symbol facets', () => {
+	it('reuses the first matching file location and removes only duplicates during reconciliation', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'doc', Scope.Global)
+		const facet = symbol.facets!.global!
+		facet.isotopes[0].source = Provider.DocBlock
+		facet.declaration![0].fromDocDeclaration = true
+		const first: SymbolLocation = { uri, fromFile: true, isotopeIdentifier: 'doc' }
+		const duplicate = { ...first }
+		const imported: SymbolLocation = { uri, fromFile: true, importedFrom: outside }
+		facet.implementation = [first, duplicate, imported]
+		const removed: SymbolLocation[] = []
+		const created: SymbolLocation[] = []
+		util.on('symbolLocationRemoved', event => removed.push(event.location))
+		util.on('symbolLocationCreated', event => created.push(event.location))
+		Isotope.reconcileDocUsages(util, symbol)
+		t.assert.deepEqual(facet.implementation, [imported, first])
+		t.assert.equal(facet.implementation?.[1], first)
+		t.assert.deepEqual(removed, [duplicate])
+		t.assert.deepEqual(created, [])
+		Isotope.reconcileDocUsages(util, symbol)
+		t.assert.equal(facet.implementation?.[1], first)
+		t.assert.equal(removed.length, 1)
 	})
-
-	const uri = 'file:///pack/data/demo/function/test.mcfunction'
-	const symbol = () =>
-		SymbolTable.link({
-			tag: {
-				test: {
-					visibility: 4,
-					desc: 'base',
-					declaration: [{ uri: 'file:///base' }],
-					isotopes: [
-						{
-							identifier: 'isotope0',
-							source: 1, scope: 1,
-							visibleWithin: ['**/demo/**'],
-							desc: 'namespace',
-						},
-						{
-							identifier: 'isotope1',
-							source: 1, scope: 0,
-							visibleWithin: ['**/demo/**'],
-							overrideLevel: 1,
-							desc: 'first',
-							definition: [{ uri: 'file:///first' }],
-						},
-						{
-							identifier: 'isotope2',
-							source: 1, scope: 0,
-							visibleWithin: ['**/demo/**'],
-							overrideLevel: 1,
-							desc: 'tie',
-						},
-					],
-				},
-			},
-		}).tag!['test']
-
-	it('selects scope before level, keeps the first tie, and replaces usages', t => {
-		const base = symbol()
-		const view = SymbolUtil.viewFromContext(base, uri)!
-		t.assert.equal(view.desc, 'first')
-		t.assert.equal(view.definition?.[0].uri, 'file:///first')
-		t.assert.equal(view.declaration, undefined)
-		t.assert.equal(base.desc, 'base')
-		base.isotopes![2].overrideLevel = 2
-		t.assert.equal(SymbolUtil.viewFromContext(view, uri)?.desc, 'tie')
+	it('deduplicates file usages against preceding command usages in the shared facet', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'doc', Scope.Global)
+		const facet = symbol.facets!.global!
+		facet.isotopes[0].source = Provider.DocBlock
+		facet.declaration![0].fromDocDeclaration = true
+		const command: SymbolLocation = {
+			uri,
+			originalUsageType: 'definition',
+			isotopeIdentifier: 'doc',
+		}
+		facet.implementation = [command, { ...command, fromFile: true }]
+		Isotope.reconcileDocUsages(util, symbol)
+		t.assert.deepEqual(facet.implementation, [command])
+		t.assert.equal(facet.implementation?.[0], command)
 	})
-
-	it('falls back to public base but never to restricted base', t => {
-		const base = symbol()
-		t.assert.equal(SymbolUtil.viewFromContext(base, 'file:///other')?.desc, 'base')
-		base.visibility = 2
-		t.assert.equal(SymbolUtil.viewFromContext(base, 'file:///other'), undefined)
-		t.assert.equal(SymbolUtil.viewFromContext(base, uri)?.desc, 'first')
-		base.isotopes = undefined
-		t.assert.equal(SymbolUtil.viewFromContext(base, uri), undefined)
-	})
-
-	it('returns original symbols from queries and visible collections', t => {
-		const base = symbol()
-		const util = new SymbolUtil({ tag: { test: base } })
-		t.assert.equal(util.query(uri, 'tag', 'test').symbol, base)
-		t.assert.equal(util.getVisibleSymbols('tag', uri)['test'], base)
-		t.assert.equal(util.query(uri, 'tag').visibleMembers['test'], base)
-		t.assert.equal(util.global.tag!['test'].desc, 'base')
-	})
-	it('checks namespace, ignores Local, and excludes nonmatching globs', t => {
-		const base = symbol()
-		base.isotopes = [
-			{ identifier: 'isotope3', source: 1, scope: -1, visibleWithin: ['**'], desc: 'local' },
-			{ identifier: 'isotope4', source: 1, scope: 0, visibleWithin: ['**/other/**'], desc: 'other' },
-			{
-				identifier: 'isotope5',
-				source: 1, scope: 1,
-				namespace: ['other'],
-				visibleWithin: ['**'],
-				desc: 'wrong namespace',
-			},
-			{
-				identifier: 'isotope6',
-				source: 1, scope: 1,
-				namespace: ['demo'],
-				visibleWithin: ['**'],
-				desc: 'demo',
-			},
+	it('refreshes selection after creating a Regular fallback during reconciliation', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'stale-doc', Scope.Global)
+		const facet = symbol.facets!.global!
+		facet.isotopes[0].source = Provider.DocBlock
+		facet.declaration = []
+		facet.reference = [
+			{ uri, originalUsageType: 'reference', isotopeIdentifier: 'stale-doc' },
+			{ uri: outside, originalUsageType: 'reference', isotopeIdentifier: 'stale-doc' },
 		]
-		t.assert.equal(SymbolUtil.viewFromContext(base, uri)?.desc, 'demo')
-	})
-
-	it('writes ordinary references to base even when an isotope matches', t => {
-		const base = symbol()
-		const util = new SymbolUtil({ tag: { test: base } })
-		util.contributeAs('binder', () => {
-			util.query(uri, 'tag', 'test').enter({ usage: { type: 'reference' } })
-		})
-		t.assert.equal(base.reference?.length, 1)
-		t.assert.equal(base.isotopes![1].reference, undefined)
-		util.clear({ uri, contributor: 'binder' })
-		t.assert.equal(base.reference?.length, 0)
-		t.assert.equal(base.isotopes![1].reference, undefined)
-		t.assert.equal(base.isotopes![1].definition?.length, 1)
-	})
-	it('creates and updates an isotope by identifier with one location per write', t => {
-		const util = new SymbolUtil({})
 		const events: string[] = []
-		util.on('symbolLocationCreated', event => events.push(event.type))
-		util.contributeAs('binder', () => {
-			util.query(uri, 'tag', 'new').enterIsotope('doc', {
-				data: { source: 1, scope: 0, visibleWithin: ['**/demo/**'], desc: 'first' },
-				usage: { type: 'declaration' },
-			})
-			util.query(uri, 'tag', 'new').enterIsotope('doc', {
-				data: { desc: 'updated' },
-				usage: { type: 'definition' },
-			})
-		})
-		const base = util.global.tag!['new']
-		t.assert.equal(base.isotopes?.length, 1)
-		t.assert.equal(base.desc, undefined)
-		t.assert.equal(base.declaration, undefined)
-		t.assert.equal(base.isotopes![0].declaration?.length, 1)
-		t.assert.equal(util.query(uri, 'tag', 'new').symbol, base)
-		t.assert.equal(SymbolUtil.viewFromContext(base, uri)?.desc, 'updated')
-		t.assert.deepEqual(events, ['declaration', 'definition'])
+		util.on('symbolLocationRemoved', () => events.push('removed'))
+		util.on('symbolLocationCreated', () => events.push('created'))
+		Isotope.reconcileDocUsages(util, symbol)
+		t.assert.equal(facet.isotopes.length, 1)
+		t.assert.equal(facet.isotopes[0].source, Provider.Regular)
+		t.assert.deepEqual(facet.reference?.map(value => value.isotopeIdentifier), [
+			facet.isotopes[0].identifier,
+			facet.isotopes[0].identifier,
+		])
+		t.assert.deepEqual(events, [])
 	})
-	it('changes visibility before metadata and clears only base locations', t => {
-		const base = symbol()
-		const util = new SymbolUtil({ tag: { test: base } })
-		let removed = 0
-		util.on('symbolLocationRemoved', () => removed++)
-		util.query(uri, 'tag', 'test').enter({
-			data: { visibility: 2, desc: 'must not become base', data: 'secret' },
-		})
-		t.assert.equal(base.desc, undefined)
-		t.assert.equal(base.data, undefined)
-		t.assert.equal(base.declaration, undefined)
-		t.assert.equal(base.isotopes?.length, 3)
-		t.assert.equal(removed, 1)
-		util.query(uri, 'tag', 'test').enter({
-			data: { visibility: 4, desc: 'new public', data: 'public' },
-		})
-		t.assert.equal(base.desc, 'new public')
-		t.assert.equal(base.data, 'public')
-		t.assert.equal(SymbolUtil.viewFromContext(base, 'file:///other')?.desc, 'new public')
-	})
-
-	it('never creates restricted base metadata or usages', t => {
+	it('emits removals before creations when references move to a doc isotope', t => {
 		const util = new SymbolUtil({})
-		util.query(uri, 'tag', 'restricted').enter({
-			data: { visibility: 2, desc: 'secret', data: 'secret' },
-			usage: { type: 'declaration' },
-		})
-		const base = util.global.tag!['restricted']
-		t.assert.equal(base.desc, undefined)
-		t.assert.equal(base.data, undefined)
-		t.assert.equal(base.declaration, undefined)
-		t.assert.equal(SymbolUtil.viewFromContext(base, uri), undefined)
+		const symbol = add(util, 'doc', Scope.Private)
+		const doc = symbol.facets!.isotopes![0]
+		doc.source = Provider.DocBlock
+		doc.declaration![0].fromDocDeclaration = true
+		add(util, 'regular', Scope.Global)
+		const facet = symbol.facets!.global!
+		facet.declaration = []
+		facet.reference = [
+			{ uri, originalUsageType: 'reference', isotopeIdentifier: 'regular' },
+			{ uri: outside, originalUsageType: 'reference', isotopeIdentifier: 'regular' },
+		]
+		const events: string[] = []
+		util.on('symbolLocationRemoved', () => events.push('removed'))
+		util.on('symbolLocationCreated', () => events.push('created'))
+		Isotope.reconcileDocUsages(util, symbol)
+		t.assert.equal(doc.reference?.length, 2)
+		t.assert.deepEqual(facet.reference, [])
+		t.assert.deepEqual(events, ['removed', 'removed', 'created', 'created'])
 	})
-	it('defers isotope creation and applies a chained update in order', t => {
+	it('stores every usage in Global and keeps the base free of descriptions and locations', t => {
+		const util = new SymbolUtil({})
+		for (const type of SymbolUsageTypes) {
+			util.query(uri, 'tag', 'test').enter({ data: { desc: 'description' }, usage: { type } })
+		}
+		const symbol = util.global.tag!['test']
+		for (
+			const key of [
+				'desc',
+				'visibility',
+				'visibilityRestriction',
+				'isotopes',
+				...SymbolUsageTypes,
+			]
+		) {
+			t.assert.equal(key in symbol, false)
+		}
+		for (const type of SymbolUsageTypes) {
+			t.assert.equal(symbol.facets?.global?.[type]?.length, 1)
+		}
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'description')
+	})
+	for (const scope of [Scope.Global, Scope.Project]) {
+		it(`shares usages across metadata overrides and restores the remaining description (scope ${scope})`, t => {
+			const util = new SymbolUtil({})
+			add(util, 'first', scope, 1)
+			const symbol = add(util, 'second', scope, 7)
+			const facet = scope === Scope.Global ? symbol.facets!.global! : symbol.facets!.internal!
+			t.assert.deepEqual(facet.isotopes.map(value => value.identifier), ['second', 'first'])
+			t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.declaration?.length, 2)
+			t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'second')
+			GlobalSymbol.clear(util, {
+				predicate: ({ location }) => location.isotopeIdentifier === 'second',
+			})
+			t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'first')
+			t.assert.equal(facet.declaration?.length, 1)
+		})
+	}
+	it('prefers Internal over Public regardless of their override levels', t => {
+		const util = new SymbolUtil({})
+		add(util, 'public', Scope.Global, 100)
+		const symbol = add(util, 'internal', Scope.Project, -1)
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside)?.desc, 'internal')
+		GlobalSymbol.clear(util, {
+			predicate: ({ location }) => location.isotopeIdentifier === 'internal',
+		})
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside)?.desc, 'public')
+	})
+	it('prefers scope before override level, and keeps the first equal scoped priority', t => {
+		const util = new SymbolUtil({})
+		add(util, 'namespace', Scope.Namespace, 100)
+		add(util, 'private', Scope.Private, 1)
+		const symbol = add(util, 'tie', Scope.Private, 1)
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'private')
+		symbol.facets!.isotopes![2].overrideLevel = 2
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'tie')
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside), undefined)
+	})
+	it('refreshes glob matching after replacement and in-place edits', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'private', Scope.Private)
+		const isotope = symbol.facets!.isotopes![0]
+		t.assert.equal(Isotope.selectIsotope(symbol, uri), isotope)
+		isotope.visibleWithin = ['**/other/**']
+		t.assert.equal(Isotope.selectIsotope(symbol, uri), undefined)
+		isotope.visibleWithin[0] = '**/demo/**'
+		t.assert.equal(Isotope.selectIsotope(symbol, uri), isotope)
+		isotope.visibleWithin.length = 0
+		t.assert.equal(Isotope.selectIsotope(symbol, uri), undefined)
+	})
+	it('checks namespace in addition to matching globs', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'namespace', Scope.Namespace)
+		symbol.facets!.isotopes![0].namespace = ['other']
+		t.assert.equal(Isotope.selectIsotope(symbol, uri), undefined)
+		symbol.facets!.isotopes![0].namespace = ['demo']
+		t.assert.notEqual(Isotope.selectIsotope(symbol, uri), undefined)
+	})
+	it('records inaccessible references without creating a public facet', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'private', Scope.Private)
+		util.query(outside, 'tag', 'test').enterCommand({ usage: { type: 'reference' } })
+		t.assert.equal(symbol.facets?.isotopes?.[0].reference?.length, 1)
+		t.assert.equal(symbol.facets?.global, undefined)
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside), undefined)
+	})
+	it('rejects undefined scope or source before mutating metadata or locations', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'private', Scope.Private)
+		for (const data of [{ scope: undefined }, { source: undefined }]) {
+			t.assert.throws(
+				() =>
+					util.query(uri, 'tag', 'test').enterIsotope('private', {
+						data: { ...data, desc: 'invalid' },
+						usage: { type: 'reference' },
+					}),
+				/cannot be undefined/,
+			)
+		}
+		t.assert.equal(symbol.facets?.isotopes?.[0].desc, 'private')
+		t.assert.equal(symbol.facets?.isotopes?.[0].reference, undefined)
+	})
+	it('defers isotope creation and chained updates until delayed edits commit', t => {
 		const util = new SymbolUtil({})
 		const delayed = util.clone()
-		const events: string[] = []
-		delayed.on('symbolLocationCreated', event => events.push(event.type))
-		const query = delayed.query(uri, 'tag', 'delayed')
-		t.assert.equal(
-			query.enterIsotope('doc', {
-				data: { source: 1, scope: 0, visibleWithin: ['**'], desc: 'first' },
-				usage: { type: 'declaration' },
-			}).enterIsotope('doc', {
-				data: { desc: 'updated' },
-				usage: { type: 'reference' },
-			}),
-			query,
-		)
+		delayed.query(uri, 'tag', 'test').enterIsotope('doc', {
+			data: { source: Provider.Regular, scope: Scope.Global, desc: 'first' },
+			usage: { type: 'declaration' },
+		}).enterIsotope('doc', { data: { desc: 'updated' }, usage: { type: 'reference' } })
 		t.assert.equal(util.global.tag, undefined)
-		t.assert.deepEqual(events, [])
 		delayed.applyDelayedEdits()
-		const isotope = util.global.tag!['delayed'].isotopes![0]
-		t.assert.equal(isotope.desc, 'updated')
-		t.assert.equal(isotope.declaration?.length, 1)
-		t.assert.equal(isotope.reference?.length, 1)
-		t.assert.deepEqual(events, ['declaration', 'reference'])
+		t.assert.equal(SymbolUtil.viewFromContext(util.global.tag!['test'], uri)?.desc, 'updated')
+		t.assert.equal(util.global.tag!['test'].facets?.global?.reference?.length, 1)
 		delayed.applyDelayedEdits()
-		t.assert.deepEqual(events, ['declaration', 'reference'])
+		t.assert.equal(util.global.tag!['test'].facets?.global?.reference?.length, 1)
 	})
-
-	it('does not leak an abandoned isotope update into the shared table', t => {
-		const base = symbol()
-		const util = new SymbolUtil({ tag: { test: base } })
-		const abandoned = util.clone()
-		abandoned.query(uri, 'tag', 'test').enterIsotope('isotope1', {
+	it('does not leak abandoned delayed updates', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'first', Scope.Global)
+		util.clone().query(uri, 'tag', 'test').enterIsotope('first', {
 			data: { desc: 'abandoned' },
 			usage: { type: 'reference' },
 		})
-		t.assert.equal(base.isotopes![1].desc, 'first')
-		t.assert.equal(base.isotopes![1].reference, undefined)
-		const accepted = util.clone()
-		accepted.query(uri, 'tag', 'test').enterIsotope('isotope1', {
-			data: { desc: 'accepted' },
-			usage: { type: 'reference' },
-		})
-		t.assert.equal(base.isotopes![1].desc, 'first')
-		accepted.applyDelayedEdits()
-		t.assert.equal(base.isotopes![1].desc, 'accepted')
-		t.assert.equal(base.isotopes![1].reference?.length, 1)
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'first')
+		t.assert.equal(symbol.facets?.global?.reference, undefined)
 	})
-	it('migrates covered base locations, respecting isotope priority and preserving provenance', t => {
+	it('uses contextual data in queries and keeps visible collections linked to raw symbols', t => {
 		const util = new SymbolUtil({})
-		const outside = 'file:///pack/data/other/function/test.mcfunction'
-		const narrower = 'file:///pack/data/demo/function/narrow.mcfunction'
-		util.contributeAs('binder', () => {
-			for (const source of [uri, outside, narrower]) {
-				util.query(source, 'tag', 'migration').enter({ usage: { type: 'reference' } })
-				util.query(source, 'tag', 'migration').enter({ usage: { type: 'definition' } })
-			}
-		})
-		const base = util.global.tag!['migration']
-		const reference = base.reference![0]
-		const definition = base.definition![0]
-		const query = util.query(uri, 'tag', 'migration')
-		query.enterIsotope('wide', { data: { source: 1, scope: 1, visibleWithin: ['**/demo/**'] } })
-		query.enterIsotope('narrow', { data: { source: 1, scope: 0, visibleWithin: ['**/narrow.mcfunction'] } })
-		query.migrateDefinitions('wide').migrateDefinitions('wide')
-		const wide = base.isotopes![0]
-		t.assert.deepEqual(wide.reference, [reference])
-		t.assert.deepEqual(wide.implementation, [definition])
-		t.assert.equal(wide.implementation![0], definition)
-		t.assert.equal(wide.definition, undefined)
-		t.assert.deepEqual(base.reference?.map(location => location.uri), [outside, narrower])
-		t.assert.deepEqual(base.definition?.map(location => location.uri), [outside, narrower])
-		util.clear({ uri, contributor: 'binder' })
-		t.assert.equal(base.isotopes?.some(isotope => isotope.identifier === 'wide'), false)
-		t.assert.equal(base.reference?.length, 2)
-	})
-
-	it('defers migration until the preceding isotope creation has committed', t => {
-		const util = new SymbolUtil({})
-		util.query(uri, 'tag', 'migration').enter({ usage: { type: 'definition' } })
-		const base = util.global.tag!['migration']
-		const delayed = util.clone()
-		const events: string[] = []
-		delayed.on('symbolLocationCreated', event => events.push(event.type))
-		delayed.query(uri, 'tag', 'migration').enterIsotope('doc', {
-			data: { source: 1, scope: 0, visibleWithin: ['**/demo/**'] },
-		}).migrateDefinitions('doc')
-		t.assert.equal(base.definition?.length, 1)
-		t.assert.equal(base.isotopes, undefined)
-		t.assert.deepEqual(events, [])
-		delayed.applyDelayedEdits()
-		t.assert.equal(base.definition?.length, 0)
-		t.assert.equal(base.isotopes![0].implementation?.length, 1)
-		t.assert.deepEqual(events, ['implementation'])
-	})
-	it('writes public metadata and every usage type to base rather than the matching isotope', t => {
-		const base = symbol()
-		base.visibility = 2
-		delete base.desc
-		delete base.declaration
-		const util = new SymbolUtil({ tag: { test: base } })
-		for (
-			const type of [
-				'definition',
-				'declaration',
-				'implementation',
-				'reference',
-				'typeDefinition',
-			] as const
-		) {
-			util.query(uri, 'tag', 'test').enter({
-				data: { visibility: 4, desc: 'public', data: 'base data' },
-				usage: { type },
-			})
-			t.assert.equal(base[type]?.length, 1)
-		}
-		t.assert.equal(base.desc, 'public')
-		t.assert.equal(base.data, 'base data')
-		t.assert.equal(base.isotopes![1].desc, 'first')
-		t.assert.equal(base.isotopes![1].definition?.[0].uri, 'file:///first')
-		t.assert.equal(base.isotopes![1].definition?.length, 1)
-		t.assert.equal(base.isotopes![1].reference, undefined)
-		t.assert.equal(
-			SymbolUtil.isDeclared(util.query('file:///outside', 'tag', 'test').symbol),
-			true,
-		)
-	})
-	it('preserves identity and base data in getters and query callbacks', t => {
-		const base = symbol()
-		base.data = 'base data'
-		base.isotopes![1].data = 'isotope data'
-		const util = new SymbolUtil({ tag: { test: base } })
+		const symbol = add(util, 'private', Scope.Private)
+		symbol.data = 'base data'
+		symbol.facets!.isotopes![0].data = 'private data'
 		const query = util.query(uri, 'tag', 'test')
-		t.assert.equal(query.symbol, query.symbol)
 		t.assert.equal(
 			query.getData((value): value is string => typeof value === 'string'),
-			'base data',
+			'private data',
 		)
-		query.if(value => {
-			t.assert.equal(value, base)
-			return true
-		}, value => {
-			t.assert.equal(value, base)
-			value!.desc = 'changed'
-		})
-		t.assert.equal(util.global.tag!['test'].desc, 'changed')
-		query.ifDeclared(value => t.assert.equal(value, base))
-		util.query(uri, 'tag', 'test').else(value => t.assert.equal(value, base))
-		t.assert.equal(SymbolUtil.viewFromContext(query.symbol, uri)?.desc, 'first')
+		query.ifDeclared(view => t.assert.equal(view.desc, 'private'))
+		t.assert.equal(GlobalSymbol.getVisibleSymbols(util, 'tag', uri)['test'], symbol)
+		t.assert.equal(util.query(outside, 'tag', 'test').symbol, undefined)
 	})
-
-	it('filters inaccessible symbols but returns raw restricted symbols when visible', t => {
-		const base = symbol()
-		base.visibility = 2
-		const util = new SymbolUtil({ tag: { test: base } })
-		t.assert.equal(util.query(uri, 'tag', 'test').symbol, base)
-		t.assert.equal(util.getVisibleSymbols('tag', uri)['test'], base)
-		t.assert.equal(util.query('file:///outside', 'tag', 'test').symbol, undefined)
-		t.assert.deepEqual(util.getVisibleSymbols('tag', 'file:///outside'), {})
+	it('writes mcdoc to one Global isotope and reads it without a URI', t => {
+		const util = new SymbolUtil({})
+		util.query(uri, 'mcdoc', 'module::Type').enter({
+			data: { desc: 'type' },
+			usage: { type: 'definition' },
+		})
+		util.query(outside, 'mcdoc', 'module::Type').enter({ usage: { type: 'reference' } })
+		const symbol = util.global.mcdoc!['module::Type']
+		t.assert.equal(symbol.facets?.global?.isotopes.length, 1)
+		t.assert.equal(symbol.facets?.global?.reference?.length, 1)
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, undefined)?.desc, 'type')
+	})
+	it('uses Builtin for registered resources and Regular for ordinary contributions', t => {
+		const util = new SymbolUtil({})
+		util.contributeAs(
+			'symbol_registrar/resources',
+			() =>
+				util.query('spyglass://builtin', 'item', 'builtin').enter({
+					usage: { type: 'definition' },
+				}),
+		)
+		util.query(uri, 'item', 'regular').enter({ usage: { type: 'definition' } })
+		t.assert.equal(
+			util.global.item!['builtin'].facets?.global?.isotopes[0].source,
+			Provider.Builtin,
+		)
+		t.assert.equal(
+			util.global.item!['regular'].facets?.global?.isotopes[0].source,
+			Provider.Regular,
+		)
+	})
+	it('round-trips shared usages and overrides through serialization and clears them after reload', t => {
+		const util = new SymbolUtil({})
+		add(util, 'public', Scope.Global)
+		add(util, 'internal', Scope.Project)
+		const reloaded = new SymbolUtil(SymbolTable.deserialize(SymbolTable.serialize(util.global)))
+		GlobalSymbol.buildCache(reloaded)
+		t.assert.equal(
+			SymbolUtil.viewFromContext(reloaded.global.tag!['test'], uri)?.desc,
+			'internal',
+		)
+		GlobalSymbol.clear(reloaded, { uri })
+		t.assert.equal(reloaded.global.tag!['test'], undefined)
 	})
 })

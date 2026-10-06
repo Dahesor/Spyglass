@@ -6,7 +6,7 @@ import type { LinterContext } from '../../../service/index.js'
 import { LinterSeverity, SymbolLinterConfig as Config } from '../../../service/index.js'
 import type { LanguageErrorInfo } from '../../../source/LanguageError.js'
 import type { Symbol } from '../../../symbol/index.js'
-import { SymbolUtil, SymbolVisibility } from '../../../symbol/index.js'
+import { LocalSymbol, LocalSymbolVisibility, SymbolUtil } from '../../../symbol/index.js'
 import type { Linter } from '../Linter.js'
 
 export const undeclaredSymbol: Linter<AstNode> = (node, ctx) => {
@@ -19,8 +19,17 @@ export const undeclaredSymbol: Linter<AstNode> = (node, ctx) => {
 	}
 	const action = getAction(ctx.ruleValue as Config, node.symbol, ctx)
 	if (Config.Action.isDeclare(action)) {
-		ctx.symbols.query({ doc: ctx.doc, node }, node.symbol.category, ...node.symbol.path).amend({
-			data: { visibility: getVisibility(action.declare) },
+		const visibility = getVisibility(action.declare)
+		const query = visibility === undefined
+			? ctx.symbols.query(ctx.doc, node.symbol.category, ...node.symbol.path)
+			: LocalSymbol.queryForScope(
+				ctx.symbols,
+				{ doc: ctx.doc, node },
+				visibility,
+				node.symbol.category,
+				...node.symbol.path,
+			)
+		query.enter({
 			usage: { type: 'declaration', node },
 		})
 	}
@@ -122,13 +131,13 @@ function getAction(
 
 function getVisibility(
 	input: Exclude<Config.DeclareAction['declare'], undefined>,
-): SymbolVisibility {
+): LocalSymbolVisibility | undefined {
 	switch (input) {
 		case 'block':
-			return SymbolVisibility.Block
+			return LocalSymbolVisibility.Block
 		case 'file':
-			return SymbolVisibility.File
+			return LocalSymbolVisibility.File
 		case 'public':
-			return SymbolVisibility.Public
+			return undefined
 	}
 }

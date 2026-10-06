@@ -1,34 +1,25 @@
-import picomatch from 'picomatch'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { bigintJsonNumberReplacer, type DeepReadonly, EventDispatcher } from '../common/index.js'
 import type { AstNode } from '../node/index.js'
 import type { RangeLike } from '../source/index.js'
 import { Range } from '../source/index.js'
+import { GlobalSymbol } from './GlobalSymbol.js'
+import { Isotope, type SymbolIsotopeAddition } from './isotope.js'
+import { LocalSymbol, type LocalSymbolContext } from './LocalSymbol.js'
 import type {
 	AllCategory,
+	IsotopeScope,
 	Symbol,
-	SymbolIsotope,
+	SymbolIsotopeProvider,
 	SymbolLocationBuiltInContributor,
 	SymbolLocationMetadata,
 	SymbolMap,
 	SymbolMetadata,
 	SymbolTable,
 	SymbolUsageType,
+	SymbolView,
 } from './Symbol.js'
-import {
-	SymbolIsotopeProvider,
-	SymbolIsotopeScope,
-	SymbolLocation,
-	SymbolPath,
-	SymbolUsageTypes,
-	SymbolVisibility,
-} from './Symbol.js'
-
-const contextualSymbols = new WeakMap<Symbol, Symbol>()
-const isotopeMatchers = new WeakMap<SymbolIsotope, {
-	patterns: string[]
-	match: (uri: string) => boolean
-}>()
+import { SymbolLocation, SymbolPath, SymbolUsageTypes } from './Symbol.js'
 
 export interface LookupResult {
 	/**
@@ -54,15 +45,15 @@ export interface LookupResult {
 interface SymbolEvent {
 	symbol: Symbol
 }
-interface SymbolLocationEvent extends SymbolEvent {
+export interface SymbolLocationEvent extends SymbolEvent {
 	type: SymbolUsageType
 	location: SymbolLocation
 }
 
-type UriSymbolCache = Record<string, Set<string>>
-interface DocAndNode {
-	doc: TextDocument
-	node: AstNode
+export interface SymbolClearOptions {
+	contributor?: string
+	uri?: string
+	predicate?: (this: void, data: SymbolLocationEvent) => boolean
 }
 
 export class SymbolUtil extends EventDispatcher<{
@@ -72,10 +63,7 @@ export class SymbolUtil extends EventDispatcher<{
 	symbolLocationCreated: SymbolLocationEvent
 	symbolLocationRemoved: SymbolLocationEvent
 }> {
-	readonly #global: SymbolTable
-
-	readonly #trimmableSymbols = new Set<string>()
-	readonly #cache: { [contributor: string]: UriSymbolCache } = Object.create(null)
+	readonly global: SymbolTable
 
 	#currentContributor:
 		| string
@@ -90,10 +78,6 @@ export class SymbolUtil extends EventDispatcher<{
 	 */
 	_inDelayMode: boolean
 
-	get global() {
-		return this.#global
-	}
-
 	constructor(
 		global: SymbolTable,
 		/** @internal */
@@ -102,49 +86,22 @@ export class SymbolUtil extends EventDispatcher<{
 		_inDelayMode = false,
 	) {
 		super()
-		this.#global = global
+		this.global = global
 		this.#currentContributor = _currentContributor
 		this._inDelayMode = _inDelayMode
-
-		this.on('symbolCreated', ({ symbol }) => {
-			this.#trimmableSymbols.add(SymbolPath.toString(symbol))
-		}).on('symbolRemoved', ({ symbol }) => {
-			this.#trimmableSymbols.delete(SymbolPath.toString(symbol))
-		}).on('symbolLocationCreated', ({ symbol, location }) => {
-			const cache =
-				(this.#cache[location.contributor ?? 'undefined'] ??= Object.create(null) as never)
-			const fileSymbols = (cache[location.uri] ??= new Set())
-			const path = SymbolPath.toString(symbol)
-			fileSymbols.add(path)
-			this.#trimmableSymbols.delete(path)
-		}).on('symbolLocationRemoved', ({ symbol }) => {
-			const path = SymbolPath.toString(symbol)
-			this.#trimmableSymbols.add(path)
-		})
-	}
-
-	/**
-	 * Build the internal cache of the SymbolUtil according to the current global symbol table.
-	 */
-	buildCache(): void {
-		SymbolUtil.forEachSymbol(this.global, (symbol) => {
-			this.emit('symbolCreated', { symbol })
-			SymbolUtil.forEachLocationOfSymbol(symbol, ({ type, location }) => {
-				this.emit('symbolLocationCreated', { symbol, type, location })
-			})
-		})
+		GlobalSymbol.initialize(this)
 	}
 
 	/**
 	 * @returns A clone of this SymbolUtil that is in delay mode: changes to the symbol table happened in the clone will
 	 * not take effect until the {@link SymbolUtil.applyDelayedEdits} method is called on that clone.
 	 *
-	 * The clone shares the same reference of the global symbol table and symbol stacks, meaning that after
+	 * The clone shares the same reference of the global symbol table, meaning that after
 	 * `applyDelayedEdits` is called, the original SymbolUtil will also be modified.
 	 */
 	clone(): SymbolUtil {
 		return new SymbolUtil(
-			this.#global,
+			this.global,
 			this.#currentContributor,
 			true,
 		)
@@ -199,102 +156,92 @@ export class SymbolUtil extends EventDispatcher<{
 	}
 
 	/**
-	 * @param
-	 * 	- `contributor` - clear symbol locations contributed by this contributor. Pass in `undefined`
-	 * 	to select all symbol locations that don't have a contributor.
-	 * 	- `uri` - clear symbol locations associated with this URI.
-	 * 	- `predicate` - clear symbol locations matching this predicate
-	 */
-	@DelayModeSupport()
-	clear(
-		{ uri, contributor, predicate = () => true }: {
-			contributor?: string
-			uri?: string
-			predicate?: (this: void, data: SymbolLocationEvent) => boolean
-		},
-	): void {
-		const getCaches = (): UriSymbolCache[] => {
-			if (contributor) {
-				return this.#cache[contributor] ? [this.#cache[contributor]] : []
-			} else {
-				return Object.values(this.#cache)
-			}
-		}
-		const getPaths = (): SymbolPath[] => {
-			const caches = getCaches()
-			const sets: Set<string>[] = uri
-				? caches.map((cache) => cache[uri] ?? new Set())
-				: caches.map((cache) => Object.values(cache)).flat()
-			return sets.map((s) => [...s]).flat().map(SymbolPath.fromString)
-		}
-		const getTables = (): SymbolTable[] => {
-			return uri ? [this.#global] : [this.#global]
-		}
-		const paths = getPaths()
-		const tables = getTables()
-		for (const table of tables) {
-			for (const path of paths) {
-				const { symbol } = SymbolUtil.lookupTable(table, path.category, path.path)
-				if (!symbol) {
-					continue
-				}
-				this.removeLocationsFromSymbol(
-					symbol,
-					(data) =>
-						(!uri || data.location.uri === uri)
-						&& (!contributor || data.location.contributor === contributor)
-						&& predicate(data),
-				)
-			}
-			this.trim(table)
-		}
-	}
-
-	/**
-	 * @param uri Optional. The corresponding {@link SymbolStack} of the file will also be looked up if this is specified.
-	 *
-	 * @returns A {@link LookupResult}
-	 */
-	lookup(category: AllCategory, path: readonly string[], node?: AstNode): LookupResult
-	lookup(category: string, path: readonly string[], node?: AstNode): LookupResult
-	lookup(category: string, path: readonly string[], node?: AstNode): LookupResult {
-		while (node) {
-			if (node.locals) {
-				const result = SymbolUtil.lookupTable(node.locals, category, path)
-				if (result.symbol) {
-					return result
-				}
-			}
-			node = node.parent
-		}
-		return SymbolUtil.lookupTable(this.global, category, path)
-	}
-
-	/**
 	 * @param doc A {@link TextDocument} or a string URI. It is used to both check the visibility of symbols and serve as
-	 * the location of future entered symbol usages. If a string URI is provided, all `range`s specified while entering
-	 * symbol usages latter will be ignored and seen as `[0, 0)`.
+	 * the location of future entered symbol usages. If a URI is provided, `range` will be ignored and seen as `[0, 0)`.
 	 *
 	 * @throws When the queried symbol belongs to another non-existent symbol, or when no contributor is specified.
 	 */
 	query(
-		doc: DocAndNode | TextDocument | string,
+		doc: LocalSymbolContext | TextDocument | string,
 		category: AllCategory,
 		...path: string[]
 	): SymbolQuery
-	query(doc: DocAndNode | TextDocument | string, category: string, ...path: string[]): SymbolQuery
 	query(
-		doc: DocAndNode | TextDocument | string,
+		doc: LocalSymbolContext | TextDocument | string,
+		category: string,
+		...path: string[]
+	): SymbolQuery
+	query(
+		doc: LocalSymbolContext | TextDocument | string,
 		category: string,
 		...path: string[]
 	): SymbolQuery {
-		const uri = SymbolUtil.toUri(doc)
-		const { parentSymbol, parentMap, symbol } = this.lookup(
-			category,
-			path,
-			isDocAndNode(doc) ? doc.node : undefined,
-		)
-		const visible = symbol ? SymbolUtil.isVisible(symbol, uri) : true
+		if (typeof doc !== 'string' && 'doc' in doc) {
+			for (const table of LocalSymbol.getLocalsToRoot(doc.node)) {
+				if (SymbolUtil.lookupTable(table, category, path).symbol) {
+					return this.queryInTable(table, doc.doc, category, ...path)
+				}
+			}
+			return GlobalSymbol.query(this, doc.doc, category, ...path)
+		}
+		return GlobalSymbol.query(this, doc, category, ...path)
+	}
+
+	/** Get all symbols visible in the current position
+	 * Symbol from a nearer scope has higher precedence
+	 * @param category the category of symbols to retrieve
+	 * @param doc the local symbol context to start the search from
+	 * @param path Optional. the path within the category to retrieve symbols from
+	 */
+	getScopedSymbols(
+		category: string,
+		doc: LocalSymbolContext,
+		path: readonly string[] = [],
+	): SymbolMap {
+		const symbols = { ...GlobalSymbol.query(this, doc.doc, category, ...path).visibleMembers }
+		for (const table of [...LocalSymbol.getLocalsToRoot(doc.node)].reverse()) {
+			const result = SymbolUtil.lookupTable(table, category, path)
+			Object.assign(symbols, path.length ? result.symbol?.members : table[category])
+		}
+		return symbols
+	}
+
+	/**
+	 * Execute the given operation immediately or queue it
+	 * depending on inDelayMode is on or off.
+	 * @param operation the operation to execute
+	 */
+	runOrDefer(operation: () => void): void {
+		if (!this._inDelayMode) {
+			operation()
+			return
+		}
+		this._delayedOps.push(() => {
+			const delayed = this._inDelayMode
+			this._inDelayMode = false
+			try {
+				operation()
+			} finally {
+				this._inDelayMode = delayed
+			}
+		})
+	}
+
+	/** Create a query against an explicitly selected table. */
+	queryInTable(
+		table: SymbolTable,
+		doc: TextDocument | string,
+		category: string,
+		...path: string[]
+	): SymbolQuery {
+		const local = LocalSymbol.isTable(table)
+		if (local) {
+			LocalSymbol.registerMap(table[category] ??= {})
+		}
+		const lookup = (category: string, path: readonly string[]) =>
+			SymbolUtil.lookupTable(table, category, path)
+		const { parentSymbol, parentMap, symbol } = lookup(category, path)
+		const visible = symbol ? SymbolUtil.isVisible(symbol, SymbolUtil.toUri(doc)) : true
 		return new SymbolQuery({
 			category,
 			doc,
@@ -304,93 +251,42 @@ export class SymbolUtil extends EventDispatcher<{
 			path,
 			symbol: visible ? symbol : undefined,
 			util: this,
+			lookup,
+			getRootMap: () =>
+				local ? LocalSymbol.registerMap(table[category] ??= {}) : table[category] ??= {},
 		})
 	}
 
-	getVisibleSymbols(category: AllCategory, uri?: string): SymbolMap
-	getVisibleSymbols(category: string, uri?: string): SymbolMap
-	getVisibleSymbols(category: string, uri?: string): SymbolMap {
-		const map = this.lookup(category, [], undefined).parentMap ?? undefined
-
-		return SymbolUtil.filterVisibleSymbols(uri, map)
-	}
-
-	getScopedSymbols(category: string, doc: DocAndNode, path: readonly string[] = []): SymbolMap {
-		const symbols = { ...this.query(doc.doc, category, ...path).visibleMembers }
-		const tables: SymbolTable[] = []
-		let node: AstNode | undefined = doc.node
-		while (node) {
-			if (node.locals) {
-				tables.push(node.locals)
-			}
-			node = node.parent
-		}
-		for (const table of tables.reverse()) {
-			const result = SymbolUtil.lookupTable(table, category, path)
-			Object.assign(symbols, path.length ? result.symbol?.members : table[category])
-		}
-		return symbols
-	}
-
-	static toUri(uri: DocAndNode | TextDocument | string): string {
+	static toUri(uri: TextDocument | string): string {
 		if (typeof uri === 'string') {
 			return uri
-		}
-		if (isDocAndNode(uri)) {
-			return uri.doc.uri
 		}
 		return uri.uri
 	}
 
 	/**
-	 * @see {@link SymbolUtil.trimMap}
+	 * Remove usages from a symbol based on a predicate.
+	 *
+	 * @param symbol The symbol to process
+	 * @param predicate The predicate being checked
 	 */
-	@DelayModeSupport()
-	trim(table: SymbolTable): void {
-		const trimSymbol = (symbol: Symbol | undefined) => {
-			if (!symbol) {
-				return
-			}
-			if (SymbolUtil.isTrimmable(symbol)) {
-				delete symbol.parentMap[symbol.identifier]
-				this.emit('symbolRemoved', { symbol })
-				trimSymbol(symbol.parentSymbol)
-			}
-		}
-		for (const pathString of this.#trimmableSymbols) {
-			const path = SymbolPath.fromString(pathString)
-			const { symbol } = SymbolUtil.lookupTable(table, path.category, path.path)
-			trimSymbol(symbol)
-		}
-	}
-
-	@DelayModeSupport()
 	removeLocationsFromSymbol(
 		symbol: Symbol,
 		predicate: (this: void, data: SymbolLocationEvent) => boolean,
 	): void {
-		const locatedIsotopes = new Set(
-			(symbol.isotopes ?? []).filter(isotope =>
-				SymbolUsageTypes.some(type => isotope[type]?.length)
-			),
-		)
-		for (const owner of [symbol, ...(symbol.isotopes ?? [])]) {
-			for (const type of SymbolUsageTypes) {
-				owner[type] = owner[type]?.filter(location => {
-					if (!predicate({ location, symbol, type })) {
-						return true
-					}
-					this.emit('symbolLocationRemoved', { symbol, type, location })
-					return false
-				})
+		this.runOrDefer(() => {
+			for (const container of SymbolUtil.allUsageContainers(symbol)) {
+				for (const type of SymbolUsageTypes) {
+					container[type] = container[type]?.filter(location => {
+						if (!predicate({ location, symbol, type })) {
+							return true
+						}
+						this.emit('symbolLocationRemoved', { symbol, type, location })
+						return false
+					})
+				}
 			}
-		}
-		this.reconcileDocUsages(symbol)
-		if (symbol.isotopes) {
-			symbol.isotopes = symbol.isotopes.filter(isotope =>
-				!locatedIsotopes.has(isotope) || SymbolUsageTypes.some(type => isotope[type]?.length)
-			)
-		}
+		})
 	}
 
 	/**
@@ -440,7 +336,9 @@ export class SymbolUtil extends EventDispatcher<{
 	): Symbol {
 		let ans = map[identifier]
 		if (ans) {
-			this.amendSymbol(ans, addition, doc, contributor)
+			if (addition.data || addition.usage) {
+				this.amendSymbol(ans, addition, doc, contributor)
+			}
 		} else {
 			ans = this.createSymbol(
 				category,
@@ -453,8 +351,8 @@ export class SymbolUtil extends EventDispatcher<{
 				contributor,
 			)
 		}
-		if (addition.usage?.fromDocDeclaration) {
-			this.reconcileDocUsages(ans)
+		if (addition.usage?.fromDocDeclaration && !LocalSymbol.is(ans)) {
+			Isotope.reconcileDocUsages(this, ans)
 		}
 		this.emit('symbolAmended', { symbol: ans })
 		return ans
@@ -543,19 +441,30 @@ export class SymbolUtil extends EventDispatcher<{
 		contributor: string | undefined,
 	): Symbol {
 		const ans = (parentMap[identifier] = {
+			...(LocalSymbol.isMap(parentMap) || LocalSymbol.is(parentSymbol)
+				? { isLocal: true as const }
+				: {}),
 			category,
 			identifier,
 			...(parentSymbol ? { parentSymbol } : {}),
 			parentMap,
 			path,
-			...addition.data,
 		})
 		this.amendSymbolMetadata(ans, addition.data)
 		this.emit('symbolCreated', { symbol: ans })
-		this.amendSymbolUsage(ans, addition.usage, doc, contributor)
+		if (addition.data || addition.usage) {
+			this.amendSymbol(ans, addition, doc, contributor)
+		}
 		return ans
 	}
 
+	/**
+	 * Amend the given symbol with the provided addition
+	 * @param symbol The symbol to be amended.
+	 * @param addition The addition containing new metadata and usage information.
+	 * @param doc The document in which the amendment is taking place.
+	 * @param contributor The contributor responsible for the amendment.
+	 */
 	amendSymbol(
 		symbol: Symbol,
 		addition: SymbolAddition,
@@ -563,341 +472,43 @@ export class SymbolUtil extends EventDispatcher<{
 		contributor: string | undefined,
 	): void {
 		this.amendSymbolMetadata(symbol, addition.data)
-		this.amendSymbolUsage(symbol, addition.usage, doc, contributor)
-	}
-
-	/** Merge already filtered imports without changing local base metadata or locations. */
-	importDependencySymbols(table: SymbolTable): void {
-		const hasImports = (symbol: Symbol): boolean =>
-			!!symbol.isotopes?.length
-			|| Object.values(symbol.members ?? {}).some(hasImports)
-		const merge = (source: SymbolMap, target: SymbolMap, parent?: Symbol): void => {
-			for (const entry of Object.values(source)) {
-				if (!hasImports(entry)) {
-					continue
-				}
-				let symbol = target[entry.identifier]
-				if (!symbol) {
-					symbol = target[entry.identifier] = {
-						category: entry.category,
-						identifier: entry.identifier,
-						path: entry.path,
-						parentMap: target,
-						parentSymbol: parent,
-						visibility: SymbolVisibility.Restricted,
-						subcategory: entry.subcategory,
-					}
-					this.emit('symbolCreated', { symbol })
-				}
-				for (const isotope of entry.isotopes ?? []) {
-					const existing = symbol.isotopes?.find(value =>
-						value.identifier === isotope.identifier
-					)
-					if (existing) {
-						for (const type of SymbolUsageTypes) {
-							for (const location of existing[type] ?? []) {
-								this.emit('symbolLocationRemoved', { symbol, type, location })
-							}
-						}
-						Object.assign(existing, isotope)
-					} else {
-						;(symbol.isotopes ??= []).push(isotope)
-					}
-					for (const type of SymbolUsageTypes) {
-						for (const location of isotope[type] ?? []) {
-							this.emit('symbolLocationCreated', { symbol, type, location })
-						}
-					}
-				}
-				if (entry.members) {
-					merge(entry.members, symbol.members ??= {}, symbol)
-				}
-			}
-		}
-		for (const [category, map] of Object.entries(table)) {
-			if (category === 'mcdoc' || category === 'mcdoc/dispatcher') {
-				continue
-			}
-			if (map) {
-				merge(map, this.global[category] ??= {})
-			}
+		if (LocalSymbol.is(symbol)) {
+			LocalSymbol.amendSymbol(this, symbol, addition, doc, contributor)
+		} else {
+			Isotope.amendSymbol(this, symbol, addition, doc, contributor)
 		}
 	}
 
-	/** Remove only contributions from a package, including metadata-only isotopes. */
-	removeDependencySymbols(checksum: string, trim = true): void {
-		SymbolUtil.forEachSymbol(this.global, symbol => {
-			symbol.isotopes = symbol.isotopes
-				?.filter(isotope => {
-					if (
-						isotope.source !== SymbolIsotopeProvider.Imported
-						|| isotope.providerName !== checksum
-					) {
-						return true
-					}
-					for (const type of SymbolUsageTypes) {
-						for (const location of isotope[type] ?? []) {
-							this.emit('symbolLocationRemoved', { symbol, type, location })
-						}
-					}
-					return false
-				})
-			if (SymbolUtil.isTrimmable(symbol)) {
-				this.#trimmableSymbols.add(SymbolPath.toString(symbol))
-			}
-		})
-		if (trim) {
-			this.trim(this.global)
-		}
-	}
-
-	/** Create or update one isotope by identifier */
-	writeIsotope(
-		symbol: Symbol,
-		identifier: string,
-		addition: SymbolIsotopeAddition,
-		doc: TextDocument,
-		contributor: string | undefined,
-	): SymbolIsotope {
-		if (addition.data && 'scope' in addition.data && addition.data.scope === undefined) {
-			throw new Error('An isotope scope cannot be undefined.')
-		}
-		if (addition.data && 'source' in addition.data && addition.data.source === undefined) {
-			throw new Error('An isotope source cannot be undefined.')
-		}
-		symbol = contextualSymbols.get(symbol) ?? symbol
-		let isotope = symbol.isotopes?.find(value => value.identifier === identifier)
-		if (!isotope) {
-			if (addition.data?.scope === undefined || addition.data.source === undefined) {
-				throw new Error('Creating an isotope requires a scope and source.')
-			}
-			isotope = {
-				identifier,
-				scope: addition.data.scope,
-				source: addition.data.source,
-			}
-			;(symbol.isotopes ??= []).push(isotope)
-		}
-		Object.assign(isotope, addition.data)
-		this.amendSymbolUsage(symbol, addition.usage, doc, contributor, isotope)
-		if (addition.usage?.node) {
-			addition.usage.node.symbol = symbol
-		}
-		if (addition.usage?.fromDocDeclaration) {
-			this.reconcileDocUsages(symbol)
-		}
-		return isotope
-	}
-
-	reconcileDocUsages(symbol: Symbol): void {
-		const isotopes = symbol.isotopes ?? []
-		const expired = new Set(
-			isotopes.filter(isotope =>
-				isotope.source === SymbolIsotopeProvider.DocBlock
-				&& !isotope.declaration?.some(location => location.fromDocDeclaration)
-			),
-		)
-		const active = isotopes.filter(isotope => !expired.has(isotope))
-		const baseHasDocDeclaration = symbol.declaration?.some(location =>
-			location.fromDocDeclaration
-		)
-		// If user deleted the @internal access modifier, we have to change its visibility to public.
-		// Temporary fix. We will consider ditching the base visibility all together later.
-		if (
-			!baseHasDocDeclaration && symbol.visibility === SymbolVisibility.Internal
-			&& symbol.implementation?.some(location => location.originalUsageType === 'definition')
-		) {
-			symbol.visibility = SymbolVisibility.Public
-		}
-		const owners = [
-			symbol,
-			...isotopes.filter(isotope => isotope.source === SymbolIsotopeProvider.DocBlock),
-		]
-		symbol.isotopes = active.length ? active : undefined
-		this.reconcileFileDefinitions(symbol, owners, [
-			...(baseHasDocDeclaration ? [symbol] : []),
-			...active.filter(isotope =>
-				isotope.source === SymbolIsotopeProvider.DocBlock
-				&& isotope.declaration?.some(location => location.fromDocDeclaration)
-			),
-		])
-		for (const owner of owners) {
-			for (const type of SymbolUsageTypes) {
-				const locations = owner[type]
-				if (!locations) {
-					continue
-				}
-				owner[type] = locations.filter(location => {
-					if (location.fromFile || !location.originalUsageType) {
-						return true
-					}
-					const isotope = SymbolUtil.selectIsotope(symbol, location.uri)
-					const target = isotope?.source === SymbolIsotopeProvider.DocBlock
-							&& isotope.declaration?.some(value => value.fromDocDeclaration)
-						? isotope
-						: symbol
-					const targetType = location.originalUsageType === 'definition'
-							&& (target !== symbol || baseHasDocDeclaration)
-						? 'implementation'
-						: location.originalUsageType
-					if (target === owner && targetType === type) {
-						return true
-					}
-					;(target[targetType] ??= []).push(location)
-					this.emit('symbolLocationRemoved', { symbol, type, location })
-					this.emit('symbolLocationCreated', { symbol, type: targetType, location })
-					return false
-				})
-			}
-		}
-		if (
-			active.some(isotope => isotope.source === SymbolIsotopeProvider.DocBlock) || expired.size
-		) {
-			const hasBaseDeclaration = !!(symbol.declaration?.length || symbol.definition?.length)
-			symbol.visibility = hasBaseDeclaration
-				? (symbol.visibility === SymbolVisibility.Internal
-					? SymbolVisibility.Internal
-					: SymbolVisibility.Public)
-				: SymbolVisibility.Restricted
-			if (!hasBaseDeclaration) {
-				delete symbol.desc
-				delete symbol.data
-			}
-		}
-	}
-
-	/** Associate file definitions with its every doc declaration */
-	private reconcileFileDefinitions(
-		symbol: Symbol,
-		owners: (Symbol | SymbolIsotope)[],
-		declarations: (Symbol | SymbolIsotope)[],
-	): void {
-		// Ignore mcdoc symbols
-		if (symbol.category === 'mcdoc') {
+	private amendSymbolMetadata(symbol: Symbol, addition: SymbolAddition['data']): void {
+		if (!addition) {
 			return
 		}
-		const definitions = new Map<string, SymbolLocation>()
-		const keyOf = (location: SymbolLocation): string =>
-			JSON.stringify([location.uri, location.contributor, location.range, location.fullRange])
-		for (const owner of owners) {
-			for (const type of SymbolUsageTypes) {
-				for (const location of owner[type] ?? []) {
-					if (location.fromFile) {
-						definitions.set(keyOf(location), location)
-					}
-				}
-			}
+		if ('data' in addition) {
+			symbol.data = addition.data
 		}
-		if (!definitions.size) {
-			return
+		if (addition.relations) {
+			Object.assign(symbol.relations ??= {}, addition.relations)
 		}
-		const targets = declarations.length ? declarations : [symbol]
-		const targetUsageType = declarations.length ? 'implementation' : 'definition'
-		const retained = new Map<Symbol | SymbolIsotope, Set<string>>()
-		for (const owner of owners) {
-			const keys = new Set<string>()
-			retained.set(owner, keys)
-			for (const type of SymbolUsageTypes) {
-				const locations = owner[type]
-				if (!locations) {
-					continue
-				}
-				owner[type] = locations.filter(location => {
-					if (!location.fromFile) {
-						return true
-					}
-					const key = keyOf(location)
-					if (targets.includes(owner) && type === targetUsageType && !keys.has(key)) {
-						keys.add(key)
-						return true
-					}
-					this.emit('symbolLocationRemoved', { symbol, type, location })
-					return false
-				})
-			}
-		}
-		for (const owner of targets) {
-			for (const [key, location] of definitions) {
-				if (!retained.get(owner)?.has(key)) {
-					;(owner[targetUsageType] ??= []).push(location)
-					this.emit('symbolLocationCreated', { symbol, type: targetUsageType, location })
-				}
-			}
+		if ('subcategory' in addition) {
+			symbol.subcategory = addition.subcategory
 		}
 	}
 
-	private amendSymbolMetadata(
-		symbol: Symbol,
-		addition: SymbolAddition['data'],
-	): void {
-		if (addition) {
-			if ('visibility' in addition) {
-				// Visibility changes are only accepted if the change wouldn't result in the
-				// symbol being stored in a different symbol table.
-				const inGlobalTable = (v: SymbolVisibility | undefined) =>
-					v === undefined || v === SymbolVisibility.Public || v === SymbolVisibility.Internal
-					|| v === SymbolVisibility.Restricted
-				if (
-					symbol.visibility === addition.visibility
-					|| (inGlobalTable(symbol.visibility) && inGlobalTable(addition.visibility))
-				) {
-					symbol.visibility = addition.visibility
-				} else {
-					throw new Error(
-						`Cannot change visibility from ${symbol.visibility} to ${addition.visibility}: ${
-							JSON.stringify(SymbolPath.fromSymbol(symbol))
-						}`,
-					)
-				}
-			}
-			if (symbol.visibility === SymbolVisibility.Restricted) {
-				delete symbol.desc
-				delete symbol.data
-				for (const type of SymbolUsageTypes) {
-					for (const location of symbol[type] ?? []) {
-						this.emit('symbolLocationRemoved', { symbol, type, location })
-					}
-					delete symbol[type]
-				}
-			}
-
-			if (symbol.visibility !== SymbolVisibility.Restricted) {
-				if ('data' in addition) {
-					symbol.data = addition.data
-				}
-				if ('desc' in addition) {
-					symbol.desc = addition.desc
-				}
-			}
-			if (addition.relations && Object.keys(addition.relations).length) {
-				symbol.relations ??= {}
-				for (const relationship of Object.keys(addition.relations)) {
-					symbol.relations[relationship] = addition.relations[relationship]
-				}
-			}
-			if ('subcategory' in addition) {
-				symbol.subcategory = addition.subcategory
-			}
-		}
-	}
-
-	private amendSymbolUsage(
+	amendSymbolUsage(
 		symbol: Symbol,
 		addition: SymbolAddition['usage'],
 		doc: TextDocument,
 		contributor: string | undefined,
-		owner: Symbol | SymbolIsotope = symbol,
+		owner: Partial<Record<SymbolUsageType, SymbolLocation[]>>,
 	): void {
 		if (addition) {
-			if (owner === symbol && symbol.visibility === SymbolVisibility.Restricted) {
-				return
-			}
 			const type = addition.type ?? 'reference'
 			const arr = (owner[type] ??= [])
 			const range = Range.get(
 				(SymbolAdditionUsageWithNode.is(addition) ? addition.node : addition.range) ?? 0,
 			)
 			const location = SymbolLocation.create(doc, range, addition.fullRange, contributor, {
+				isotopeIdentifier: addition.isotopeIdentifier,
 				accessType: addition.accessType,
 				skipRenaming: addition.skipRenaming,
 				...(addition.fromDocDeclaration ? { fromDocDeclaration: true } : {}),
@@ -921,10 +532,14 @@ export class SymbolUtil extends EventDispatcher<{
 	 * @returns The ultimate symbol being pointed by the passed-in `symbol`'s alias.
 	 */
 	resolveAlias(symbol: Symbol | undefined): Symbol | undefined {
-		symbol = symbol ? contextualSymbols.get(symbol) ?? symbol : undefined
+		symbol = symbol ? Isotope.rawSymbol(symbol) : undefined
 		return symbol?.relations?.aliasOf
 			? this.resolveAlias(
-				this.lookup(symbol.relations.aliasOf.category, symbol.relations.aliasOf.path).symbol,
+				GlobalSymbol.lookup(
+					this,
+					symbol.relations.aliasOf.category,
+					symbol.relations.aliasOf.path,
+				).symbol,
 			)
 			: symbol
 	}
@@ -942,145 +557,95 @@ export class SymbolUtil extends EventDispatcher<{
 	}
 
 	static isTrimmable(symbol: Symbol): boolean {
-		return (!Object.keys(symbol.members ?? {}).length
-			&& !symbol.declaration?.length
-			&& !symbol.definition?.length
-			&& !symbol.implementation?.length
-			&& !symbol.reference?.length
-			&& !symbol.typeDefinition?.length
-			&& !symbol.isotopes?.length)
+		if (LocalSymbol.is(symbol)) {
+			return LocalSymbol.isTrimmable(symbol)
+		}
+		return !Object.keys(symbol.members ?? {}).length && !Isotope.allIsotopes(symbol).length
+			&& !Isotope.allUsageContainers(symbol).some(owner =>
+				SymbolUsageTypes.some(type => owner[type]?.length)
+			)
 	}
 
-	/** Select the effective isotope given symbol and URI. */
-	static selectIsotope(symbol: Symbol, uri: string | undefined): SymbolIsotope | undefined {
-		if (!uri) {
-			return undefined
-		}
-		const namespace = /\/(?:data|assets)\/([^/]+)\//.exec(uri)?.[1] // FIXME: namespace extraction not covering all cases
-		let selected: SymbolIsotope | undefined
-		for (const isotope of symbol.isotopes ?? []) {
-			if (isotope.scope === SymbolIsotopeScope.Local) {
-				continue
-			}
-			if (isotope.namespace?.length && !isotope.namespace.includes(namespace ?? '')) {
-				continue
-			}
-			const patterns = isotope.visibleWithin
-				?? (isotope.scope === SymbolIsotopeScope.Global ? ['**'] : undefined)
-			if (!patterns?.length) {
-				continue
-			}
-			let cached = isotopeMatchers.get(isotope)
-			// Compare a snapshot so in-place edits also invalidate the matcher.
-			if (
-				!cached || cached.patterns.length !== patterns.length
-				|| patterns.some((pattern, index) => pattern !== cached!.patterns[index])
-			) {
-				cached = { patterns: [...patterns], match: picomatch(patterns, { dot: true }) }
-				isotopeMatchers.set(isotope, cached)
-			}
-			if (!cached.match(uri)) {
-				continue
-			}
-			if (
-				!selected || isotope.scope < selected.scope
-				|| (isotope.scope === selected.scope
-					&& (isotope.overrideLevel ?? 0) > (selected.overrideLevel ?? 0))
-			) {
-				selected = isotope
-			}
-		}
-		return selected
+	static allUsageContainers(symbol: Symbol): Partial<Record<SymbolUsageType, SymbolLocation[]>>[] {
+		return LocalSymbol.is(symbol) ? [symbol] : Isotope.allUsageContainers(symbol)
 	}
-
-	/** @returns A contextual view of the symbol from the given URI. */
-	static viewFromContext(symbol: Symbol | undefined, uri: string | undefined): Symbol | undefined {
-		if (!symbol) {
-			return undefined
-		}
-		symbol = contextualSymbols.get(symbol) ?? symbol
-		const isotope = this.selectIsotope(symbol, uri)
-		if (!isotope) {
-			return symbol.visibility === SymbolVisibility.Restricted ? undefined : symbol
-		}
-		const view: Symbol = { ...symbol, desc: isotope.desc, data: isotope.data }
-		for (const usage of SymbolUsageTypes) {
-			view[usage] = isotope[usage]
-		}
-		contextualSymbols.set(view, symbol)
-		return view
+	/** @returns a view of the symbol from the context of the given URI. */
+	static viewFromContext(
+		symbol: Symbol | undefined,
+		uri: string | undefined,
+	): SymbolView | undefined {
+		return LocalSymbol.is(symbol) ? symbol : Isotope.viewFromContext(symbol, uri)
 	}
-
-	static isVisible(symbol: Symbol, uri: string): boolean
-	static isVisible(symbol: Symbol, uri: string | undefined): boolean | undefined
-	static isVisible(symbol: Symbol, uri: string | undefined): boolean | undefined {
-		symbol = contextualSymbols.get(symbol) ?? symbol
-		return symbol.visibility !== SymbolVisibility.Restricted || !!this.selectIsotope(symbol, uri)
+	static isVisible(symbol: Symbol, uri: string | undefined): boolean {
+		return LocalSymbol.is(symbol) || Isotope.isVisible(symbol, uri)
 	}
-
-	/** @returns `true` if the symbol is contributed by a file itself instead of its content. */
 	static isFromFile(symbol: Symbol | undefined): boolean {
-		if (!symbol) {
-			return false
-		}
-		symbol = contextualSymbols.get(symbol) ?? symbol
-		return [symbol, ...(symbol.isotopes ?? [])].some(owner =>
-			owner.definition?.some(location => location.fromFile)
-			|| owner.implementation?.some(location => location.fromFile)
-		)
+		return !!symbol
+			&& SymbolUtil.allUsageContainers(symbol).some(owner =>
+				owner.definition?.some(location => location.fromFile)
+				|| owner.implementation?.some(location => location.fromFile)
+			)
+	}
+	static hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
+		return !!symbol && !LocalSymbol.is(symbol) && Isotope.hasNoAccessToFileSymbol(symbol, uri)
 	}
 
-	/**
-	 * @param symbol The symbol to check access for.
-	 * @param uri The URI of the file from which access is being checked.
-	 * @returns `true` if a file symbol is defined but cannot be accessed here
-	 */
-	static hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
+	private static locationsFor(
+		symbol: DeepReadonly<Symbol> | undefined,
+	): DeepReadonly<Partial<Record<SymbolUsageType, SymbolLocation[]>>> {
 		if (!symbol) {
-			return false
+			return {}
 		}
-		symbol = contextualSymbols.get(symbol) ?? symbol
-		return symbol.visibility === SymbolVisibility.Restricted
-			&& this.isFromFile(symbol) && !this.isVisible(symbol, uri)
+		if (LocalSymbol.is(symbol as Symbol)) {
+			return symbol as SymbolView
+		}
+		if (Isotope.isContextualView(symbol as Symbol)) {
+			return symbol as SymbolView
+		}
+		return Isotope.viewFromContext(symbol as Symbol, undefined) ?? {}
 	}
 
 	/**
 	 * @returns If the symbol has declarations or definitions.
 	 */
 	static isDeclared(symbol: DeepReadonly<Symbol> | undefined): boolean {
-		return !!(symbol?.declaration?.length || symbol?.definition?.length)
+		const view = SymbolUtil.locationsFor(symbol)
+		return !!(view.declaration?.length || view.definition?.length)
 	}
 	/**
 	 * @returns If the symbol has definitions, or declarations and implementations.
 	 */
 	static isDefined(symbol: DeepReadonly<Symbol> | undefined): symbol is Symbol {
-		return !!(symbol?.definition?.length
-			|| (symbol?.definition?.length && symbol?.implementation?.length))
+		const view = SymbolUtil.locationsFor(symbol)
+		return !!(view.definition?.length
+			|| (view.declaration?.length && view.implementation?.length))
 	}
 	/**
 	 * @returns If the symbol has implementations or definitions.
 	 */
 	static isImplemented(symbol: DeepReadonly<Symbol> | undefined): symbol is Symbol {
-		return !!(symbol?.implementation?.length || symbol?.definition?.length)
+		const view = SymbolUtil.locationsFor(symbol)
+		return !!(view.implementation?.length || view.definition?.length)
 	}
 	/**
 	 * @returns If the symbol has references.
 	 */
 	static isReferenced(symbol: DeepReadonly<Symbol> | undefined): symbol is Symbol {
-		return !!symbol?.reference?.length
+		return !!SymbolUtil.locationsFor(symbol).reference?.length
 	}
 	/**
 	 * @returns If the symbol has type definitions.
 	 */
 	static isTypeDefined(symbol: DeepReadonly<Symbol> | undefined): symbol is Symbol {
-		return !!symbol?.typeDefinition?.length
+		return !!SymbolUtil.locationsFor(symbol).typeDefinition?.length
 	}
 
 	/**
 	 * @throws If the symbol does not have any declarations or definitions.
 	 */
 	static getDeclaredLocation(symbol: DeepReadonly<Symbol>): SymbolLocation {
-		return (symbol.declaration?.[0] ?? symbol.definition?.[0] ?? (() => {
+		const view = this.locationsFor(symbol)
+		return (view.declaration?.[0] ?? view.definition?.[0] ?? (() => {
 			throw new Error(
 				`Cannot get declared location of ${JSON.stringify(SymbolPath.fromSymbol(symbol))}`,
 			)
@@ -1106,38 +671,24 @@ export class SymbolUtil extends EventDispatcher<{
 		symbol: Symbol,
 		fn: (data: { type: SymbolUsageType; location: SymbolLocation }) => unknown,
 	): void {
-		for (const owner of [symbol, ...(symbol.isotopes ?? [])]) {
+		for (const owner of SymbolUtil.allUsageContainers(symbol)) {
 			for (const type of SymbolUsageTypes) {
 				owner[type]?.forEach((location) => fn({ type, location }))
 			}
 		}
 	}
-
-	static isVisibilityInGlobal(v: SymbolVisibility | undefined) {
-		return (v === undefined || v === SymbolVisibility.Public || v === SymbolVisibility.Internal
-			|| v === SymbolVisibility.Restricted)
-	}
-
-	static areVisibilitiesCompatible(
-		v1: SymbolVisibility | undefined,
-		v2: SymbolVisibility | undefined,
-	) {
-		return ((this.isVisibilityInGlobal(v1) && this.isVisibilityInGlobal(v2))
-			|| (v1 === SymbolVisibility.Block && v2 === SymbolVisibility.Block)
-			|| (v1 === SymbolVisibility.File && v2 === SymbolVisibility.File))
-	}
 }
 
-export interface SymbolIsotopeAddition {
-	data?: Partial<Omit<SymbolIsotope, SymbolUsageType | 'identifier'>>
+export interface SymbolAddition {
+	data?: SymbolMetadata & {
+		desc?: string
+		scope?: IsotopeScope
+		source?: SymbolIsotopeProvider
+		overrideLevel?: number
+	}
 	usage?: SymbolAdditionUsage
 }
-
-interface SymbolAddition {
-	data?: SymbolMetadata
-	usage?: SymbolAdditionUsage
-}
-type SymbolAdditionUsage = SymbolAdditionUsageWithRange | SymbolAdditionUsageWithNode
+export type SymbolAdditionUsage = SymbolAdditionUsageWithRange | SymbolAdditionUsageWithNode
 interface SymbolAdditionUsageBase extends SymbolLocationMetadata {
 	/**
 	 * The type of this usage. Use `definition` when the usage consists both a `declaration` and an `implementation`.
@@ -1199,14 +750,7 @@ namespace SymbolAdditionUsageWithNode {
 	}
 }
 
-/**
- * A stack of {@link SymbolTable}s. The first element represents the `File` visibility scope,
- * which is accessible by any later elements but not saved to the global `SymbolTable`.
- * Later elements represent different levels of `Block` visibility scopes.
- */
-export type SymbolStack = [SymbolTable, ...SymbolTable[]]
-
-type QueryCallback<S extends Symbol | undefined = Symbol | undefined> = (
+type QueryCallback<S extends SymbolView | undefined = SymbolView | undefined> = (
 	this: SymbolQuery,
 	symbol: S,
 	query: SymbolQuery,
@@ -1218,9 +762,8 @@ export class SymbolQuery {
 	readonly category: string
 	path: readonly string[]
 	readonly #doc: TextDocument
-	readonly #node:
-		| AstNode
-		| undefined
+	readonly #lookup: (category: string, path: readonly string[]) => LookupResult
+	readonly #getRootMap: () => SymbolMap
 	/**
 	 * If only a string URI (instead of a {@link TextDocument}) is provided when constructing this class.
 	 *
@@ -1247,8 +790,8 @@ export class SymbolQuery {
 	 */
 	util: SymbolUtil
 
-	get symbol(): Symbol | undefined {
-		return this.#symbol
+	get symbol(): SymbolView | undefined {
+		return SymbolUtil.viewFromContext(this.#symbol, this.#doc.uri)
 	}
 
 	get visibleMembers(): SymbolMap {
@@ -1259,15 +802,17 @@ export class SymbolQuery {
 	}
 
 	constructor(
-		{ category, contributor, doc, map, parentSymbol, path, symbol, util }: {
+		{ category, contributor, doc, map, parentSymbol, path, symbol, util, lookup, getRootMap }: {
 			category: string
 			contributor: string | undefined
-			doc: DocAndNode | TextDocument | string
+			doc: TextDocument | string
 			map: SymbolMap | undefined
 			parentSymbol: Symbol | undefined
 			path: readonly string[]
 			symbol: Symbol | undefined
 			util: SymbolUtil
+			lookup: (category: string, path: readonly string[]) => LookupResult
+			getRootMap: () => SymbolMap
 		},
 	) {
 		this.category = category
@@ -1276,9 +821,6 @@ export class SymbolQuery {
 		if (typeof doc === 'string') {
 			doc = TextDocument.create(doc, '', 0, '')
 			this.#createdWithUri = true
-		} else if (isDocAndNode(doc)) {
-			this.#node = doc.node
-			doc = doc.doc
 		}
 		this.#doc = doc
 		this.#currentContributor = contributor
@@ -1286,6 +828,8 @@ export class SymbolQuery {
 		this.#parentSymbol = parentSymbol
 		this.#symbol = symbol
 		this.util = util
+		this.#lookup = lookup
+		this.#getRootMap = getRootMap
 	}
 
 	heyGimmeDaSymbol() {
@@ -1293,7 +837,7 @@ export class SymbolQuery {
 	}
 
 	getData<T>(predicate: (this: void, value: unknown) => value is T): T | undefined {
-		const data = this.#symbol?.data
+		const data = this.symbol?.data
 		return predicate(data) ? data : undefined
 	}
 
@@ -1303,17 +847,17 @@ export class SymbolQuery {
 	}
 
 	if(
-		predicate: (this: void, symbol: Symbol | undefined) => symbol is undefined,
+		predicate: (this: void, symbol: SymbolView | undefined) => symbol is undefined,
 		fn: QueryCallback<undefined>,
 	): this
 	if(
-		predicate: (this: void, symbol: Symbol | undefined) => symbol is Symbol,
-		fn: QueryCallback<Symbol>,
+		predicate: (this: void, symbol: SymbolView | undefined) => symbol is SymbolView,
+		fn: QueryCallback<SymbolView>,
 	): this
 	if(predicate: QueryCallback, fn: QueryCallback): this
 	if(predicate: QueryCallback, fn: QueryCallback<any>): this {
-		if (predicate.call(this, this.#symbol, this)) {
-			fn.call(this, this.#symbol, this)
+		if (predicate.call(this, this.symbol, this)) {
+			fn.call(this, this.symbol, this)
 			this.#hasTriggeredIf = true
 		}
 		return this
@@ -1329,42 +873,42 @@ export class SymbolQuery {
 	/**
 	 * Calls `fn` if the queried symbol exists (i.e. has any of declarations/definitions/implementations/references/typeDefinitions).
 	 */
-	ifKnown(fn: QueryCallback<Symbol>): this {
+	ifKnown(fn: QueryCallback<SymbolView>): this {
 		return this.if((s) => s !== undefined, fn as QueryCallback)
 	}
 
 	/**
 	 * Calls `fn` if the queried symbol has declarations or definitions.
 	 */
-	ifDeclared(fn: QueryCallback<Symbol>): this {
-		return this.if((s): s is Symbol => SymbolUtil.isDeclared(s), fn)
+	ifDeclared(fn: QueryCallback<SymbolView>): this {
+		return this.if((s): s is SymbolView => SymbolUtil.isDeclared(s), fn)
 	}
 
 	/**
 	 * Calls `fn` if the queried symbol has definitions, or both declarations and implementations.
 	 */
-	ifDefined(fn: QueryCallback<Symbol>): this {
+	ifDefined(fn: QueryCallback<SymbolView>): this {
 		return this.if(SymbolUtil.isDefined, fn)
 	}
 
 	/**
 	 * Calls `fn` if the queried symbol has implementations or definitions.
 	 */
-	ifImplemented(fn: QueryCallback<Symbol>): this {
+	ifImplemented(fn: QueryCallback<SymbolView>): this {
 		return this.if(SymbolUtil.isImplemented, fn)
 	}
 
 	/**
 	 * Calls `fn` if the queried symbol has references.
 	 */
-	ifReferenced(fn: QueryCallback<Symbol>): this {
+	ifReferenced(fn: QueryCallback<SymbolView>): this {
 		return this.if(SymbolUtil.isReferenced, fn)
 	}
 
 	/**
 	 * Calls `fn` if the queried symbol has type definitions.
 	 */
-	ifTypeDefined(fn: QueryCallback<Symbol>): this {
+	ifTypeDefined(fn: QueryCallback<SymbolView>): this {
 		return this.if(SymbolUtil.isTypeDefined, fn)
 	}
 
@@ -1373,7 +917,7 @@ export class SymbolQuery {
 	 */
 	else(fn: QueryCallback): this {
 		if (!this.#hasTriggeredIf) {
-			fn.call(this, this.#symbol, this)
+			fn.call(this, this.symbol, this)
 		}
 		return this
 	}
@@ -1400,96 +944,18 @@ export class SymbolQuery {
 	}
 
 	private enterImmediately(addition: SymbolAddition): void {
-		/**
-		 * Get a proper visibility from the addition:
-		 * * If the visibility is specified, use it.
-		 * * If the visibility is `undefined`, use the visibility of the symbol, or `Public` if unapplicable.
-		 */
-		const getAdditionVisibility = (addition: SymbolAddition): SymbolVisibility => {
-			return (addition.data?.visibility ?? this.#symbol?.visibility ?? SymbolVisibility.Public)
-		}
-
-		const getMap = (addition: SymbolAddition): SymbolMap => {
-			const additionVisibility = getAdditionVisibility(addition)
-			if (
-				this.#map
-				&& SymbolUtil.areVisibilitiesCompatible(additionVisibility, this.#symbol?.visibility)
-			) {
+		const getMap = (): SymbolMap => {
+			if (this.#map) {
 				return this.#map
 			}
 			if (this.path.length > 1) {
 				if (this.#parentSymbol) {
-					if (
-						!SymbolUtil.areVisibilitiesCompatible(
-							additionVisibility,
-							this.#parentSymbol.visibility,
-						)
-					) {
-						throw new Error(
-							`Cannot enter member “${this.getPath()}” of ${
-								SymbolFormatter.stringifyVisibility(additionVisibility)
-							} visibility to parent of ${
-								SymbolFormatter.stringifyVisibility(this.#parentSymbol.visibility)
-							} visibility`,
-						)
-					}
-					return (this.#parentSymbol.members ??= {})
+					return this.#parentSymbol.members ??= {}
 				}
 			} else {
-				let table: SymbolTable | undefined
-				if (SymbolUtil.isVisibilityInGlobal(additionVisibility)) {
-					table = this.util.global
-				} else if (additionVisibility === SymbolVisibility.File) {
-					if (!this.#node) {
-						throw new Error(
-							`Cannot enter “${this.getPath()}” with ${
-								SymbolFormatter.stringifyVisibility(additionVisibility)
-							} visibility as no node is supplied`,
-						)
-					}
-					let node: AstNode | undefined = this.#node
-					while (node) {
-						if (node.type === 'file') {
-							table = node.locals
-							break
-						}
-						node = node.parent
-					}
-					if (!table) {
-						throw new Error(
-							`Cannot enter “${this.getPath()}” with ${
-								SymbolFormatter.stringifyVisibility(additionVisibility)
-							} visibility as no file node is supplied`,
-						)
-					}
-				} else {
-					if (!this.#node) {
-						throw new Error(
-							`Cannot enter “${this.getPath()}” with ${
-								SymbolFormatter.stringifyVisibility(additionVisibility)
-							} visibility as no node is supplied`,
-						)
-					}
-					let node: AstNode | undefined = this.#node
-					while (node) {
-						if (node.locals) {
-							table = node.locals
-							break
-						}
-						node = node.parent
-					}
-					if (!table) {
-						throw new Error(
-							`Cannot enter “${this.getPath()}” with ${
-								SymbolFormatter.stringifyVisibility(additionVisibility)
-							} visibility as no node with locals is supplied`,
-						)
-					}
-				}
-				// TODO: Move part of symbol from global to table.
-				return (table[this.category] ??= {})
+				return this.#getRootMap()
 			}
-			throw new Error(`Cannot create the symbol map for “${this.getPath()}”`)
+			throw new Error('Cannot create the symbol map for “' + this.getPath() + '”')
 		}
 
 		// Treat `usage.range` as `[0, 0)` if this class was constructed with a string URI (instead of a `TextDocument`).
@@ -1497,7 +963,7 @@ export class SymbolQuery {
 			addition.usage.range = Range.create(0, 0)
 		}
 
-		this.#map = getMap(addition)
+		this.#map = getMap()
 		this.#symbol = this.util.enterMap(
 			this.#parentSymbol,
 			this.#map,
@@ -1531,7 +997,7 @@ export class SymbolQuery {
 
 	@DelayModeSupport((self: SymbolQuery) => self.util)
 	private _enterFileDefinition(addition: SymbolAddition): void {
-		const raw = this.util.lookup(this.category, this.path, this.#node).symbol
+		const raw = this.#lookup(this.category, this.path).symbol
 		this.#symbol = raw
 		if (raw) {
 			this.#map = raw.parentMap
@@ -1545,31 +1011,10 @@ export class SymbolQuery {
 		if (this.#createdWithUri && SymbolAdditionUsageWithRange.is(usage)) {
 			usage.range = Range.create(0, 0)
 		}
-		const isotope = raw?.isotopes?.find(value =>
-			value.source === SymbolIsotopeProvider.DocBlock
-			&& value.declaration?.some(location => location.fromDocDeclaration)
-		)
-		if (raw && isotope) {
-			this.util.amendSymbol(raw, { data: addition.data }, this.#doc, this.#currentContributor)
-			this.util.writeIsotope(
-				raw,
-				isotope.identifier,
-				{
-					usage: { ...usage, type: 'implementation' },
-				},
-				this.#doc,
-				this.#currentContributor,
-			)
-		} else {
-			this.enterImmediately({
-				...addition,
-				data: raw?.visibility === SymbolVisibility.Restricted
-					? { ...addition.data, visibility: SymbolVisibility.Public }
-					: addition.data,
-				usage,
-			})
+		this.enterImmediately({ ...addition, usage })
+		if (!LocalSymbol.is(this.#symbol)) {
+			Isotope.reconcileDocUsages(this.util, this.#symbol!)
 		}
-		this.util.reconcileDocUsages(this.#symbol!)
 	}
 
 	enterCommand(addition: SymbolAddition): this {
@@ -1579,84 +1024,47 @@ export class SymbolQuery {
 
 	@DelayModeSupport((self: SymbolQuery) => self.util)
 	private _enterCommand(addition: SymbolAddition): void {
-		const raw = this.util.lookup(this.category, this.path, this.#node).symbol
-		const isotope = raw && SymbolUtil.selectIsotope(raw, this.#doc.uri)
-		const originalType = addition.usage?.type ?? 'reference'
-		const usage = { ...addition.usage, originalUsageType: originalType }
-		if (
-			raw && isotope?.source === SymbolIsotopeProvider.DocBlock
-			&& isotope.declaration?.some(location => location.fromDocDeclaration)
-		) {
-			this.util.writeIsotope(
-				raw,
-				isotope.identifier,
-				{
-					usage: {
-						...usage,
-						type: originalType === 'definition' ? 'implementation' : originalType,
-					},
+		const raw = this.#lookup(this.category, this.path).symbol
+		if (LocalSymbol.is(raw) || LocalSymbol.isMap(this.#map)) {
+			const originalType = addition.usage?.type ?? 'reference'
+			this.enterImmediately({
+				...addition,
+				usage: {
+					...addition.usage,
+					originalUsageType: originalType,
+					type: originalType === 'definition' && LocalSymbol.is(raw)
+							&& raw.declaration?.some(value => value.fromDocDeclaration)
+						? 'implementation'
+						: originalType,
 				},
-				this.#doc,
-				this.#currentContributor,
-			)
-			this.#symbol = raw
-			this.#map = raw.parentMap
+			})
 			return
 		}
-		const publicDoc = raw?.declaration?.some(location => location.fromDocDeclaration)
-		this.enterImmediately({
-			...addition,
-			data: originalType === 'definition' && raw?.visibility === SymbolVisibility.Restricted
-				? { ...addition.data, visibility: SymbolVisibility.Public }
-				: addition.data,
-			usage: {
-				...usage,
-				type: originalType === 'definition' && publicDoc ? 'implementation' : originalType,
-			},
-		})
+		const usage = Isotope.enterCommand(
+			this.util,
+			raw,
+			addition,
+			this.#doc,
+			this.#currentContributor,
+		)
+		if (usage) {
+			this.enterImmediately({ ...addition, usage })
+		} else if (raw) {
+			this.#symbol = raw
+			this.#map = raw.parentMap
+		}
 	}
 
-	/** Move base usages covered by the named isotope to the isotope. */
-	migrateDefinitions(identifier: string): this {
-		this._migrateDefinitions(identifier)
+	migrateDefinitions(_identifier: string): this {
+		this._reconcileUsages()
 		return this
 	}
 
 	@DelayModeSupport((self: SymbolQuery) => self.util)
-	private _migrateDefinitions(identifier: string): void {
-		const symbol = this.#symbol ?? this.util.lookup(
-			this.category,
-			this.path,
-			this.#node,
-		).symbol
-		const isotope = symbol?.isotopes?.find(value => value.identifier === identifier)
-		if (!symbol || !isotope) {
-			throw new Error(`Cannot migrate definitions to unknown isotope “${identifier}”.`)
-		}
-		let changed = false
-		for (
-			const [source, target] of [
-				['reference', 'reference'],
-				['definition', 'implementation'],
-			] as const
-		) {
-			const locations = symbol[source]
-			if (!locations) {
-				continue
-			}
-			symbol[source] = locations.filter(location => {
-				if (SymbolUtil.selectIsotope(symbol, location.uri) !== isotope) {
-					return true
-				}
-				;(isotope[target] ??= []).push(location)
-				this.util.emit('symbolLocationRemoved', { symbol, type: source, location })
-				this.util.emit('symbolLocationCreated', { symbol, type: target, location })
-				changed = true
-				return false
-			})
-		}
-		if (changed) {
-			this.util.emit('symbolAmended', { symbol })
+	private _reconcileUsages(): void {
+		const symbol = this.#lookup(this.category, this.path).symbol
+		if (symbol && !LocalSymbol.is(symbol)) {
+			Isotope.reconcileDocUsages(this.util, symbol)
 		}
 	}
 
@@ -1667,22 +1075,44 @@ export class SymbolQuery {
 
 	@DelayModeSupport((self: SymbolQuery) => self.util)
 	private _enterIsotope(identifier: string, addition: SymbolIsotopeAddition): void {
-		// Earlier delayed writes may have created the symbol since this query was made.
-		const current = this.util.lookup(this.category, this.path, this.#node)
+		if (
+			LocalSymbol.isMap(this.#map) || LocalSymbol.is(this.#symbol)
+			|| LocalSymbol.is(this.#parentSymbol)
+		) {
+			throw new Error('Local symbols do not support isotopes.')
+		}
+		const current = this.#lookup(this.category, this.path)
 		this.#symbol = current.symbol
 		if (current.symbol) {
 			this.#map = current.symbol.parentMap
 		}
+
 		if (!this.#symbol) {
 			if (addition.data?.scope === undefined) {
 				throw new Error('Creating an isotope requires a scope.')
 			}
-			this.enterImmediately({ data: { visibility: SymbolVisibility.Restricted } })
+			this.#map ??= this.path.length > 1
+				? this.#parentSymbol ? this.#parentSymbol.members ??= {} : undefined
+				: this.#getRootMap()
+			if (!this.#map) {
+				throw new Error('Cannot create isotope without parent symbol.')
+			}
+			this.#symbol = this.util.createSymbol(
+				this.category,
+				this.#parentSymbol,
+				this.#map,
+				this.path,
+				this.path[this.path.length - 1],
+				{},
+				this.#doc,
+				this.#currentContributor,
+			)
 		}
 		if (this.#createdWithUri && SymbolAdditionUsageWithRange.is(addition.usage)) {
 			addition.usage.range = Range.create(0, 0)
 		}
-		this.util.writeIsotope(
+		Isotope.writeIsotope(
+			this.util,
 			this.#symbol!,
 			identifier,
 			addition,
@@ -1771,6 +1201,8 @@ export class SymbolQuery {
 			path: [...this.path, identifier],
 			symbol: memberSymbol,
 			util: this.util,
+			lookup: this.#lookup,
+			getRootMap: this.#getRootMap,
 		})
 		fn(memberQueryResult)
 
@@ -1813,10 +1245,6 @@ export namespace SymbolFormatter {
 		}
 	}
 
-	export function stringifySymbolStack(stack: SymbolStack): string {
-		return stack.map((table) => stringifySymbolTable(table)).join('\n------------\n')
-	}
-
 	export function stringifySymbolTable(table: SymbolTable, indent = ''): string {
 		const ans: [string, string][] = []
 		for (const category of Object.keys(table)) {
@@ -1848,23 +1276,24 @@ export namespace SymbolFormatter {
 		assertEqual(symbol.path[symbol.path.length - 1], symbol.identifier)
 		ans.push(
 			`SYMBOL ${symbol.path.join('.')}`
-				+ ` {${symbol.category}${symbol.subcategory ? ` (${symbol.subcategory})` : ''}}`
-				+ ` [${stringifyVisibility(symbol.visibility, symbol.visibilityRestriction)}]`,
+				+ ` {${symbol.category}${symbol.subcategory ? ` (${symbol.subcategory})` : ''}}`,
 		)
 		if (symbol.data) {
 			ans.push(`${IndentChar}data: ${JSON.stringify(symbol.data, bigintJsonNumberReplacer)}`)
 		}
-		if (symbol.desc) {
-			ans.push(`${IndentChar}description: ${symbol.desc}`)
+		if (symbol.facets) {
+			ans.push(`${IndentChar}facets: ${JSON.stringify(symbol.facets, bigintJsonNumberReplacer)}`)
 		}
-		for (const type of SymbolUsageTypes) {
-			if (symbol[type]) {
-				ans.push(
-					`${IndentChar}${type}:\n${
-						symbol[type]!.map((v) => `${indent}${IndentChar.repeat(2)}${JSON.stringify(v)}`)
-							.join(`\n${indent}${IndentChar.repeat(2)}------------\n`)
-					}`,
-				)
+		if (LocalSymbol.is(symbol)) {
+			if (symbol.desc !== undefined) {
+				ans.push(`${IndentChar}desc: ${JSON.stringify(symbol.desc)}`)
+			}
+			for (const type of SymbolUsageTypes) {
+				if (symbol[type]?.length) {
+					ans.push(
+						`${IndentChar}${type}: ${JSON.stringify(symbol[type], bigintJsonNumberReplacer)}`,
+					)
+				}
 			}
 		}
 		if (symbol.relations) {
@@ -1878,34 +1307,6 @@ export namespace SymbolFormatter {
 			)
 		}
 		return ans.map((v) => `${indent}${v}`).join('\n')
-	}
-
-	export function stringifyVisibility(
-		visibility: SymbolVisibility | undefined,
-		visibilityRestriction?: string[],
-	) {
-		let stringVisibility: string
-		// Const enums cannot be indexed even if `--preserveConstEnums` is on: https://github.com/microsoft/TypeScript/issues/31353
-		switch (visibility) {
-			case SymbolVisibility.Block:
-				stringVisibility = 'Block'
-				break
-			case SymbolVisibility.File:
-				stringVisibility = 'File'
-				break
-			case SymbolVisibility.Internal:
-				stringVisibility = 'Internal'
-				break
-			case SymbolVisibility.Restricted:
-				stringVisibility = 'Restricted'
-				break
-			default:
-				stringVisibility = 'Public'
-				break
-		}
-		return `${stringVisibility}${
-			visibilityRestriction ? ` ${visibilityRestriction.map((v) => `“${v}”`).join(', ')}` : ''
-		}`
 	}
 
 	export function stringifyLookupResult(result: LookupResult): string {
@@ -1938,8 +1339,4 @@ function DelayModeSupport(getUtil: (self: any) => SymbolUtil = (self) => self): 
 		}
 		return descripter
 	}
-}
-
-function isDocAndNode(doc: string | TextDocument | DocAndNode): doc is DocAndNode {
-	return !!(doc as DocAndNode).doc
 }

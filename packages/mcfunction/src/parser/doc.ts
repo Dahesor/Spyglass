@@ -103,26 +103,39 @@ export function declareDocSymbol(
 	identifier: string,
 	ctx: core.BinderContext,
 ): void {
-	const query = ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
 	const usage = { type: 'declaration' as const, node: field, fromDocDeclaration: true }
-	if (node.access?.visibility === core.SymbolVisibility.Restricted) {
-		query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
-			data: {
-				...node.access.isotope,
-				source: core.SymbolIsotopeProvider.DocBlock,
-				desc: node.description ?? '',
-			},
-			usage,
-		})
-	} else {
-		query.enter({
-			data: {
-				visibility: node.access?.visibility ?? core.SymbolVisibility.Public,
-				desc: node.description ?? '',
-			},
-			usage,
-		})
+	const access = node.access
+	const local = access?.visibility === core.SymbolIsotopeScope.Local
+	const query = local
+		? core.LocalSymbol.queryForScope(
+			ctx.symbols,
+			{ doc: ctx.doc, node: field },
+			core.LocalSymbolVisibility.File,
+			category,
+			identifier,
+		)
+		: ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
+	if (local) {
+		query.enter({ data: { desc: node.description ?? '' }, usage })
+		return
 	}
+	query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
+		data: {
+			scope: access?.visibility ?? core.SymbolIsotopeScope.Global,
+			...(access?.visibility === core.SymbolIsotopeScope.Private
+				? { visibleWithin: access.visibleWithin }
+				: access?.visibility === core.SymbolIsotopeScope.Namespace
+				? { namespace: [access.namespace], visibleWithin: ['**'] }
+				: local
+				? { visibleWithin: [ctx.doc.uri.replace(/[\\*?\[\]{}()!+@]/g, '\\$&')] }
+				: {}),
+			source: core.SymbolIsotopeProvider.DocBlock,
+			...(access?.overrideLevel !== undefined ? { overrideLevel: access.overrideLevel } : {}),
+			origin: { uri: ctx.doc.uri, contributor: 'binder' },
+			desc: node.description ?? '',
+		},
+		usage,
+	})
 }
 
 export function registerDocTarget(meta: core.MetaRegistry, target: DocTargets): void {
@@ -281,18 +294,6 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 			handleDocDirective(docDirective, docTarget, node, ctx, seenDirectives)
 		}
 	}
-	core.traversePreOrder(node, () => true, child => !!child.symbol, child => {
-		const symbol = child.symbol!
-		if (node.access?.visibility === core.SymbolVisibility.Restricted) {
-			return
-		}
-		ctx.symbols.query({ doc: ctx.doc, node: child }, symbol.category, ...symbol.path).amend({
-			data: {
-				desc: node.description ?? '',
-				visibility: symbol.visibility ?? core.SymbolVisibility.Public,
-			},
-		})
-	})
 })
 
 export const completeDoc: core.Completer<DocNode> = (node, ctx) => {

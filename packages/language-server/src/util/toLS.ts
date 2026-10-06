@@ -130,12 +130,12 @@ export function documentSymbols(
 	return Object.values(map).map((s) =>
 		[
 			s,
-			[
-				...(s.declaration ?? []),
-				...(s.definition ?? []),
-				...(s.implementation ?? []),
-				...(s.typeDefinition ?? []),
-			].find((l) => l.uri === doc.uri),
+			core.SymbolUtil.allUsageContainers(s).flatMap(owner => [
+				...(owner.declaration ?? []),
+				...(owner.definition ?? []),
+				...(owner.implementation ?? []),
+				...(owner.typeDefinition ?? []),
+			]).find((l) => l.uri === doc.uri),
 		] as const
 	).filter(([s, l]) => !!l && s.identifier).map(([s, l]) =>
 		documentSymbol(s, l!, doc, hierarchicalSupport, supportedKinds)
@@ -391,12 +391,12 @@ export function symbolInformationArray(
 	return Object.values(map).filter((s) => s.identifier.includes(query)).map((s) =>
 		[
 			s,
-			[
-				...(s.declaration ?? []),
-				...(s.definition ?? []),
-				...(s.implementation ?? []),
-				...(s.typeDefinition ?? []),
-			][0],
+			core.SymbolUtil.allUsageContainers(s).flatMap(owner => [
+				...(owner.declaration ?? []),
+				...(owner.definition ?? []),
+				...(owner.implementation ?? []),
+				...(owner.typeDefinition ?? []),
+			])[0],
 		] as const
 	).filter(([_s, l]) => !!l).map(([s, l]) => symbolInformation(s, l, supportedKinds))
 }

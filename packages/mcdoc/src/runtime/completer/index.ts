@@ -1,3 +1,4 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 import type * as core from '@spyglassmc/core'
 import { TypeDefSymbolData } from '../../binder/index.js'
 import type {
@@ -102,10 +103,11 @@ export function getValues(
 				return []
 			}
 			const symbol = ctx.symbols.query(ctx.doc, 'mcdoc', typeDef.path)
-			const def = symbol.getData(TypeDefSymbolData.is)?.typeDef
-			if (!def) {
+			const data = GlobalSymbol.getCanonicalData(symbol.heyGimmeDaSymbol())
+			if (!TypeDefSymbolData.is(data)) {
 				return []
 			}
+			const def = data.typeDef
 			if (typeDef.attributes?.length) {
 				return getValues({
 					...def,

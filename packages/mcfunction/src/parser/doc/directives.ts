@@ -26,7 +26,7 @@ export class PublicDocDirective extends DefaultDocDirective {
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
 	): DocAccess {
-		return { visibility: core.SymbolVisibility.Public }
+		return { visibility: core.SymbolIsotopeScope.Global }
 	}
 }
 
@@ -41,8 +41,8 @@ export class PrivateDocDirective extends DefaultDocDirective {
 		const folder = ctx.doc.uri.slice(0, ctx.doc.uri.lastIndexOf('/') + 1)
 		const escapedFolder = folder.replace(/[\\*?\[\]{}()!+@]/g, '\\$&')
 		return {
-			visibility: core.SymbolVisibility.Restricted,
-			isotope: { scope: core.SymbolIsotopeScope.Private, visibleWithin: [`${escapedFolder}**`] },
+			visibility: core.SymbolIsotopeScope.Private,
+			visibleWithin: [`${escapedFolder}**`],
 		}
 	}
 }
@@ -54,7 +54,7 @@ export class LocalDocDirective extends DefaultDocDirective {
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
 	): DocAccess {
-		return { visibility: core.SymbolVisibility.File }
+		return { visibility: core.SymbolIsotopeScope.Local }
 	}
 }
 
@@ -82,7 +82,7 @@ export class InternalDocDirective extends DefaultDocDirective {
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
 	): DocAccess {
-		return { visibility: core.SymbolVisibility.Internal }
+		return { visibility: core.SymbolIsotopeScope.Project }
 	}
 }
 

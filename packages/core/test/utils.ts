@@ -1,21 +1,18 @@
 import type { FsPromisesApi } from '@jsonjoy.com/fs-node-utils'
-import type {
-	ColorToken,
-	Externals,
-	FileNode,
-	LanguageError,
-	Parser,
-	ProjectData,
-	Returnable,
-	RootUriString,
-	UnlinkedSymbolTable,
-} from '../lib/index.js'
+import { fail } from 'node:assert/strict'
+import type fsp from 'node:fs/promises'
+import type { TestContext } from 'node:test'
+import type { URL } from 'node:url'
+import { fileURLToPath } from 'node:url'
+import { format } from 'node:util'
+import { TextDocument } from 'vscode-languageserver-textdocument'
 import {
 	AstNode,
 	BinderContext,
 	Failure,
 	file,
 	FileService,
+	GlobalSymbol,
 	Logger,
 	MetaRegistry,
 	ParserContext,
@@ -28,14 +25,18 @@ import {
 	UriBinderContext,
 	VanillaConfig,
 } from '../lib/index.js'
+import type {
+	ColorToken,
+	Externals,
+	FileNode,
+	LanguageError,
+	Parser,
+	ProjectData,
+	Returnable,
+	RootUriString,
+	UnlinkedSymbolTable,
+} from '../lib/index.js'
 import { getNodeJsExternals, NodeJsExternals } from '../lib/nodejs.js'
-import { fail } from 'node:assert/strict'
-import type fsp from 'node:fs/promises'
-import type { TestContext } from 'node:test'
-import type { URL } from 'node:url'
-import { fileURLToPath } from 'node:url'
-import { format } from 'node:util'
-import { TextDocument } from 'vscode-languageserver-textdocument'
 
 export function mockProjectData(data: Partial<ProjectData> = {}): ProjectData {
 	const cacheRoot: RootUriString = data.cacheRoot ?? 'file:///cache/'
@@ -274,7 +275,7 @@ export class SimpleProject {
 			const ctx = BinderContext.create(this.projectData, {
 				doc: TextDocument.create(uri, '', 0, content),
 			})
-			ctx.symbols.clear({ contributor: 'binder', uri })
+			GlobalSymbol.clear(ctx.symbols, { contributor: 'binder', uri })
 			await ctx.symbols.contributeAsAsync('binder', async () => {
 				const proxy = StateProxy.create(node)
 				await binder(proxy, ctx)

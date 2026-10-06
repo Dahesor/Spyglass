@@ -4,26 +4,44 @@ exports[`mcdoc __fixture__ > type parameter/duplicates name in module scope 1`] 
     "mcdoc": {
       "::test": {
         "subcategory": "module",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 0,
-              "end": 0
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 0,
-                "character": 0
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "nextAnonymousIndex": 0
+                }
               }
-            },
-            "contributor": "uri_binder"
+            ],
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 0,
+                  "end": 0
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 0
+                  }
+                },
+                "contributor": "uri_binder",
+                "isotopeIdentifier": "regular"
+              }
+            ]
           }
-        ],
+        },
         "data": {
           "nextAnonymousIndex": 0
         }
@@ -36,75 +54,97 @@ exports[`mcdoc __fixture__ > type parameter/duplicates name in module scope 1`] 
           }
         },
         "subcategory": "struct",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 7,
-              "end": 8
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 7
-              },
-              "end": {
-                "line": 0,
-                "character": 8
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "typeDef": {
+                    "kind": "struct",
+                    "fields": []
+                  }
+                }
               }
-            },
-            "fullRange": {
-              "start": 0,
-              "end": 13
-            },
-            "fullPosRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 2,
-                "character": 0
+            ],
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 7,
+                  "end": 8
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 7
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 8
+                  }
+                },
+                "fullRange": {
+                  "start": 0,
+                  "end": 13
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 0
+                  }
+                },
+                "contributor": "binder",
+                "isotopeIdentifier": "regular"
               }
-            },
-            "contributor": "binder"
+            ],
+            "reference": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 28,
+                  "end": 29
+                },
+                "posRange": {
+                  "start": {
+                    "line": 2,
+                    "character": 15
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 16
+                  }
+                },
+                "fullRange": {
+                  "start": 28,
+                  "end": 29
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 2,
+                    "character": 15
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 16
+                  }
+                },
+                "contributor": "binder",
+                "isotopeIdentifier": "regular",
+                "skipRenaming": false
+              }
+            ]
           }
-        ],
-        "reference": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 28,
-              "end": 29
-            },
-            "posRange": {
-              "start": {
-                "line": 2,
-                "character": 15
-              },
-              "end": {
-                "line": 2,
-                "character": 16
-              }
-            },
-            "fullRange": {
-              "start": 28,
-              "end": 29
-            },
-            "fullPosRange": {
-              "start": {
-                "line": 2,
-                "character": 15
-              },
-              "end": {
-                "line": 2,
-                "character": 16
-              }
-            },
-            "contributor": "binder",
-            "skipRenaming": false
-          }
-        ]
+        }
       },
       "::test::Test": {
         "data": {
@@ -122,40 +162,69 @@ exports[`mcdoc __fixture__ > type parameter/duplicates name in module scope 1`] 
           }
         },
         "subcategory": "type_alias",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 18,
-              "end": 22
-            },
-            "posRange": {
-              "start": {
-                "line": 2,
-                "character": 5
-              },
-              "end": {
-                "line": 2,
-                "character": 9
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "typeDef": {
+                    "kind": "template",
+                    "child": {
+                      "kind": "reference",
+                      "path": "::test::T"
+                    },
+                    "typeParams": [
+                      {
+                        "path": "::test::T"
+                      }
+                    ]
+                  }
+                }
               }
-            },
-            "fullRange": {
-              "start": 13,
-              "end": 29
-            },
-            "fullPosRange": {
-              "start": {
-                "line": 2,
-                "character": 0
-              },
-              "end": {
-                "line": 2,
-                "character": 16
+            ],
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 18,
+                  "end": 22
+                },
+                "posRange": {
+                  "start": {
+                    "line": 2,
+                    "character": 5
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 9
+                  }
+                },
+                "fullRange": {
+                  "start": 13,
+                  "end": 29
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 2,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 16
+                  }
+                },
+                "contributor": "binder",
+                "isotopeIdentifier": "regular"
               }
-            },
-            "contributor": "binder"
+            ]
           }
-        ]
+        }
       }
     }
   },
@@ -351,7 +420,8 @@ exports[`mcdoc __fixture__ > type parameter/duplicates name in module scope 1`] 
                       "character": 0
                     }
                   },
-                  "contributor": "binder"
+                  "contributor": "binder",
+                  "isotopeIdentifier": "regular"
                 },
                 "message": "“::test::T” is already declared here"
               }

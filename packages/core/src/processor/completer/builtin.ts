@@ -25,7 +25,8 @@ import type { CompleterContext, MetaRegistry } from '../../service/index.js'
 import { LinterConfigValue } from '../../service/index.js'
 import type { RangeLike } from '../../source/index.js'
 import { Range } from '../../source/index.js'
-import type { Symbol } from '../../symbol/index.js'
+import { GlobalSymbol } from '../../symbol/GlobalSymbol.js'
+import type { SymbolView } from '../../symbol/index.js'
 import { SymbolUtil } from '../../symbol/index.js'
 import type { ColorTokenType } from '../colorizer/index.js'
 import type { Completer } from './Completer.js'
@@ -261,8 +262,9 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 			doc: ctx.doc,
 			node: node as ResourceLocationNode,
 		})
-		const thisKey = Object.entries(symbols).flatMap(([key, symbol]) => {
-			if ((symbol.declaration?.[0] ?? symbol.definition?.[0])?.uri === ctx.doc.uri) {
+		const thisKey = Object.entries(symbols).flatMap(([key, raw]) => {
+			const symbol = SymbolUtil.viewFromContext(raw, ctx.doc.uri)
+			if ((symbol?.declaration?.[0] ?? symbol?.definition?.[0])?.uri === ctx.doc.uri) {
 				return [key]
 			}
 			return []
@@ -338,7 +340,7 @@ function tryGetUnicodeNameCompletion(
 	const partial = match[1]!
 	const replaceRange = Range.create(ctx.offset - partial.length, ctx.offset)
 
-	const map = ctx.symbols.getVisibleSymbols('unicode-name')
+	const map = GlobalSymbol.getVisibleSymbols(ctx.symbols, 'unicode-name')
 	const items: CompletionItem[] = []
 	for (const [identifier, symbol] of Object.entries(map)) {
 		if (!SymbolUtil.isDeclared(symbol)) {
@@ -371,7 +373,7 @@ export const symbol: Completer<SymbolBaseNode> = (node, ctx) => {
 	}, path)
 	return Object.entries(symbols)
 		.map(([k, v]) => [k, SymbolUtil.viewFromContext(v, ctx.doc.uri)] as const)
-		.filter((entry): entry is readonly [string, Symbol] =>
+		.filter((entry): entry is readonly [string, SymbolView] =>
 			!!entry[1] && SymbolUtil.isDeclared(entry[1])
 		)
 		.map(([k, v]) =>

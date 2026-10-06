@@ -1,4 +1,4 @@
-import { SymbolFormatter, SymbolUtil, UriBinderContext } from '@spyglassmc/core'
+import { GlobalSymbol, SymbolFormatter, SymbolUtil, UriBinderContext } from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import { uriBinder } from '@spyglassmc/mcdoc/lib/uri_processors.js'
 import { describe, it } from 'node:test'
@@ -21,12 +21,12 @@ describe('mcdoc uriBinder()', () => {
 		const symbol = project.symbols.global.mcdoc!['::example']
 		t.assert.equal(symbol.subcategory, 'module')
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.definition?.[0].uri, uri)
-		t.assert.equal(symbol.definition?.[0].fromFile, undefined)
-		t.assert.equal(symbol.definition?.[0].originalUsageType, undefined)
-		t.assert.equal(symbol.isotopes?.[0].implementation?.length ?? 0, 0)
-		project.symbols.clear({ uri: docUri })
-		t.assert.equal(symbol.definition?.length, 1)
-		t.assert.equal(symbol.definition?.[0].uri, uri)
+		t.assert.equal(symbol.facets?.global?.definition?.[0].fromFile, undefined)
+		t.assert.equal(symbol.facets?.global?.definition?.[0].originalUsageType, undefined)
+		t.assert.equal(symbol.facets?.isotopes?.[0].implementation?.length ?? 0, 0)
+		GlobalSymbol.clear(project.symbols, { uri: docUri })
+		t.assert.equal(symbol.facets?.global?.definition?.length, 1)
+		t.assert.equal(symbol.facets?.global?.definition?.[0].uri, uri)
 	})
 	const suites: { uris: string[] }[] = [
 		{
