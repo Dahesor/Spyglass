@@ -4,26 +4,44 @@ exports[`mcdoc __fixture__ > dispatcher/undeclared 1`] = `
     "mcdoc": {
       "::test": {
         "subcategory": "module",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 0,
-              "end": 0
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 0,
-                "character": 0
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "nextAnonymousIndex": 0
+                }
               }
-            },
-            "contributor": "uri_binder"
+            ],
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 0,
+                  "end": 0
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 0
+                  }
+                },
+                "contributor": "uri_binder",
+                "isotopeIdentifier": "regular"
+              }
+            ]
           }
-        ],
+        },
         "data": {
           "nextAnonymousIndex": 0
         }
@@ -42,95 +60,98 @@ exports[`mcdoc __fixture__ > dispatcher/undeclared 1`] = `
           }
         },
         "subcategory": "type_alias",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 5,
-              "end": 9
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 5
-              },
-              "end": {
-                "line": 0,
-                "character": 9
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "typeDef": {
+                    "kind": "dispatcher",
+                    "parallelIndices": [
+                      {
+                        "kind": "static",
+                        "value": "%fallback"
+                      }
+                    ],
+                    "registry": "spyglassmc:unknown"
+                  }
+                }
               }
-            },
-            "fullRange": {
-              "start": 0,
-              "end": 41
-            },
-            "fullPosRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 0,
-                "character": 41
-              }
-            },
-            "contributor": "binder"
-          }
-        ]
-      }
-    },
-    "mcdoc/dispatcher": {
-      "spyglassmc:unknown": {
-        "reference": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 12,
-              "end": 30
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 12
-              },
-              "end": {
-                "line": 0,
-                "character": 30
-              }
-            },
-            "fullRange": {
-              "start": 12,
-              "end": 41
-            },
-            "fullPosRange": {
-              "start": {
-                "line": 0,
-                "character": 12
-              },
-              "end": {
-                "line": 0,
-                "character": 41
-              }
-            },
-            "contributor": "binder"
-          }
-        ],
-        "members": {
-          "%fallback": {
-            "reference": [
+            ],
+            "definition": [
               {
                 "uri": "file:///test.mcdoc",
                 "range": {
-                  "start": 31,
-                  "end": 40
+                  "start": 5,
+                  "end": 9
                 },
                 "posRange": {
                   "start": {
                     "line": 0,
-                    "character": 31
+                    "character": 5
                   },
                   "end": {
                     "line": 0,
-                    "character": 40
+                    "character": 9
+                  }
+                },
+                "fullRange": {
+                  "start": 0,
+                  "end": 41
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 41
+                  }
+                },
+                "contributor": "binder",
+                "isotopeIdentifier": "regular"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "mcdoc/dispatcher": {
+      "spyglassmc:unknown": {
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                }
+              }
+            ],
+            "reference": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 12,
+                  "end": 30
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 12
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 30
                   }
                 },
                 "fullRange": {
@@ -147,9 +168,63 @@ exports[`mcdoc __fixture__ > dispatcher/undeclared 1`] = `
                     "character": 41
                   }
                 },
-                "contributor": "binder"
+                "contributor": "binder",
+                "isotopeIdentifier": "regular"
               }
             ]
+          }
+        },
+        "members": {
+          "%fallback": {
+            "facets": {
+              "global": {
+                "isotopes": [
+                  {
+                    "identifier": "regular",
+                    "source": 3,
+                    "origin": {
+                      "uri": "file:///test.mcdoc",
+                      "contributor": "binder"
+                    }
+                  }
+                ],
+                "reference": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 31,
+                      "end": 40
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 31
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 40
+                      }
+                    },
+                    "fullRange": {
+                      "start": 12,
+                      "end": 41
+                    },
+                    "fullPosRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 12
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 41
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
+                  }
+                ]
+              }
+            }
           }
         }
       }

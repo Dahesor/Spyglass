@@ -344,37 +344,38 @@ export const enum SymbolAccessType {
 	Write,
 }
 
-export const enum SymbolVisibility {
-	Block,
-	/** Visible within the current file */
-	File,
-	/** Visible within some restricted scope */
-	Restricted,
-	/** Visible within the current project */
-	Internal,
-	/** Visible within the current project and to the public */
-	Public,
-}
-
-export const enum SymbolIsotopeProvider {
+export enum SymbolIsotopeProvider {
 	/** From a doc block */
 	DocBlock,
 	/** From an imported pack */
 	Imported,
+	/** Built in resources from Spyglass */
+	Builtin,
+	/** From anything else */
+	Regular,
 }
 
-export const enum SymbolIsotopeScope {
+export const IsotopeScopesGlobal = {
+	/** Visible inside project */
+	Project: 2,
+	/** Visible globally */
+	Global: 3,
+} as const
+
+export const SymbolIsotopeScope = {
 	/** Visible within single file.
 	 * A local scoped isotope should not be record in the global symbol table.
 	 */
-	Local = -1,
+	Local: -1,
 	/** Visible within certain glob */
-	Private = 0,
+	Private: 0,
 	/** Visible within a namespace */
-	Namespace = 1,
-	/** Visible globally */
-	Global = 2,
-}
+	Namespace: 1,
+	...IsotopeScopesGlobal,
+} as const
+
+export type IsotopeScope = (typeof SymbolIsotopeScope)[keyof typeof SymbolIsotopeScope]
+export type IsotopeScopeGlobal = (typeof IsotopeScopesGlobal)[keyof typeof IsotopeScopesGlobal]
 
 export interface SymbolPath {
 	category: string
@@ -423,12 +424,7 @@ export interface SymbolMetadata {
 	 */
 	data?: unknown
 	/**
-	 * The documentation for this {@link Symbol}. May be edited by doc comments.
-	 */
-	desc?: string
-	/**
-	 * A map of symbols that are related to the current symbol. **Only** symbols defined in the global symbol table
-	 * (i.e. visibility is {@link SymbolVisibility.Public} or {@link SymbolVisibility.Restricted}) can be specified in this map.
+	 * A map of related symbols. Only symbols in the global symbol table can be specified here.
 	 */
 	relations?: { aliasOf?: SymbolPath; [relationship: string]: SymbolPath | undefined }
 	/**
@@ -439,22 +435,36 @@ export interface SymbolMetadata {
 	 * other than `mcdoc` (like `function`), and with different subcategories.
 	 */
 	subcategory?: string
-	/**
-	 * The visibility of this `Symbol`. Defaults to {@link SymbolVisibility.Public}.
-	 */
-	visibility?: SymbolVisibility
-	/**
-	 * An array of regular expressions in string form. Only exists if `visibility` is set to {@link SymbolVisibility.Restricted}.
-	 * @deprecated Use {@link Symbol.isotopes} instead.
-	 */
-	visibilityRestriction?: string[]
 }
 
 /**
  * An isotope of a symbol is a different set of metadata associated with the same symbol.\
  * Different isotopes can take effect in different contexts.
  */
-export interface SymbolIsotope extends Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+export interface SymbolIsotope
+	extends GlobalSymbolIsotope, Partial<Record<SymbolUsageType, SymbolLocation[]>>
+{
+	/**
+	 * The scope of this isotope. Smaller scopes always have higher priority over larger scopes.
+	 */
+	scope: IsotopeScope
+	/** The namespace which this isotope can be accessed in.
+	 * Only applicable if {@link scope} is namespace.
+	 */
+	namespace?: string[]
+	/**
+	 * The contexts in which this isotope is visible.
+	 */
+	visibleWithin?: string[]
+}
+
+/**
+ * If an isotope has a global scope (public or internal), it will be saved separatly
+ * Since they share the same usages.
+ */
+export interface GlobalSymbolIsotope {
+	/** The originating document and contributor. */
+	origin?: { uri: string; contributor?: string }
 	identifier: string
 	/**
 	 * Which source provides this isotope.
@@ -465,10 +475,6 @@ export interface SymbolIsotope extends Partial<Record<SymbolUsageType, SymbolLoc
 	 */
 	providerName?: unknown
 	/**
-	 * The scope of this isotope. Smaller scopes always have higher priority over larger scopes.
-	 */
-	scope: SymbolIsotopeScope
-	/**
 	 * The override level of this isotope. Higher levels are priorized.
 	 */
 	overrideLevel?: number
@@ -478,14 +484,11 @@ export interface SymbolIsotope extends Partial<Record<SymbolUsageType, SymbolLoc
 	desc?: string
 	/** Custom information about this isotope. */
 	data?: unknown
-	/** The namespace which this isotope can be accessed in.
-	 * Only applicable if {@link scope} is namespace.
-	 */
-	namespace?: string[]
-	/**
-	 * The contexts in which this isotope is visible.
-	 */
-	visibleWithin?: string[]
+}
+
+export interface SymbolGlobalData extends Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+	/** An ordered list (ordered by {@link GlobalSymbolIsotope.overrideLevel}) of global isotopes. */
+	isotopes: GlobalSymbolIsotope[]
 }
 
 export const SymbolUsageTypes = Object.freeze(
@@ -498,7 +501,9 @@ export namespace SymbolUsageType {
 	}
 }
 
-export interface Symbol extends SymbolMetadata, Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+export interface Symbol extends SymbolMetadata {
+	/** Present only on symbols stored in AST local tables. */
+	isLocal?: true
 	/**
 	 * The main category of this {@link Symbol}. Symbols in different categories are definitely
 	 * independent with each other. e.g. advancements and functions.
@@ -512,11 +517,25 @@ export interface Symbol extends SymbolMetadata, Partial<Record<SymbolUsageType, 
 	 */
 	parentSymbol?: Symbol
 	path: readonly string[]
-	/**
-	 * {@link SymbolIsotope} of this symbol.
-	 * A valid Isotope will take priority over the base symbol metadata.
-	 */
-	isotopes?: SymbolIsotope[]
+	facets?: {
+		/**
+		 * {@link SymbolIsotope} of this symbol. Here only isotops with non-global scope are included.
+		 */
+		isotopes?: SymbolIsotope[]
+		/**
+		 * Global isotopes of this symbol.
+		 */
+		global?: SymbolGlobalData
+		/**
+		 * Internal isotopes of this symbol.
+		 */
+		internal?: SymbolGlobalData
+	}
+}
+
+/** A read-only contextual projection; descriptions and locations are never stored on the base. */
+export interface SymbolView extends Symbol, Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+	desc?: string
 }
 
 export namespace Symbol {
@@ -543,6 +562,8 @@ export namespace Symbol {
 }
 
 export interface SymbolLocationMetadata {
+	importedFrom?: string
+	isotopeIdentifier?: string
 	fromDocDeclaration?: boolean
 	fromFile?: boolean
 	originalUsageType?: SymbolUsageType
@@ -661,11 +682,38 @@ export namespace SymbolTable {
 	export function getDependencyExports(table: SymbolTable, checksum: string): SymbolTable {
 		const filter = (map: UnlinkedSymbolMap): void => {
 			for (const [name, symbol] of Object.entries(map)) {
-				const visibility = symbol.visibility ?? SymbolVisibility.Public
-				const isotopes: SymbolIsotope[] = (
-					symbol.isotopes ?? []
-				).filter(isotope =>
-					// Do not allow re-importing symbols
+				const global = symbol.facets?.global
+				const exported = global?.isotopes.filter(isotope =>
+					isotope.source !== SymbolIsotopeProvider.Imported
+				) ?? []
+				const ids = new Map(
+					exported.map(
+						isotope => [
+							isotope.identifier,
+							JSON.stringify([checksum, 'isotope', isotope.identifier]),
+						],
+					),
+				)
+				const importedGlobal: SymbolGlobalData = {
+					isotopes: exported.map(isotope => ({
+						...isotope,
+						identifier: ids.get(isotope.identifier)!,
+						source: SymbolIsotopeProvider.Imported,
+						providerName: checksum,
+					})),
+				}
+				for (const type of SymbolUsageTypes) {
+					importedGlobal[type] = global?.[type]?.filter(location =>
+						!location.isotopeIdentifier || ids.has(location.isotopeIdentifier)
+					).map(location => ({
+						...location,
+						importedFrom: checksum,
+						isotopeIdentifier: location.isotopeIdentifier
+							? ids.get(location.isotopeIdentifier)
+							: undefined,
+					}))
+				}
+				const isotopes = (symbol.facets?.isotopes ?? []).filter(isotope =>
 					isotope.source !== SymbolIsotopeProvider.Imported
 					&& isotope.scope === SymbolIsotopeScope.Namespace
 				).map(isotope => ({
@@ -674,46 +722,37 @@ export namespace SymbolTable {
 					source: SymbolIsotopeProvider.Imported,
 					providerName: checksum,
 				}))
-				if (visibility === SymbolVisibility.Public) {
-					const base: SymbolIsotope = {
-						identifier: JSON.stringify([checksum, 'base']),
-						source: SymbolIsotopeProvider.Imported,
-						providerName: checksum,
-						scope: SymbolIsotopeScope.Global,
-						desc: symbol.desc,
-						data: symbol.data,
-					}
+				for (const isotope of isotopes) {
 					for (const type of SymbolUsageTypes) {
-						base[type] = symbol[type]
+						isotope[type] = isotope[type]?.map(location => ({
+							...location,
+							importedFrom: checksum,
+							isotopeIdentifier: isotope.identifier,
+						}))
 					}
-					isotopes.push(base)
-				} else if (
-					visibility !== SymbolVisibility.Internal
-					&& visibility !== SymbolVisibility.Restricted
-				) {
+				}
+				if (!exported.length && !isotopes.length) {
 					delete map[name]
 					continue
 				}
-				if (!isotopes.length) {
-					delete map[name]
-					continue
+				symbol.facets = {
+					...(exported.length ? { global: importedGlobal } : {}),
+					...(isotopes.length ? { isotopes } : {}),
 				}
-				delete symbol.desc
 				delete symbol.data
-				for (const type of SymbolUsageTypes) {
-					delete symbol[type]
-				}
-				symbol.visibility = SymbolVisibility.Restricted
-				symbol.isotopes = isotopes
 				if (symbol.members) {
 					filter(symbol.members)
 				}
 			}
 		}
 		// Shared mcdoc tables can be large and are never part of these exports.
-		const exported = unlink(Object.fromEntries(Object.entries(table).filter(([category]) =>
-			category !== 'mcdoc' && category !== 'mcdoc/dispatcher'
-		)))
+		const exported = unlink(
+			Object.fromEntries(
+				Object.entries(table).filter(([category]) =>
+					category !== 'mcdoc' && category !== 'mcdoc/dispatcher'
+				),
+			),
+		)
 		for (const map of Object.values(exported)) {
 			if (map) {
 				filter(map)

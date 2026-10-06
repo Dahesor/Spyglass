@@ -1,3 +1,4 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 import type { SymbolTable } from '@spyglassmc/core'
 import { SymbolFormatter, SymbolUtil } from '@spyglassmc/core'
 import { describe, it } from 'node:test'
@@ -48,7 +49,7 @@ describe('SymbolUtil', () => {
 			})
 			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
 
-			symbols.clear({ uri: fileUri })
+			GlobalSymbol.clear(symbols, { uri: fileUri })
 			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
 		})
 	})
@@ -92,13 +93,13 @@ describe('SymbolUtil', () => {
 		]
 		for (const path of paths) {
 			it(`Should return correctly for “${path.join('.')}”`, (t) => {
-				const actual = symbols.lookup('advancement', path)
+				const actual = GlobalSymbol.lookup(symbols, 'advancement', path)
 
 				t.assert.snapshot(SymbolFormatter.stringifyLookupResult(actual))
 			})
 		}
 		it('Should return correctly when URI is not specified', (t) => {
-			const actual = symbols.lookup('advancement', ['Foo'])
+			const actual = GlobalSymbol.lookup(symbols, 'advancement', ['Foo'])
 
 			t.assert.snapshot(SymbolFormatter.stringifyLookupResult(actual))
 		})

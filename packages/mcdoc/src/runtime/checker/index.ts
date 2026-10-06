@@ -1,5 +1,5 @@
-import { Range, Source } from '@spyglassmc/core'
-import type { CheckerContext, FullResourceLocation, SymbolQuery } from '@spyglassmc/core'
+import { GlobalSymbol, Range, Source } from '@spyglassmc/core'
+import type { CheckerContext, FullResourceLocation, Symbol, SymbolQuery } from '@spyglassmc/core'
 import { localize } from '@spyglassmc/locales'
 import { TypeDefSymbolData } from '../../binder/index.js'
 import type {
@@ -867,8 +867,8 @@ function simplifyReference<T>(
 	}
 	// TODO Probably need to keep original symbol around in some way to support "go to definition"
 	const symbol = context.ctx.symbols.query(context.ctx.doc, 'mcdoc', typeDef.path)
-	const data = symbol.getData(TypeDefSymbolData.is)
-	if (!data?.typeDef) {
+	const data = GlobalSymbol.getCanonicalData(symbol.heyGimmeDaSymbol())
+	if (!TypeDefSymbolData.is(data)) {
 		context.ctx.logger.warn(`Tried to access unknown reference ${typeDef.path}`)
 		return { typeDef: { kind: 'union', members: [] } }
 	}
@@ -904,7 +904,7 @@ function simplifyDispatcher<T>(
 		'mcdoc/dispatcher',
 		typeDef.registry,
 	)
-	const dispatcher = dispatcherQuery.symbol?.members
+	const dispatcher = dispatcherQuery.heyGimmeDaSymbol()?.members
 	if (!dispatcher) {
 		context.ctx.logger.warn(`Tried to access unknown dispatcher ${typeDef.registry}`)
 		return { typeDef: { kind: 'union', members: [] } }
@@ -945,12 +945,16 @@ function simplifyIndexed<T>(
 
 function resolveIndices<T>(
 	parallelIndices: ParallelIndices,
-	symbolMap: { [key: string]: { data?: unknown } },
+	symbolMap: { [key: string]: Pick<Symbol, 'data' | 'facets'> },
 	symbolQuery: SymbolQuery | undefined,
 	context: SimplifyContext<T>,
 ): SimplifyResult<SimplifiedMcdocType> {
 	let dynamicData = false
 	let values: SimplifiedMcdocTypeNoUnion[] = []
+	const dataAt = (key: string): unknown =>
+		symbolQuery
+			? GlobalSymbol.getCanonicalData(symbolMap[key])
+			: symbolMap[key]?.data
 	function pushValue(key: string, data: TypeDefSymbolData) {
 		if (!shouldKeepAccordingToAttributeFilters(data.typeDef.attributes, context.ctx)) {
 			return
@@ -986,7 +990,7 @@ function resolveIndices<T>(
 	let unkownTypeDef: TypeDefSymbolData | undefined | false = false
 	function getUnknownTypeDef() {
 		if (unkownTypeDef === false) {
-			const data = symbolMap['%unknown']?.data
+			const data = dataAt('%unknown')
 			unkownTypeDef = TypeDefSymbolData.is(data) ? data : undefined
 		}
 		return unkownTypeDef
@@ -997,9 +1001,10 @@ function resolveIndices<T>(
 		if (index.kind === 'static') {
 			if (index.value === '%fallback') {
 				values = []
-				for (const [key, value] of Object.entries(symbolMap)) {
-					if (TypeDefSymbolData.is(value.data)) {
-						pushValue(key, value.data)
+				for (const key of Object.keys(symbolMap)) {
+					const data = dataAt(key)
+					if (TypeDefSymbolData.is(data)) {
+						pushValue(key, data)
 					}
 				}
 				break
@@ -1088,7 +1093,7 @@ function resolveIndices<T>(
 		}
 
 		const currentValues = lookup.map(v => {
-			const data = symbolMap[v]?.data
+			const data = dataAt(v)
 			return { value: v, data: TypeDefSymbolData.is(data) ? data : getUnknownTypeDef() }
 		})
 		const missing = currentValues.find(v => !v.data)

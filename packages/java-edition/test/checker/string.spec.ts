@@ -1,3 +1,4 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 import type {
 	LanguageError,
 	MetaRegistry,
@@ -413,7 +414,7 @@ describe('string checker', () => {
 			// The completer reads `getVisibleSymbols(UnicodeNameCategory)` and
 			// shows each symbol's identifier. We register names with Title
 			// Case identifiers so they display naturally.
-			const visible = initializedProject().symbols.getVisibleSymbols('unicode-name')
+			const visible = GlobalSymbol.getVisibleSymbols(initializedProject().symbols, 'unicode-name')
 			assert.ok(visible['Snowman'])
 			assert.ok(visible['Latin Small Letter A'])
 			assert.ok(visible['Bell'])

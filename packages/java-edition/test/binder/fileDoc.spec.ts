@@ -1,3 +1,4 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import * as mcf from '@spyglassmc/mcfunction'
@@ -61,9 +62,9 @@ describe('file-origin definitions and doc declarations', () => {
 					t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)
 					t.assert.deepEqual(env.declare(), [])
 				}
-				t.assert.equal(env.raw().definition?.length ?? 0, 0)
-				t.assert.equal(env.raw().implementation?.length ?? 0, 0)
-				t.assert.equal(env.raw().visibility, 2)
+				t.assert.equal(env.raw().facets?.global?.definition?.length ?? 0, 0)
+				t.assert.equal(env.raw().facets?.global?.implementation?.length ?? 0, 0)
+				t.assert.equal(env.raw().facets?.global?.isotopes.length ?? 0, 0)
 				t.assert.equal(env.view(outside), undefined)
 				const scoped = env.view(privateDoc)!
 				t.assert.equal(scoped.declaration?.length, 1)
@@ -88,7 +89,7 @@ describe('file-origin definitions and doc declarations', () => {
 				}
 				t.assert.equal(env.view(outside)?.definition?.length ?? 0, 0)
 				t.assert.equal(env.view(outside)?.implementation?.[0].uri, env.fileUri)
-				env.project.symbols.clear({ uri: privateDoc, contributor: 'binder' })
+				GlobalSymbol.clear(env.project.symbols, { uri: privateDoc, contributor: 'binder' })
 				t.assert.equal(env.view(outside)?.definition?.length, 1)
 				t.assert.equal(env.view(outside)?.implementation?.length ?? 0, 0)
 			})
@@ -104,14 +105,14 @@ describe('file-origin definitions and doc declarations', () => {
 		env.project.symbols = new core.SymbolUtil(core.SymbolTable.deserialize(
 			core.SymbolTable.serialize(env.project.symbols.global),
 		))
-		env.project.symbols.buildCache()
-		env.project.symbols.clear({ uri: privateDoc, contributor: 'binder' })
+		GlobalSymbol.buildCache(env.project.symbols)
+		GlobalSymbol.clear(env.project.symbols, { uri: privateDoc, contributor: 'binder' })
 		t.assert.equal(env.view(privateDoc), undefined)
 		t.assert.equal(env.view(secondDoc)?.implementation?.length, 1)
-		env.project.symbols.clear({ uri: secondDoc, contributor: 'binder' })
+		GlobalSymbol.clear(env.project.symbols, { uri: secondDoc, contributor: 'binder' })
 		t.assert.equal(env.view(outside)?.definition?.length, 1)
 		t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)
-		t.assert.equal(env.raw().isotopes, undefined)
+		t.assert.equal(env.raw().facets?.isotopes?.length ?? 0, 0)
 	})
 	for (const ext of ['.mcfunction', '.nbt']) {
 		it(`keeps unmarked URI binder definitions separate from file definitions (${ext})`, t => {
@@ -122,7 +123,7 @@ describe('file-origin definitions and doc declarations', () => {
 					usage: { type: 'definition' },
 				})
 			})
-			t.assert.equal(env.raw().definition?.[0].fromFile, undefined)
+			t.assert.equal(env.raw().facets?.global?.definition?.[0].fromFile, undefined)
 			env.declare()
 			t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)
 			t.assert.equal(env.view(privateDoc)?.declaration?.length, 1)
@@ -139,9 +140,9 @@ describe('file-origin definitions and doc declarations', () => {
 		let events = 0
 		env.project.symbols.on('symbolLocationCreated', () => events++)
 		env.project.symbols.on('symbolLocationRemoved', () => events++)
-		env.project.symbols.reconcileDocUsages(env.raw())
+		core.Isotope.reconcileDocUsages(env.project.symbols, env.raw())
 		t.assert.equal(events, 0)
-		env.project.symbols.clear({ uri: outside, contributor: 'binder' })
+		GlobalSymbol.clear(env.project.symbols, { uri: outside, contributor: 'binder' })
 		t.assert.equal(env.view(outside), undefined)
 		t.assert.equal(env.view(privateDoc)?.implementation?.length, 1)
 	})
@@ -150,12 +151,12 @@ describe('file-origin definitions and doc declarations', () => {
 		env.declare()
 		env.declare(secondDoc)
 		env.bindFile()
-		env.project.symbols.clear({ uri: env.fileUri, contributor: 'uri_binder' })
-		t.assert.equal(env.raw().isotopes?.length, 2)
+		GlobalSymbol.clear(env.project.symbols, { uri: env.fileUri, contributor: 'uri_binder' })
+		t.assert.equal(env.raw().facets?.isotopes?.length, 2)
 		t.assert.equal(env.view(privateDoc)?.implementation?.length ?? 0, 0)
 		env.bindFile()
 		t.assert.equal(env.view(privateDoc)?.implementation?.length, 1)
-		t.assert.equal(env.raw().isotopes?.[1].implementation?.length, 1)
+		t.assert.equal(env.raw().facets?.isotopes?.[1].implementation?.length, 1)
 	})
 	for (const docFirst of [false, true]) {
 		it(`handles deferred file binding (doc first: ${docFirst})`, t => {
@@ -198,7 +199,7 @@ describe('file-origin definitions and doc declarations', () => {
 		env.declare()
 		t.assert.deepEqual(env.declare(env.fileUri, '@private', true), [])
 		t.assert.equal(env.view(env.fileUri)?.implementation?.[0].uri, env.fileUri)
-		t.assert.equal(env.raw().definition?.length ?? 0, 0)
+		t.assert.equal(env.raw().facets?.global?.definition?.length ?? 0, 0)
 	})
 	it('keeps local headers private and restores their file definition after a cache reload', async t => {
 		const env = setup()
@@ -208,7 +209,7 @@ describe('file-origin definitions and doc declarations', () => {
 			const doc = TextDocument.create(env.fileUri, 'mcfunction', 0, text)
 			const node = parser(new core.Source(text), core.ParserContext.create(env.project, { doc }))
 			env.bindFile()
-			env.project.symbols.clear({ uri: env.fileUri, contributor: 'binder' })
+			GlobalSymbol.clear(env.project.symbols, { uri: env.fileUri, contributor: 'binder' })
 			const ctx = core.BinderContext.create(env.project, { doc })
 			await env.project.symbols.contributeAsAsync('binder', async () => {
 				await env.project.meta.getBinder(node.type)(node, ctx)
@@ -218,14 +219,26 @@ describe('file-origin definitions and doc declarations', () => {
 		}
 		const header = '#> @local function demo:example Local function'
 		await bind(header)
-		t.assert.equal(env.project.symbols.getVisibleSymbols('function', outside)['demo:example'], undefined)
+		t.assert.equal(
+			GlobalSymbol.getVisibleSymbols(env.project.symbols, 'function', outside)['demo:example'],
+			undefined,
+		)
 		const cached = core.SymbolTable.serialize(env.project.symbols.global)
 		env.project.symbols = new core.SymbolUtil(core.SymbolTable.deserialize(cached))
-		env.project.symbols.buildCache()
+		GlobalSymbol.buildCache(env.project.symbols)
 		mcf.initialize(env.project)
 		const node = await bind(header)
-		t.assert.equal(env.project.symbols.getVisibleSymbols('function', outside)['demo:example'], undefined)
-		t.assert.equal(node.locals?.function?.['demo:example']?.implementation?.length, 1)
+		t.assert.equal(
+			GlobalSymbol.getVisibleSymbols(env.project.symbols, 'function', outside)['demo:example'],
+			undefined,
+		)
+		const local = node.locals?.function?.['demo:example']
+		t.assert.equal(core.LocalSymbol.is(local), true)
+		if (!core.LocalSymbol.is(local)) {
+			throw new Error('Expected local symbol')
+		}
+		t.assert.equal(local.facets, undefined)
+		t.assert.equal(local.implementation?.length, 1)
 		await bind('')
 		t.assert.equal(env.view(outside)?.definition?.length, 1)
 		t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)

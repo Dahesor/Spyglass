@@ -4,26 +4,44 @@ exports[`mcdoc __fixture__ > enum/duplicated keys 1`] = `
     "mcdoc": {
       "::test": {
         "subcategory": "module",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 0,
-              "end": 0
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 0,
-                "character": 0
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "nextAnonymousIndex": 0
+                }
               }
-            },
-            "contributor": "uri_binder"
+            ],
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 0,
+                  "end": 0
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 0
+                  }
+                },
+                "contributor": "uri_binder",
+                "isotopeIdentifier": "regular"
+              }
+            ]
           }
-        ],
+        },
         "data": {
           "nextAnonymousIndex": 0
         }
@@ -46,76 +64,122 @@ exports[`mcdoc __fixture__ > enum/duplicated keys 1`] = `
           }
         },
         "subcategory": "enum",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 12,
-              "end": 16
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 12
-              },
-              "end": {
-                "line": 0,
-                "character": 16
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "typeDef": {
+                    "kind": "enum",
+                    "enumKind": "byte",
+                    "values": [
+                      {
+                        "identifier": "Naughty",
+                        "value": 42
+                      },
+                      {
+                        "identifier": "Naughty",
+                        "value": 91
+                      }
+                    ]
+                  }
+                }
               }
-            },
-            "fullRange": {
-              "start": 0,
-              "end": 52
-            },
-            "fullPosRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 3,
-                "character": 1
-              }
-            },
-            "contributor": "binder"
-          }
-        ],
-        "members": {
-          "Naughty": {
+            ],
             "definition": [
               {
                 "uri": "file:///test.mcdoc",
                 "range": {
-                  "start": 20,
-                  "end": 27
+                  "start": 12,
+                  "end": 16
                 },
                 "posRange": {
                   "start": {
-                    "line": 1,
-                    "character": 1
+                    "line": 0,
+                    "character": 12
                   },
                   "end": {
-                    "line": 1,
-                    "character": 8
+                    "line": 0,
+                    "character": 16
                   }
                 },
                 "fullRange": {
-                  "start": 20,
-                  "end": 33
+                  "start": 0,
+                  "end": 52
                 },
                 "fullPosRange": {
                   "start": {
-                    "line": 1,
-                    "character": 1
+                    "line": 0,
+                    "character": 0
                   },
                   "end": {
-                    "line": 1,
-                    "character": 14
+                    "line": 3,
+                    "character": 1
                   }
                 },
-                "contributor": "binder"
+                "contributor": "binder",
+                "isotopeIdentifier": "regular"
               }
             ]
+          }
+        },
+        "members": {
+          "Naughty": {
+            "facets": {
+              "global": {
+                "isotopes": [
+                  {
+                    "identifier": "regular",
+                    "source": 3,
+                    "origin": {
+                      "uri": "file:///test.mcdoc",
+                      "contributor": "binder"
+                    }
+                  }
+                ],
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 20,
+                      "end": 27
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 1,
+                        "character": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "character": 8
+                      }
+                    },
+                    "fullRange": {
+                      "start": 20,
+                      "end": 33
+                    },
+                    "fullPosRange": {
+                      "start": {
+                        "line": 1,
+                        "character": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "character": 14
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
+                  }
+                ]
+              }
+            }
           }
         }
       }
@@ -325,7 +389,8 @@ exports[`mcdoc __fixture__ > enum/duplicated keys 1`] = `
                       "character": 14
                     }
                   },
-                  "contributor": "binder"
+                  "contributor": "binder",
+                  "isotopeIdentifier": "regular"
                 },
                 "message": "“Naughty” is already declared here"
               }

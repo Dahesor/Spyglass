@@ -166,7 +166,7 @@ export function unicodeSymbolRegistrar(data: UnicodeData): core.SymbolRegistrar 
 							},
 						},
 						// Add a dummy definition so the per-name symbols aren't
-						// trimmed by `SymbolUtil.trim()` during binder passes.
+						// trimmed by `GlobalSymbol.trim()` during binder passes.
 						usage: { type: 'definition' },
 					})
 			}

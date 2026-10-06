@@ -16,7 +16,7 @@ export const entry = core.AsyncBinder.create<McfunctionNode>(async (node, ctx) =
 		privateFunctions.delete(ctx.doc.uri)
 	}
 	if (node.parent?.type === 'file') {
-		node.parent.locals = Object.create(null)
+		core.LocalSymbol.initialize(node.parent)
 	}
 	for (const child of node.children) {
 		if (DocNode.is(child)) {

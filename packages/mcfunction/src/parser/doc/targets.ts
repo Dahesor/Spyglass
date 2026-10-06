@@ -1,3 +1,4 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type { DocNode } from '../../node/index.js'
@@ -188,8 +189,8 @@ class FunctionDocTarget extends RegistryDocTarget {
 				)
 				return
 			}
-			if (node.access?.visibility === core.SymbolVisibility.File) {
-				ctx.symbols.clear({
+			if (node.access?.visibility === core.SymbolIsotopeScope.Local) {
+				GlobalSymbol.clear(ctx.symbols, {
 					uri: ctx.doc.uri,
 					contributor: 'uri_binder',
 					predicate: event =>
@@ -199,9 +200,14 @@ class FunctionDocTarget extends RegistryDocTarget {
 					ctx.doc.uri,
 					identifier,
 				)
-				const query = ctx.symbols.query({ doc: ctx.doc, node: field }, 'function', identifier)
+				const query = core.LocalSymbol.queryForScope(
+					ctx.symbols,
+					{ doc: ctx.doc, node: field },
+					core.LocalSymbolVisibility.File,
+					'function',
+					identifier,
+				)
 				query.enter({
-					data: { visibility: core.SymbolVisibility.File },
 					usage: {
 						type: 'implementation',
 						range: core.Range.create(0),

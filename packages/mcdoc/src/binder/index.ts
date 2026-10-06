@@ -1,3 +1,19 @@
+import {
+	AsyncBinder,
+	Dev,
+	ErrorSeverity,
+	FloatNode,
+	GlobalSymbol,
+	IntegerNode,
+	LocalSymbol,
+	LocalSymbolVisibility,
+	LongNode,
+	Range,
+	ResourceLocationNode,
+	StringNode,
+	SymbolUtil,
+	traversePreOrder,
+} from '@spyglassmc/core'
 import type {
 	AstNode,
 	BinderContext,
@@ -7,20 +23,6 @@ import type {
 	RangeLike,
 	Symbol,
 	SymbolQuery,
-} from '@spyglassmc/core'
-import {
-	AsyncBinder,
-	Dev,
-	ErrorSeverity,
-	FloatNode,
-	IntegerNode,
-	LongNode,
-	Range,
-	ResourceLocationNode,
-	StringNode,
-	SymbolUtil,
-	SymbolVisibility,
-	traversePreOrder,
 } from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type {
@@ -247,14 +249,15 @@ function hoist(node: ModuleNode, ctx: McdocBinderContext): void {
 		// they will go to the definition in the imported file.
 
 		const target = resolvePath(path, ctx)
-		ctx.symbols.query(
+		LocalSymbol.queryForScope(
+			ctx.symbols,
 			{ doc: ctx.doc, node },
+			LocalSymbolVisibility.File,
 			'mcdoc',
 			`${ctx.moduleIdentifier}::${identifier.value}`,
 		).ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, identifier)).elseEnter({
 			data: {
 				subcategory: 'use_statement_binding',
-				visibility: SymbolVisibility.File,
 				data: target ? { target } satisfies UseStatementBindingData : undefined,
 			},
 			usage: { type: 'definition', node: identifier, fullRange: node },
@@ -271,6 +274,7 @@ function hoist(node: ModuleNode, ctx: McdocBinderContext): void {
 	) {
 		const { docComments, identifier, keyword } = destructor(node)
 		const name = identifier?.value ?? nextAnonymousIdentifier(node, ctx)
+
 		ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', `${ctx.moduleIdentifier}::${name}`)
 			.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, identifier ?? node))
 			.elseEnter({
@@ -286,10 +290,11 @@ function hoist(node: ModuleNode, ctx: McdocBinderContext): void {
 	}
 
 	function nextAnonymousIndex(node: AstNode, ctx: McdocBinderContext): number {
-		const data = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ctx.moduleIdentifier).getData(
-			ModuleSymbolData.is,
+		const data = GlobalSymbol.getCanonicalData(
+			ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ctx.moduleIdentifier)
+				.heyGimmeDaSymbol(),
 		)
-		if (!data) {
+		if (!ModuleSymbolData.is(data)) {
 			throw new Error(`No symbol data for module '${ctx.moduleIdentifier}'`)
 		}
 
@@ -312,7 +317,7 @@ function bindTypeParamBlock(
 ): void {
 	// Type parameters are added as local symbols on the type alias AST node.
 	// Thus we create a new local scope on the type alias statement node first.
-	node.locals = Object.create(null)
+	LocalSymbol.initialize(node)
 
 	// They are also added to the type definition.
 	data.typeDef = { kind: 'template', child: data.typeDef, typeParams: [] }
@@ -323,12 +328,19 @@ function bindTypeParamBlock(
 		if (paramIdentifier.value) {
 			// Add the type parameter as a local symbol.
 			const paramPath = `${ctx.moduleIdentifier}::${paramIdentifier.value}`
-			ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', paramPath).ifDeclared((symbol) =>
-				reportDuplicatedDeclaration(ctx, symbol, paramIdentifier)
-			).elseEnter({
-				data: { visibility: SymbolVisibility.Block },
-				usage: { type: 'declaration', node: paramIdentifier, fullRange: param },
-			})
+			ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', paramPath)
+				.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, paramIdentifier))
+				.else(() => {
+					LocalSymbol.queryForScope(
+						ctx.symbols,
+						{ doc: ctx.doc, node },
+						LocalSymbolVisibility.Block,
+						'mcdoc',
+						paramPath,
+					).enter({
+						usage: { type: 'declaration', node: paramIdentifier, fullRange: param },
+					})
+				})
 
 			// Also add it to the type definition.
 			data.typeDef.typeParams.push({ path: paramPath })
@@ -680,12 +692,13 @@ function resolvePath(
 }
 
 function identifierToUri(module: string, ctx: McdocBinderContext): string | undefined {
-	return ctx.symbols.global.mcdoc?.[module]?.definition?.[0]?.uri
+	return ctx.symbols.global.mcdoc?.[module]?.facets?.global?.definition?.[0]?.uri
 }
 
 function uriToIdentifier(uri: string, ctx: CheckerContext): string | undefined {
 	return Object.values(ctx.symbols.global.mcdoc ?? {}).find((symbol) => {
-		return (symbol.subcategory === 'module' && symbol.definition?.some((loc) => loc.uri === uri))
+		return (symbol.subcategory === 'module'
+			&& symbol.facets?.global?.definition?.some((loc) => loc.uri === uri))
 	})?.identifier
 }
 
@@ -861,9 +874,9 @@ function convertEnum(node: EnumNode, ctx: McdocBinderContext): McdocType {
 	}
 
 	// Shortcut if the typeDef has been added to the enum symbol.
-	const symbol = identifier?.symbol ?? node.symbol
-	if (symbol && TypeDefSymbolData.is(symbol.data) && symbol.data.typeDef.kind === 'enum') {
-		return symbol.data.typeDef
+	const data = GlobalSymbol.getCanonicalData(identifier?.symbol ?? node.symbol)
+	if (TypeDefSymbolData.is(data) && data.typeDef.kind === 'enum') {
+		return data.typeDef
 	}
 
 	switch (enumKind) {
@@ -1042,9 +1055,9 @@ function convertStruct(node: StructNode, ctx: McdocBinderContext): McdocType {
 	}
 
 	// Shortcut if the typeDef has been added to the struct symbol.
-	const symbol = identifier?.symbol ?? node.symbol
-	if (symbol && TypeDefSymbolData.is(symbol.data) && symbol.data.typeDef.kind === 'struct') {
-		return symbol.data.typeDef
+	const data = GlobalSymbol.getCanonicalData(identifier?.symbol ?? node.symbol)
+	if (TypeDefSymbolData.is(data) && data.typeDef.kind === 'struct') {
+		return data.typeDef
 	}
 
 	return wrapType(node, { kind: 'struct', fields: convertStructBlock(block, ctx) }, ctx)

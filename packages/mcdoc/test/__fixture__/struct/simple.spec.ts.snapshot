@@ -4,26 +4,44 @@ exports[`mcdoc __fixture__ > struct/simple 1`] = `
     "mcdoc": {
       "::test": {
         "subcategory": "module",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 0,
-              "end": 0
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 0,
-                "character": 0
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "nextAnonymousIndex": 0
+                }
               }
-            },
-            "contributor": "uri_binder"
+            ],
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 0,
+                  "end": 0
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 0
+                  }
+                },
+                "contributor": "uri_binder",
+                "isotopeIdentifier": "regular"
+              }
+            ]
           }
-        ],
+        },
         "data": {
           "nextAnonymousIndex": 0
         }
@@ -69,112 +87,196 @@ exports[`mcdoc __fixture__ > struct/simple 1`] = `
           }
         },
         "subcategory": "struct",
-        "definition": [
-          {
-            "uri": "file:///test.mcdoc",
-            "range": {
-              "start": 7,
-              "end": 13
-            },
-            "posRange": {
-              "start": {
-                "line": 0,
-                "character": 7
-              },
-              "end": {
-                "line": 0,
-                "character": 13
+        "facets": {
+          "global": {
+            "isotopes": [
+              {
+                "identifier": "regular",
+                "source": 3,
+                "origin": {
+                  "uri": "file:///test.mcdoc",
+                  "contributor": "binder"
+                },
+                "data": {
+                  "typeDef": {
+                    "kind": "struct",
+                    "fields": [
+                      {
+                        "kind": "pair",
+                        "key": "Foo",
+                        "type": {
+                          "kind": "byte"
+                        }
+                      },
+                      {
+                        "kind": "pair",
+                        "attributes": [
+                          {
+                            "name": "since",
+                            "value": {
+                              "kind": "literal",
+                              "value": {
+                                "kind": "double",
+                                "value": 1.19
+                              }
+                            }
+                          }
+                        ],
+                        "key": "Bar",
+                        "type": {
+                          "kind": "string",
+                          "attributes": [
+                            {
+                              "name": "id"
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    ]
+                  }
+                }
               }
-            },
-            "fullRange": {
-              "start": 0,
-              "end": 65
-            },
-            "fullPosRange": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 4,
-                "character": 1
+            ],
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 7,
+                  "end": 13
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 7
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 13
+                  }
+                },
+                "fullRange": {
+                  "start": 0,
+                  "end": 65
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 4,
+                    "character": 1
+                  }
+                },
+                "contributor": "binder",
+                "isotopeIdentifier": "regular"
               }
-            },
-            "contributor": "binder"
+            ]
           }
-        ],
+        },
         "members": {
           "Foo": {
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 17,
-                  "end": 20
-                },
-                "posRange": {
-                  "start": {
-                    "line": 1,
-                    "character": 1
-                  },
-                  "end": {
-                    "line": 1,
-                    "character": 4
+            "facets": {
+              "global": {
+                "isotopes": [
+                  {
+                    "identifier": "regular",
+                    "source": 3,
+                    "origin": {
+                      "uri": "file:///test.mcdoc",
+                      "contributor": "binder"
+                    }
                   }
-                },
-                "fullRange": {
-                  "start": 17,
-                  "end": 26
-                },
-                "fullPosRange": {
-                  "start": {
-                    "line": 1,
-                    "character": 1
-                  },
-                  "end": {
-                    "line": 1,
-                    "character": 10
+                ],
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 17,
+                      "end": 20
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 1,
+                        "character": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "character": 4
+                      }
+                    },
+                    "fullRange": {
+                      "start": 17,
+                      "end": 26
+                    },
+                    "fullPosRange": {
+                      "start": {
+                        "line": 1,
+                        "character": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "character": 10
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
                   }
-                },
-                "contributor": "binder"
+                ]
               }
-            ]
+            }
           },
           "Bar": {
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 44,
-                  "end": 47
-                },
-                "posRange": {
-                  "start": {
-                    "line": 3,
-                    "character": 1
-                  },
-                  "end": {
-                    "line": 3,
-                    "character": 4
+            "facets": {
+              "global": {
+                "isotopes": [
+                  {
+                    "identifier": "regular",
+                    "source": 3,
+                    "origin": {
+                      "uri": "file:///test.mcdoc",
+                      "contributor": "binder"
+                    }
                   }
-                },
-                "fullRange": {
-                  "start": 29,
-                  "end": 62
-                },
-                "fullPosRange": {
-                  "start": {
-                    "line": 2,
-                    "character": 1
-                  },
-                  "end": {
-                    "line": 3,
-                    "character": 19
+                ],
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 44,
+                      "end": 47
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 3,
+                        "character": 1
+                      },
+                      "end": {
+                        "line": 3,
+                        "character": 4
+                      }
+                    },
+                    "fullRange": {
+                      "start": 29,
+                      "end": 62
+                    },
+                    "fullPosRange": {
+                      "start": {
+                        "line": 2,
+                        "character": 1
+                      },
+                      "end": {
+                        "line": 3,
+                        "character": 19
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
                   }
-                },
-                "contributor": "binder"
+                ]
               }
-            ]
+            }
           }
         }
       }

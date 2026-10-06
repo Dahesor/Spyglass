@@ -18,7 +18,8 @@ import { file } from '../parser/index.js'
 import { traversePreOrder } from '../processor/index.js'
 import type { PosRangeLanguageError } from '../source/index.js'
 import { LanguageError, Range, Source } from '../source/index.js'
-import { SymbolTable, SymbolUtil } from '../symbol/index.js'
+import { GlobalSymbol } from '../symbol/GlobalSymbol.js'
+import { LocalSymbol, SymbolTable, SymbolUtil } from '../symbol/index.js'
 import { CacheService } from './CacheService.js'
 import type { Config, PartialConfig } from './Config.js'
 import { ConfigService, LinterConfigValue } from './Config.js'
@@ -209,6 +210,7 @@ export class Project extends EventDispatcher<{
 	readonly cacheService: CacheService
 	/** URI of files that are currently managed by the language client. */
 	readonly #clientManagedUris = new Set<string>()
+	readonly #readOnlyDependencyUris = new Set<string>()
 	readonly #clientManagedDocAndNodes = new Map<string, DocAndNode>()
 	readonly #configService: ConfigService
 	readonly #symbolUpToDateUris = new Set<string>()
@@ -259,7 +261,7 @@ export class Project extends EventDispatcher<{
 			if (fileUtil.isSubUriOf(uri, root)) {
 				this.#dependencyFiles!.delete(uri)
 				this.#symbolUpToDateUris.delete(uri)
-				this.symbols.clear({ uri })
+				GlobalSymbol.clear(this.symbols, { uri })
 				delete this.cacheService.checksums.files[uri]
 				this.emit('documentErrored', { uri, errors: [] })
 			}
@@ -285,8 +287,8 @@ export class Project extends EventDispatcher<{
 	private publishDependency(root: string): void {
 		const entry = this.#dependencyImports.get(root)!
 		const exported = SymbolTable.getDependencyExports(entry.symbols.global, entry.checksum)
-		this.symbols.removeDependencySymbols(entry.checksum, false)
-		this.symbols.importDependencySymbols(exported)
+		GlobalSymbol.removeDependencySymbols(this.symbols, entry.checksum, false)
+		GlobalSymbol.importDependencySymbols(this.symbols, exported)
 	}
 	#dependencyFiles: Set<string> | undefined
 
@@ -422,7 +424,7 @@ export class Project extends EventDispatcher<{
 				this.updateRoots()
 			}
 			this.#symbolUpToDateUris.delete(uri)
-			this.symbols.clear({ uri })
+			GlobalSymbol.clear(this.symbols, { uri })
 			this.tryClearingCache(uri)
 		}).on('ready', () => {
 			this.#refreshLocalBindings = false
@@ -480,7 +482,7 @@ export class Project extends EventDispatcher<{
 
 		const { symbols } = await this.cacheService.load()
 		this.symbols = new SymbolUtil(symbols)
-		this.symbols.buildCache()
+		GlobalSymbol.buildCache(this.symbols)
 		__profiler.task('Load Cache')
 
 		this.config = await this.#configService.load()
@@ -601,7 +603,7 @@ export class Project extends EventDispatcher<{
 		for (const [id, { checksum, registrar }] of this.meta.symbolRegistrars) {
 			const cacheChecksum = this.cacheService.checksums.symbolRegistrars[id]
 			if (cacheChecksum === undefined || checksum !== cacheChecksum) {
-				this.symbols.clear({ contributor: `symbol_registrar/${id}` })
+				GlobalSymbol.clear(this.symbols, { contributor: `symbol_registrar/${id}` })
 				this.symbols.contributeAs(`symbol_registrar/${id}`, () => {
 					registrar(this.symbols, { logger: this.logger })
 				})
@@ -612,18 +614,25 @@ export class Project extends EventDispatcher<{
 		}
 		__profiler.task('Register Symbols')
 
-		const previousImports = new Map(this.cacheService.imports.map(({ uri, checksum }) => [uri, checksum]))
+		const previousImports = new Map(
+			this.cacheService.imports.map(({ uri, checksum }) => [uri, checksum]),
+		)
 		const obsoleteProviders = new Set<string>()
 		this.#dependencyImports.clear()
 		this.#dependencyChecksums.clear()
 		const packages = await Promise.all([...this.#dependencyRoots].map(async root => {
-			const files = [...this.#dependencyFiles!].filter(uri => fileUtil.isSubUriOf(uri, root)).sort()
-			const hashes = await Promise.all(files.map(async uri => [uri.slice(root.length), await this.fs.hash(uri)]))
+			const files = [...this.#dependencyFiles!].filter(uri => fileUtil.isSubUriOf(uri, root))
+				.sort()
+			const hashes = await Promise.all(
+				files.map(async uri => [uri.slice(root.length), await this.fs.hash(uri)]),
+			)
 			return { root, files, checksum: await getSha1(JSON.stringify(hashes)) }
 		}))
 		// Keep an unchanged cached package ahead of newly added copies, regardless of config order.
-		packages.sort((a, b) => Number(previousImports.get(b.root) === b.checksum)
-			- Number(previousImports.get(a.root) === a.checksum))
+		packages.sort((a, b) =>
+			Number(previousImports.get(b.root) === b.checksum)
+			- Number(previousImports.get(a.root) === a.checksum)
+		)
 		const importedChecksums = new Set<string>()
 		for (const { root, files, checksum } of packages) {
 			if (importedChecksums.has(checksum)) {
@@ -656,13 +665,18 @@ export class Project extends EventDispatcher<{
 		this.updateRoots()
 		this.#refreshLocalBindings = obsoleteProviders.size > 0 || this.#dependencyImports.size > 0
 		for (const provider of obsoleteProviders) {
-			this.symbols.removeDependencySymbols(provider)
+			GlobalSymbol.removeDependencySymbols(this.symbols, provider)
 		}
 		const dependencyFilesToBind = [...this.#dependencyFiles].filter(uri =>
-			this.selectSymbolTable(uri) !== this.symbols
+			// It is semantically not very clear to randomly include mcdoc files here
+			// Consider refactor this later
+			uri.endsWith('.mcdoc')
+			|| this.selectSymbolTable(uri) !== this.symbols
 		)
 
-		for (const uri of new Set([...this.getTrackedFiles(), ...Object.keys(this.cacheService.errors)])) {
+		for (
+			const uri of new Set([...this.getTrackedFiles(), ...Object.keys(this.cacheService.errors)])
+		) {
 			this.emit('documentErrored', { errors: this.cacheService.getErrors(uri), uri })
 		}
 		__profiler.task('Pop Errors')
@@ -712,9 +726,20 @@ export class Project extends EventDispatcher<{
 		}
 
 		const __bindProfiler = this.profilers.get('project#ready#bind', 'top-n', 50)
+		// Shared mcdoc dispatchers must be available even when no other module imports them.
+		for (
+			const uri of files.filter(uri => this.#dependencyFiles!.has(uri) && uri.endsWith('.mcdoc'))
+		) {
+			await this.ensureBindingStarted(uri)
+			__bindProfiler.task(uri)
+		}
 		for (const root of this.#dependencyImports.keys()) {
 			this.#activeDependencyRoot = root
-			for (const uri of files.filter(uri => fileUtil.isSubUriOf(uri, root))) {
+			for (
+				const uri of files.filter(uri =>
+					!uri.endsWith('.mcdoc') && fileUtil.isSubUriOf(uri, root)
+				)
+			) {
 				await this.ensureBindingStarted(uri)
 				__bindProfiler.task(uri)
 			}
@@ -727,8 +752,11 @@ export class Project extends EventDispatcher<{
 		}
 		__bindProfiler.finalize()
 		this.#dependencyImports.clear()
-		this.symbols.trim(this.symbols.global)
-		this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({ uri, checksum }))
+		GlobalSymbol.trim(this.symbols)
+		this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
+			uri,
+			checksum,
+		}))
 		__profiler.task('Bind Files')
 
 		__profiler.finalize()
@@ -770,7 +798,7 @@ export class Project extends EventDispatcher<{
 		// Reset cache.
 		const { symbols } = this.cacheService.reset()
 		this.symbols = new SymbolUtil(symbols)
-		this.symbols.buildCache()
+		GlobalSymbol.buildCache(this.symbols)
 
 		return this.restart()
 	}
@@ -867,7 +895,7 @@ export class Project extends EventDispatcher<{
 				type: 'file',
 				range: Range.create(0),
 				children: [],
-				locals: Object.create(null),
+				locals: LocalSymbol.createTable(),
 				parserErrors: [],
 			}
 		}
@@ -883,6 +911,10 @@ export class Project extends EventDispatcher<{
 		if (this.isIgnoredDependency(doc.uri)) {
 			return
 		}
+		if (root && !doc.uri.endsWith('.mcdoc') && this.#readOnlyDependencyUris.has(doc.uri)) {
+			await this.bindDependencyView(doc, node)
+			return
+		}
 		if (root && !doc.uri.endsWith('.mcdoc') && !this.#dependencyImports.has(root)) {
 			await this.rebindDependency(root, doc, node)
 			return
@@ -890,7 +922,28 @@ export class Project extends EventDispatcher<{
 		await this.bindDocument(doc, node)
 	}
 
-	/** Editing or opening a dependency must never bind its definitions into the local base. */
+	/** Bind only the viewed file, then attach its nodes to the existing dependency symbols. */
+	private async bindDependencyView(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
+		if (node.binderErrors) {
+			return
+		}
+		const symbols = new SymbolUtil({
+			mcdoc: this.symbols.global.mcdoc ?? {},
+			'mcdoc/dispatcher': this.symbols.global['mcdoc/dispatcher'] ?? {},
+		})
+		await this.bindDocument(doc, node, symbols)
+		traversePreOrder(node, () => true, () => true, child => {
+			if (child.symbol && !LocalSymbol.is(child.symbol)) {
+				child.symbol = GlobalSymbol.lookup(
+					this.symbols,
+					child.symbol.category,
+					child.symbol.path,
+				).symbol ?? child.symbol
+			}
+		})
+	}
+
+	/** Editing a dependency must never bind its definitions into the local base. */
 	private async rebindDependency(
 		root: string,
 		doc: TextDocument,
@@ -911,11 +964,16 @@ export class Project extends EventDispatcher<{
 		]))
 		const checksum = await getSha1(JSON.stringify(hashes))
 		const previous = this.#dependencyChecksums.get(root)!
-		if ([...this.#dependencyChecksums].some(([uri, value]) => uri !== root && value === checksum)) {
-			this.symbols.removeDependencySymbols(previous)
+		if (
+			[...this.#dependencyChecksums].some(([uri, value]) => uri !== root && value === checksum)
+		) {
+			GlobalSymbol.removeDependencySymbols(this.symbols, previous)
 			this.#dependencyChecksums.delete(root)
 			this.ignoreDependency(root as RootUriString)
-			this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({ uri, checksum }))
+			this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
+				uri,
+				checksum,
+			}))
 			this.updateRoots()
 			return
 		}
@@ -935,11 +993,14 @@ export class Project extends EventDispatcher<{
 				}
 			}
 			if (checksum !== previous) {
-				this.symbols.removeDependencySymbols(previous, false)
+				GlobalSymbol.removeDependencySymbols(this.symbols, previous, false)
 				this.publishDependency(root)
 				this.#dependencyChecksums.set(root, checksum)
-				this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({ uri, checksum }))
-				this.symbols.trim(this.symbols.global)
+				this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
+					uri,
+					checksum,
+				}))
+				GlobalSymbol.trim(this.symbols)
 			}
 		} finally {
 			this.#activeDependencyRoot = activeRoot
@@ -947,19 +1008,26 @@ export class Project extends EventDispatcher<{
 		}
 	}
 
-	private async bindDocument(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
+	private async bindDocument(
+		doc: TextDocument,
+		node: FileNode<AstNode>,
+		viewSymbols?: SymbolUtil,
+	): Promise<void> {
 		if (node.binderErrors) {
 			return
 		}
 		try {
 			this.#bindingInProgressUris.add(doc.uri)
-			this.bindUri(doc.uri)
+			if (!viewSymbols) {
+				this.bindUri(doc.uri)
+			}
 			const binder = this.meta.getBinder(node.type)
 			const ctx = {
 				...BinderContext.create(this, { doc }),
-				symbols: this.selectSymbolTable(doc.uri),
+				symbols: viewSymbols ?? this.selectSymbolTable(doc.uri),
 			}
-			ctx.symbols.clear({ contributor: 'binder', uri: doc.uri })
+			GlobalSymbol.clear(ctx.symbols, { contributor: 'binder', uri: doc.uri })
+			LocalSymbol.clear(ctx.symbols, node, { contributor: 'binder', uri: doc.uri })
 			await ctx.symbols.contributeAsAsync('binder', async () => {
 				const proxy = StateProxy.create(node)
 				await binder(proxy, ctx)
@@ -980,7 +1048,8 @@ export class Project extends EventDispatcher<{
 		try {
 			const checker = this.meta.getChecker(node.type)
 			const ctx = CheckerContext.create(this, { doc })
-			ctx.symbols.clear({ contributor: 'checker', uri: doc.uri })
+			GlobalSymbol.clear(ctx.symbols, { contributor: 'checker', uri: doc.uri })
+			LocalSymbol.clear(ctx.symbols, node, { contributor: 'checker', uri: doc.uri })
 			await ctx.symbols.contributeAsAsync('checker', async () => {
 				await checker(StateProxy.create(node), ctx)
 				node.checkerErrors = ctx.err.dump()
@@ -1040,7 +1109,10 @@ export class Project extends EventDispatcher<{
 	// @SingletonPromise()
 	async ensureBindingStarted(uri: string): Promise<void> {
 		uri = this.normalizeUri(uri)
-		if (this.isIgnoredDependency(uri) || this.#symbolUpToDateUris.has(uri) || this.#bindingInProgressUris.has(uri)) {
+		if (
+			this.isIgnoredDependency(uri) || this.#symbolUpToDateUris.has(uri)
+			|| this.#bindingInProgressUris.has(uri)
+		) {
 			return
 		}
 
@@ -1057,7 +1129,10 @@ export class Project extends EventDispatcher<{
 		const node = this.parse(doc)
 		await this.bind(doc, node)
 		for (const root of this.#dependencyImports.keys()) {
-			if (!uri.endsWith('.mcdoc') && root !== this.#activeDependencyRoot && fileUtil.isSubUriOf(uri, root)) {
+			if (
+				!uri.endsWith('.mcdoc') && root !== this.#activeDependencyRoot
+				&& fileUtil.isSubUriOf(uri, root)
+			) {
 				this.publishDependency(root)
 			}
 		}
@@ -1078,7 +1153,7 @@ export class Project extends EventDispatcher<{
 		for (const [symbols, uris] of groups) {
 			const ctx = { ...UriBinderContext.create(this), symbols }
 			if (typeof param === 'string') {
-				symbols.clear({ contributor: 'uri_binder', uri: param })
+				GlobalSymbol.clear(symbols, { contributor: 'uri_binder', uri: param })
 			}
 			ctx.symbols.contributeAs('uri_binder', () => {
 				for (const binder of this.meta.uriBinders) {
@@ -1168,9 +1243,21 @@ export class Project extends EventDispatcher<{
 		version: number,
 		content: string,
 	): Promise<void> {
+		const editorUri = normalizeUri(uri)
 		uri = this.normalizeUri(uri)
 		if (uri.startsWith(ArchiveUriSupporter.Protocol)) {
-			return // We do not accept `archive:` scheme for client-managed URIs.
+			// A mapped file is only a read-only view of the dependency. Never bind
+			// its physical URI or trust the editor copy as new dependency content.
+			if (this.fs.mapFromDisk(editorUri) === editorUri) {
+				return
+			}
+			const original = await this.read(uri)
+			if (!original) {
+				return
+			}
+			languageID = original.languageId
+			content = original.getText()
+			this.#readOnlyDependencyUris.add(uri)
 		}
 		if (this.shouldExclude(uri, languageID)) {
 			return
@@ -1195,10 +1282,10 @@ export class Project extends EventDispatcher<{
 		version: number,
 	): Promise<void> {
 		uri = this.normalizeUri(uri)
-		this.#symbolUpToDateUris.delete(uri)
 		if (uri.startsWith(ArchiveUriSupporter.Protocol)) {
 			return // We do not accept `archive:` scheme for client-managed URIs.
 		}
+		this.#symbolUpToDateUris.delete(uri)
 		const doc = this.#clientManagedDocAndNodes.get(uri)?.doc
 		if (!doc || this.shouldExclude(uri, doc.languageId)) {
 			// If doc is undefined, it means the document was previously excluded by onDidOpen()
@@ -1221,10 +1308,8 @@ export class Project extends EventDispatcher<{
 	 */
 	onDidClose(uri: string): void {
 		uri = this.normalizeUri(uri)
-		if (uri.startsWith(ArchiveUriSupporter.Protocol)) {
-			return // We do not accept `archive:` scheme for client-managed URIs.
-		}
 		this.#clientManagedUris.delete(uri)
+		this.#readOnlyDependencyUris.delete(uri)
 		this.#clientManagedDocAndNodes.delete(uri)
 		this.tryClearingCache(uri)
 	}
@@ -1270,7 +1355,8 @@ export class Project extends EventDispatcher<{
 	 *                 its file extension.
 	 */
 	public shouldExclude(uri: string, language?: string): boolean {
-		return this.isIgnoredDependency(uri) || (!this.isSupportedLanguage(uri, language) && !ConfigService.isConfigFile(uri))
+		return this.isIgnoredDependency(uri)
+			|| (!this.isSupportedLanguage(uri, language) && !ConfigService.isConfigFile(uri))
 			|| this.isUserExcluded(uri)
 	}
 

@@ -1,129 +1,196 @@
-import { SymbolTable, SymbolUtil } from '@spyglassmc/core'
+import {
+	GlobalSymbol,
+	SymbolIsotopeProvider as Provider,
+	SymbolIsotopeScope as Scope,
+	SymbolTable,
+	SymbolUtil,
+} from '@spyglassmc/core'
 import { describe, it } from 'node:test'
 
-const namespace = {
-	identifier: 'namespace', source: 0 as const, scope: 1 as const, namespace: ['demo'], visibleWithin: ['**/data/demo/**'],
-	desc: 'namespace documentation', data: 'namespace data',
-	declaration: [{ uri: 'file:///dependency/doc.mcfunction', fromDocDeclaration: true }],
-	implementation: [{ uri: 'file:///dependency/source.json', fromFile: true }],
+const inside = 'file:///project/private/use.mcfunction'
+const outside = 'file:///project/use.mcfunction'
+function dependency() {
+	const symbols = new SymbolUtil({})
+	symbols.query('file:///dependency/shared.mcfunction', 'function', 'shared').enterFileDefinition({
+		usage: {},
+	})
+	return symbols.global
 }
-const privateIsotope = { identifier: 'private', source: 0 as const, scope: 0 as const, visibleWithin: ['**/private/**'] }
+function declarePrivate(symbols: SymbolUtil) {
+	symbols.query('file:///project/private/doc.mcfunction', 'function', 'shared').enterIsotope(
+		'private-doc',
+		{
+			data: {
+				source: Provider.DocBlock,
+				scope: Scope.Private,
+				visibleWithin: ['file:///project/private/**'],
+				desc: 'local private',
+			},
+			usage: { type: 'declaration', fromDocDeclaration: true },
+		},
+	)
+}
 
 describe('dependency symbol exports', () => {
+	it('does not relocate imported command definitions into a local private doc', t => {
+		const source = new SymbolUtil({})
+		source.query('file:///dependency/command.mcfunction', 'function', 'shared').enterCommand({
+			usage: { type: 'definition' },
+		})
+		const symbols = new SymbolUtil({})
+		GlobalSymbol.importDependencySymbols(
+			symbols,
+			SymbolTable.getDependencyExports(source.global, 'package'),
+		)
+		declarePrivate(symbols)
+		const raw = symbols.global.function!['shared']
+		t.assert.equal(SymbolUtil.viewFromContext(raw, inside)?.implementation, undefined)
+		t.assert.equal(
+			SymbolUtil.viewFromContext(raw, outside)?.definition?.[0].uri,
+			'file:///dependency/command.mcfunction',
+		)
+	})
 	for (const importFirst of [true, false]) {
 		it(`keeps foreign file definitions independent of local private docs (import first: ${importFirst})`, t => {
 			const symbols = new SymbolUtil({})
-			const source = SymbolTable.link({ function: { shared: {
-				definition: [{ uri: 'file:///dependency/shared.mcfunction', fromFile: true, originalUsageType: 'definition' }],
-			} } })
-			const imported = SymbolTable.getDependencyExports(source, 'package-checksum')
-			const declare = () => symbols.query('file:///project/private/doc.mcfunction', 'function', 'shared')
-				.enterIsotope('private-doc', {
-					data: { source: 0, scope: 0, visibleWithin: ['file:///project/private/**'], desc: 'local private' },
-					usage: { type: 'declaration', fromDocDeclaration: true },
-				})
+			const exported = SymbolTable.getDependencyExports(dependency(), 'package')
 			if (importFirst) {
-				symbols.importDependencySymbols(imported)
-				declare()
+				GlobalSymbol.importDependencySymbols(symbols, exported)
+				declarePrivate(symbols)
 			} else {
-				declare()
-				symbols.importDependencySymbols(imported)
+				declarePrivate(symbols)
+				GlobalSymbol.importDependencySymbols(symbols, exported)
 			}
 			const raw = symbols.global.function!['shared']
-			const inside = 'file:///project/private/use.mcfunction'
-			const outside = 'file:///project/use.mcfunction'
 			t.assert.equal(SymbolUtil.viewFromContext(raw, inside)?.desc, 'local private')
 			t.assert.equal(SymbolUtil.viewFromContext(raw, inside)?.implementation, undefined)
-			t.assert.equal(SymbolUtil.viewFromContext(raw, outside)?.definition?.[0].uri, 'file:///dependency/shared.mcfunction')
-			symbols.removeDependencySymbols('package-checksum')
-			t.assert.equal(symbols.global.function!['shared'], raw)
+			t.assert.equal(
+				SymbolUtil.viewFromContext(raw, outside)?.definition?.[0].uri,
+				'file:///dependency/shared.mcfunction',
+			)
+			GlobalSymbol.removeDependencySymbols(symbols, 'package')
 			t.assert.equal(SymbolUtil.viewFromContext(raw, inside)?.desc, 'local private')
 			t.assert.equal(SymbolUtil.viewFromContext(raw, outside), undefined)
-			symbols.importDependencySymbols(SymbolTable.getDependencyExports(source, 'package-checksum'))
-			symbols.clear({ uri: 'file:///project/private/doc.mcfunction' })
-			t.assert.equal(SymbolUtil.viewFromContext(raw, inside)?.definition?.[0].uri, 'file:///dependency/shared.mcfunction')
+			GlobalSymbol.importDependencySymbols(symbols, exported)
+			GlobalSymbol.clear(symbols, { uri: 'file:///project/private/doc.mcfunction' })
+			t.assert.equal(
+				SymbolUtil.viewFromContext(raw, inside)?.definition?.[0].uri,
+				'file:///dependency/shared.mcfunction',
+			)
 		})
 	}
-	it('namespaces isotope identifiers by checksum and removes metadata-only imports', t => {
+	it('namespaces imported Global metadata by package and removes only that package usages', t => {
 		const symbols = new SymbolUtil({})
-		const source = SymbolTable.link({ function: { shared: { visibility: 3, isotopes: [namespace] }, metadata: { data: 'value' } } })
-		symbols.importDependencySymbols(SymbolTable.getDependencyExports(source, 'first'))
-		symbols.importDependencySymbols(SymbolTable.getDependencyExports(source, 'second'))
-		const isotopes = symbols.global.function!['shared'].isotopes!
-		t.assert.equal(new Set(isotopes.map(value => value.identifier)).size, 2)
-		t.assert.deepEqual(isotopes.map(value => value.providerName), ['first', 'second'])
-		t.assert.equal(isotopes.every(value => value.source === 1), true)
-		symbols.removeDependencySymbols('first')
-		t.assert.equal(symbols.global.function!['shared'].isotopes?.[0].providerName, 'second')
-		symbols.removeDependencySymbols('second')
-		t.assert.equal(symbols.global.function!['metadata'], undefined)
+		const source = dependency()
+		GlobalSymbol.importDependencySymbols(
+			symbols,
+			SymbolTable.getDependencyExports(source, 'first'),
+		)
+		GlobalSymbol.importDependencySymbols(
+			symbols,
+			SymbolTable.getDependencyExports(source, 'second'),
+		)
+		const raw = symbols.global.function!['shared']
+		t.assert.equal(raw.facets?.global?.isotopes.length, 2)
+		t.assert.equal(raw.facets?.global?.definition?.length, 2)
+		t.assert.equal(raw.facets?.internal, undefined)
+		GlobalSymbol.removeDependencySymbols(symbols, 'first')
+		t.assert.equal(raw.facets?.global?.isotopes[0].providerName, 'second')
+		t.assert.equal(raw.facets?.global?.definition?.length, 1)
+		GlobalSymbol.removeDependencySymbols(symbols, 'second')
+		t.assert.equal(symbols.global.function!['shared'], undefined)
 	})
-	for (const visibility of [2, 3] as const) {
-		it(`exports only namespace isotopes and removes base metadata and usages (visibility: ${visibility})`, t => {
-			const source = SymbolTable.link({
-				function: {
-					scoped: {
-						visibility, desc: 'base documentation', data: 'base data',
-						definition: [{ uri: 'file:///dependency/base.mcfunction' }],
-						isotopes: [privateIsotope, namespace, { identifier: 'local', source: 0, scope: -1 }],
-					},
-					hidden: { visibility, isotopes: [privateIsotope] },
+	it('exports Global and Namespace facets, excluding Project, Private, Local and Imported', t => {
+		const source = new SymbolUtil({})
+		for (
+			const [name, scope] of [
+				['public', Scope.Global],
+				['internal', Scope.Project],
+				['private', Scope.Private],
+				['namespace', Scope.Namespace],
+				['local', Scope.Local],
+			] as const
+		) {
+			source.query('file:///dependency/doc', 'function', name).enterIsotope(name, {
+				data: {
+					source: Provider.Regular,
+					scope,
+					visibleWithin: ['**/data/demo/**'],
+					namespace: scope === Scope.Namespace ? ['demo'] : undefined,
 				},
+				usage: { type: 'declaration' },
 			})
-			const before = SymbolTable.serialize(source)
-			const exported = SymbolTable.getDependencyExports(source, 'checksum')
-			const symbol = exported.function!['scoped']
-			t.assert.equal(symbol.visibility, 2)
-			t.assert.equal(symbol.desc, undefined)
-			t.assert.equal(symbol.data, undefined)
-			t.assert.equal(symbol.definition, undefined)
-			t.assert.deepEqual(symbol.isotopes, [{ ...namespace, identifier: JSON.stringify(['checksum', 'isotope', namespace.identifier]), source: 1, providerName: 'checksum' }])
-			t.assert.equal(exported.function!['hidden'], undefined)
-			t.assert.equal(SymbolTable.serialize(source), before)
-			t.assert.equal(SymbolUtil.viewFromContext(symbol, 'file:///consumer/data/demo/function/use.mcfunction')?.data,
-				'namespace data')
-			t.assert.equal(SymbolUtil.viewFromContext(symbol, 'file:///consumer/data/other/function/use.mcfunction'), undefined)
-		})
-	}
-	it('imports public and implicit-public bases and filters members recursively', t => {
-		const exported = SymbolTable.getDependencyExports(SymbolTable.link({
-			test: {
-				explicit: { visibility: 4, data: 'public' },
-				implicit: { data: 'default public', members: {
-					public: { visibility: 4 }, internal: { visibility: 3 },
-					file: { visibility: 1 }, block: { visibility: 0 },
-					scoped: { visibility: 3, isotopes: [namespace] },
-				} },
-				internalParent: { visibility: 3, members: { public: { visibility: 4 } } },
-			},
-		}), 'checksum')
-		t.assert.equal(SymbolUtil.viewFromContext(exported['test']!['explicit'], 'file:///consumer/a')?.data, 'public')
-		t.assert.equal(SymbolUtil.viewFromContext(exported['test']!['implicit'], 'file:///consumer/a')?.data, 'default public')
-		t.assert.deepEqual(Object.keys(exported['test']!['implicit'].members!), ['public', 'scoped'])
-		t.assert.equal(exported['test']!['implicit'].members!['scoped'].parentSymbol, exported['test']!['implicit'])
-		t.assert.equal(exported['test']!['internalParent'], undefined)
+		}
+		GlobalSymbol.importDependencySymbols(
+			source,
+			SymbolTable.getDependencyExports(dependency(), 'foreign'),
+		)
+		const before = SymbolTable.serialize(source.global)
+		const exported = SymbolTable.getDependencyExports(source.global, 'package')
+		t.assert.deepEqual(Object.keys(exported.function!), ['public', 'namespace'])
+		t.assert.equal(
+			exported.function!['public'].facets?.global?.isotopes[0].source,
+			Provider.Imported,
+		)
+		t.assert.equal(exported.function!['namespace'].facets?.isotopes?.[0].scope, Scope.Namespace)
+		t.assert.notEqual(
+			SymbolUtil.viewFromContext(
+				exported.function!['namespace'],
+				'file:///consumer/data/demo/function/use',
+			),
+			undefined,
+		)
+		t.assert.equal(
+			SymbolUtil.viewFromContext(
+				exported.function!['namespace'],
+				'file:///consumer/data/other/function/use',
+			),
+			undefined,
+		)
+		t.assert.equal(SymbolTable.serialize(source.global), before)
 	})
-	it('keeps local internal declarations when a dependency exports the same public symbol', t => {
+	it('keeps Internal ahead of imported Public and does not duplicate usages on reimport', t => {
 		const symbols = new SymbolUtil({})
-		symbols.query('file:///project/source.mcfunction', 'function', 'shared').enter({
-			data: { visibility: 3, desc: 'local', data: 'local data' }, usage: { type: 'declaration' },
+		symbols.query(inside, 'function', 'shared').enter({
+			data: { scope: Scope.Project, desc: 'local', data: 'local data' },
+			usage: { type: 'declaration' },
 		})
-		const dependency = SymbolTable.link({ function: {
-			shared: { visibility: 4, desc: 'external', data: 'external data',
-				definition: [{ uri: 'file:///dependency/shared.mcfunction' }], isotopes: [namespace] },
-		} })
-		symbols.importDependencySymbols(SymbolTable.getDependencyExports(dependency, 'checksum'))
-		symbols.importDependencySymbols(SymbolTable.getDependencyExports(dependency, 'checksum'))
-		const symbol = symbols.global.function!['shared']
-		t.assert.equal(symbol.visibility, 3)
-		t.assert.equal(symbol.desc, 'local')
-		t.assert.equal(symbol.data, 'local data')
-		t.assert.equal(symbol.definition, undefined)
-		t.assert.equal(symbol.isotopes?.length, 2)
-		t.assert.equal(symbol.isotopes?.[0].declaration?.length, 1)
-		symbols.clear({ uri: 'file:///dependency/shared.mcfunction' })
-		t.assert.equal(symbol.definition, undefined)
-		t.assert.equal(symbol.declaration?.length, 1)
-		t.assert.equal(symbol.visibility, 3)
+		const exported = SymbolTable.getDependencyExports(dependency(), 'package')
+		GlobalSymbol.importDependencySymbols(symbols, exported)
+		GlobalSymbol.importDependencySymbols(symbols, exported)
+		const raw = symbols.global.function!['shared']
+		t.assert.equal(SymbolUtil.viewFromContext(raw, outside)?.desc, 'local')
+		t.assert.equal(SymbolUtil.viewFromContext(raw, outside)?.data, 'local data')
+		t.assert.equal(raw.facets?.global?.definition?.length, 1)
+		t.assert.equal(raw.facets?.internal?.declaration?.length, 1)
+		GlobalSymbol.removeDependencySymbols(symbols, 'package')
+		t.assert.equal(SymbolUtil.viewFromContext(raw, outside)?.desc, 'local')
+	})
+	it('removes metadata-only imports and preserves the remaining package', t => {
+		const source = new SymbolUtil({})
+		source.query('file:///dependency/doc', 'item', 'metadata').enter({
+			data: { desc: 'documentation' },
+		})
+		const symbols = new SymbolUtil({})
+		for (const checksum of ['first', 'second']) {
+			GlobalSymbol.importDependencySymbols(
+				symbols,
+				SymbolTable.getDependencyExports(source.global, checksum),
+			)
+		}
+		GlobalSymbol.removeDependencySymbols(symbols, 'first')
+		t.assert.equal(symbols.global.item!['metadata'].facets?.global?.isotopes.length, 1)
+		GlobalSymbol.removeDependencySymbols(symbols, 'second')
+		t.assert.equal(symbols.global.item!['metadata'], undefined)
+	})
+	it('filters members recursively and restores parent links after exporting', t => {
+		const source = new SymbolUtil({})
+		source.query(inside, 'test', 'parent').enter({ data: { desc: 'parent' } })
+			.member('public', query => query.enter({ data: { scope: Scope.Global } }))
+			.member('internal', query => query.enter({ data: { scope: Scope.Project } }))
+		const exported = SymbolTable.getDependencyExports(source.global, 'package')
+		const parent = exported['test']!['parent']
+		t.assert.deepEqual(Object.keys(parent.members!), ['public'])
+		t.assert.equal(parent.members!['public'].parentSymbol, parent)
 	})
 })

@@ -133,6 +133,7 @@ export class FileServiceImpl implements FileService {
 	}
 
 	async mapToDisk(virtualUri: string): Promise<string | undefined> {
+		virtualUri = normalizeUri(virtualUri)
 		if (fileUtil.isFileUri(virtualUri)) {
 			return virtualUri
 		}
@@ -142,9 +143,9 @@ export class FileServiceImpl implements FileService {
 		try {
 			let mappedUri = this.map.getKey(virtualUri)
 			if (mappedUri === undefined) {
-				mappedUri = `${this.virtualUrisRoot}${await getSha1(virtualUri)}/${
+				mappedUri = normalizeUri(`${this.virtualUrisRoot}${await getSha1(virtualUri)}/${
 					fileUtil.basename(virtualUri)
-				}`
+				}`)
 
 				// Delete old mapped file if it exists. This makes sure the
 				// readonly permission on the file is not removed by it being
@@ -172,7 +173,7 @@ export class FileServiceImpl implements FileService {
 		if (!this.virtualUrisRoot) {
 			return mappedUri
 		}
-		return this.map.get(mappedUri) ?? mappedUri
+		return this.map.get(normalizeUri(mappedUri)) ?? mappedUri
 	}
 }
 

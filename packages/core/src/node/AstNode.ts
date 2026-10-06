@@ -143,25 +143,6 @@ export namespace AstNode {
 		}
 		return head
 	}
-
-	export function* getLocalsToRoot(node: AstNode): Generator<SymbolTable> {
-		let head: AstNode | undefined = node
-		while (head) {
-			if (head.locals) {
-				yield head.locals
-			}
-			head = node.parent
-		}
-	}
-
-	export function* getLocalsToLeaves(node: AstNode): Generator<SymbolTable> {
-		if (node.locals) {
-			yield node.locals
-		}
-		for (const child of node.children ?? []) {
-			yield* getLocalsToLeaves(child)
-		}
-	}
 }
 
 export type Mutable<N> = N extends AstNode ? { -readonly [K in keyof N]: Mutable<N[K]> } : N

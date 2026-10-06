@@ -1,3 +1,4 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 /* eslint-disable no-restricted-syntax -- Null is a documented way to disable linter rules. */
 import * as core from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
@@ -22,7 +23,10 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 	registerUriBuilders(project.meta)
 	const fileUri = root + `data/demo/${category}/example${extension}`
 	if (withFile) {
-		project.symbols.contributeAs('uri_binder', () => uriBinder([fileUri], core.UriBinderContext.create(project)))
+		project.symbols.contributeAs(
+			'uri_binder',
+			() => uriBinder([fileUri], core.UriBinderContext.create(project)),
+		)
 	}
 	const declare = (uri = privateDoc, modifier = '@private') => {
 		const text = `\n#> ${modifier} ${category} demo:example Documentation`
@@ -72,7 +76,10 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 				ruleValue: value.ruleValue,
 				err: new core.LinterErrorReporter(ruleName, value.ruleSeverity),
 			})
-			project.symbols.contributeAs('checker', () => registration.linter(core.StateProxy.create(node), ctx))
+			project.symbols.contributeAs(
+				'checker',
+				() => registration.linter(core.StateProxy.create(node), ctx),
+			)
 			errors.push(...ctx.err.errors)
 		}
 		return errors
@@ -81,7 +88,12 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 }
 
 describe('noAccessToSymbol', () => {
-	for (const [category, extension] of [['function', '.mcfunction'], ['predicate', '.json'], ['structure', '.nbt']]) {
+	for (
+		const [category, extension] of [['function', '.mcfunction'], ['predicate', '.json'], [
+			'structure',
+			'.nbt',
+		]]
+	) {
 		it(`reports inaccessible ${extension} file symbols without an undeclared-file action`, t => {
 			const env = setup(category, extension)
 			const errors = env.lint()
@@ -89,7 +101,7 @@ describe('noAccessToSymbol', () => {
 			assert.ok(errors[0].message.includes('noAccessToSymbol'))
 			t.assert.equal(errors[0].severity, 2)
 			t.assert.equal(errors[0].info?.codeAction, undefined)
-			t.assert.equal(env.raw().visibility, 2)
+			t.assert.equal(env.raw().facets?.global?.isotopes.length ?? 0, 0)
 			t.assert.deepEqual(env.lint(root + 'data/demo/function/private/sub/use.mcfunction'), [])
 		})
 	}
@@ -117,14 +129,16 @@ describe('noAccessToSymbol', () => {
 	for (const disabled of [null, false, ['error', false] as const, 'error']) {
 		it(`ignores legacy access diagnostic configuration (${disabled})`, t => {
 			const env = setup()
-			env.project.config = core.ConfigService.merge(env.project.config, { lint: { noAccessToSymbol: disabled } })
+			env.project.config = core.ConfigService.merge(env.project.config, {
+				lint: { noAccessToSymbol: disabled },
+			})
 			env.project.config.lint.undeclaredSymbol = { declare: 'public', report: 'warning' }
 			const errors = env.lint()
 			t.assert.equal(errors.length, 1)
 			assert.ok(errors[0].message.includes('noAccessToSymbol'))
 			t.assert.equal(errors[0].severity, 2)
-			t.assert.equal(env.raw().visibility, 2)
-			t.assert.equal(env.raw().declaration?.length ?? 0, 0)
+			t.assert.equal(env.raw().facets?.global?.isotopes.length ?? 0, 0)
+			t.assert.equal(env.raw().facets?.global?.declaration?.length ?? 0, 0)
 			t.assert.equal(core.SymbolUtil.viewFromContext(env.raw(), outside), undefined)
 		})
 	}
@@ -149,16 +163,16 @@ describe('noAccessToSymbol', () => {
 	it('restores access after the private doc is removed', t => {
 		const env = setup()
 		t.assert.equal(env.lint().length, 1)
-		env.project.symbols.clear({ uri: privateDoc, contributor: 'binder' })
+		GlobalSymbol.clear(env.project.symbols, { uri: privateDoc, contributor: 'binder' })
 		t.assert.deepEqual(env.lint(), [])
-		t.assert.equal(env.raw().definition?.length, 1)
+		t.assert.equal(env.raw().facets?.global?.definition?.length, 1)
 	})
 	it('recognizes inaccessible file symbols after a symbol cache reload', t => {
 		const env = setup()
 		env.project.symbols = new core.SymbolUtil(core.SymbolTable.deserialize(
 			core.SymbolTable.serialize(env.project.symbols.global),
 		))
-		env.project.symbols.buildCache()
+		GlobalSymbol.buildCache(env.project.symbols)
 		const errors = env.lint()
 		t.assert.equal(errors.length, 1)
 		assert.ok(errors[0].message.includes('noAccessToSymbol'))

@@ -1,66 +1,53 @@
 exports[`mcdoc uriBinder() > Bind [\"file:///a.mcdoc\",\"minecraft/foo.mcdoc\",\"minecraft/bar.mcdoc\",\"minecraft/qux.mcfunction\"] 1`] = `
 CATEGORY mcdoc
-+ SYMBOL ::minecraft::foo {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/minecraft/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::minecraft::foo {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/minecraft/foo.mcdoc"}}],"definition":[{"uri":"file:///root/minecraft/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::minecraft::bar {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::minecraft::bar {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/minecraft/bar.mcdoc"}}],"definition":[{"uri":"file:///root/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 `;
 
 exports[`mcdoc uriBinder() > Bind [\"mcdoc/foo.mcdoc\",\"mcdoc/minecraft/bar.mcdoc\"] 1`] = `
 CATEGORY mcdoc
-+ SYMBOL ::foo {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mcdoc/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::foo {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mcdoc/foo.mcdoc"}}],"definition":[{"uri":"file:///root/mcdoc/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::minecraft::bar {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mcdoc/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::minecraft::bar {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mcdoc/minecraft/bar.mcdoc"}}],"definition":[{"uri":"file:///root/mcdoc/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 `;
 
 exports[`mcdoc uriBinder() > Bind [\"mcdoc/mod.mcdoc\",\"mcdoc/foo.mcdoc\",\"mcdoc/minecraft/bar.mcdoc\"] 1`] = `
 CATEGORY mcdoc
-+ SYMBOL ::mcdoc {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mcdoc/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::mcdoc {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mcdoc/mod.mcdoc"}}],"definition":[{"uri":"file:///root/mcdoc/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::mcdoc::foo {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mcdoc/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::mcdoc::foo {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mcdoc/foo.mcdoc"}}],"definition":[{"uri":"file:///root/mcdoc/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::mcdoc::minecraft::bar {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mcdoc/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::mcdoc::minecraft::bar {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mcdoc/minecraft/bar.mcdoc"}}],"definition":[{"uri":"file:///root/mcdoc/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 `;
 
 exports[`mcdoc uriBinder() > Bind [\"mod.mcdoc\",\"minecraft/mod.mcdoc\",\"minecraft/foo/mod.mcdoc\"] 1`] = `
 CATEGORY mcdoc
-+ SYMBOL :: {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL :: {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mod.mcdoc"}}],"definition":[{"uri":"file:///root/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::minecraft {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/minecraft/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::minecraft {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/minecraft/mod.mcdoc"}}],"definition":[{"uri":"file:///root/minecraft/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::minecraft::foo {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/minecraft/foo/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::minecraft::foo {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/minecraft/foo/mod.mcdoc"}}],"definition":[{"uri":"file:///root/minecraft/foo/mod.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 `;
 
 exports[`mcdoc uriBinder() > Bind [\"qux.mcdoc\",\"mcdoc/foo.mcdoc\",\"mcdoc/minecraft/bar.mcdoc\"] 1`] = `
 CATEGORY mcdoc
-+ SYMBOL ::qux {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/qux.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::qux {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/qux.mcdoc"}}],"definition":[{"uri":"file:///root/qux.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::mcdoc::foo {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mcdoc/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::mcdoc::foo {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mcdoc/foo.mcdoc"}}],"definition":[{"uri":"file:///root/mcdoc/foo.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ::mcdoc::minecraft::bar {mcdoc (module)} [Public]
-+ + definition:
-+ + + {"uri":"file:///root/mcdoc/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}
++ SYMBOL ::mcdoc::minecraft::bar {mcdoc (module)}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"file:///root/mcdoc/minecraft/bar.mcdoc"}}],"definition":[{"uri":"file:///root/mcdoc/minecraft/bar.mcdoc","range":{"start":0,"end":0},"posRange":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"isotopeIdentifier":"regular"}]}}
 `;
