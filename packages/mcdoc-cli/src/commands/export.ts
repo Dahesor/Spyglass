@@ -1,3 +1,4 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 import * as mcdoc from '@spyglassmc/mcdoc'
 import * as cp from 'child_process'
 import { resolve } from 'path'
@@ -28,13 +29,13 @@ export async function exportCommand(args: Args) {
 		'mcdoc/dispatcher': new Map(),
 	}
 
-	const symbols = project.symbols.getVisibleSymbols('mcdoc')
+	const symbols = GlobalSymbol.getVisibleSymbols(project.symbols, 'mcdoc')
 	for (const [name, symbol] of Object.entries(symbols)) {
 		if (mcdoc.binder.TypeDefSymbolData.is(symbol.data)) {
 			data.mcdoc.set(name, symbol.data.typeDef)
 		}
 	}
-	const dispatchers = project.symbols.getVisibleSymbols('mcdoc/dispatcher')
+	const dispatchers = GlobalSymbol.getVisibleSymbols(project.symbols, 'mcdoc/dispatcher')
 	for (const [name, symbol] of Object.entries(dispatchers)) {
 		const dispatcherMap = new Map()
 		data['mcdoc/dispatcher'].set(name, dispatcherMap)

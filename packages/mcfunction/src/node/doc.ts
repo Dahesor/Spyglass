@@ -2,19 +2,25 @@ import type * as core from '@spyglassmc/core'
 
 /** Access policy resolved by a doc directive before the target is bound. */
 export type DocAccess =
-	| {
-		visibility:
-			| core.SymbolVisibility.Public
-			| core.SymbolVisibility.Internal
-			| core.SymbolVisibility.File
-			| core.SymbolVisibility.Block
+	& {
+		overrideLevel?: number
 	}
-	| {
-		visibility: core.SymbolVisibility.Restricted
-		isotope: Pick<core.SymbolIsotope, 'scope' | 'overrideLevel' | 'namespace'> & {
+	& (
+		| {
+			visibility:
+				| typeof core.SymbolIsotopeScope.Local
+				| typeof core.SymbolIsotopeScope.Project
+				| typeof core.SymbolIsotopeScope.Global
+		}
+		| {
+			visibility: typeof core.SymbolIsotopeScope.Private
 			visibleWithin: string[]
 		}
-	}
+		| {
+			visibility: typeof core.SymbolIsotopeScope.Namespace
+			namespace: string
+		}
+	)
 
 export interface DocNode extends core.AstNode {
 	type: 'mcfunction:doc'

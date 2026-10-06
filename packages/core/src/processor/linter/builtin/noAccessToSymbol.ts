@@ -1,6 +1,6 @@
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type { AstNode } from '../../../node/index.js'
-import { SymbolUtil } from '../../../symbol/index.js'
+import { SymbolUtil } from '../../../symbol/SymbolUtil.js'
 import type { Linter } from '../Linter.js'
 
 export const noAccessToSymbol: Linter<AstNode> = (node, ctx) => {
@@ -9,7 +9,11 @@ export const noAccessToSymbol: Linter<AstNode> = (node, ctx) => {
 		return
 	}
 	ctx.err.lint(
-		localize('linter.no-access-to-symbol.message', symbol.category, localeQuote(symbol.identifier)),
+		localize(
+			'linter.no-access-to-symbol.message',
+			symbol.category,
+			localeQuote(symbol.identifier),
+		),
 		node,
 	)
 }

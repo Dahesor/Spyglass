@@ -46,6 +46,7 @@ export async function activate(context: vsc.ExtensionContext) {
 		{ language: 'mcmeta' },
 		{ language: 'json', pattern: '**/data/*/**/*.json' },
 		{ language: 'json', pattern: '**/assets/*/**/*.json' },
+		{ language: 'json', pattern: '**/virtual-uris/*/*.json' },
 	]
 
 	const defaultConfig = PartialConfig.buildConfigFromEditorSettingsSafe(

@@ -13,7 +13,8 @@ import type {
 import { ColorPresentation, completer, traversePreOrder } from '../processor/index.js'
 import { Range } from '../source/index.js'
 import type { Symbol, SymbolLocation, SymbolUsageType } from '../symbol/index.js'
-import { SymbolUsageTypes, SymbolUtil } from '../symbol/index.js'
+import { GlobalSymbol, SymbolUsageTypes } from '../symbol/index.js'
+import { SymbolUtil } from '../symbol/SymbolUtil.js'
 import {
 	CodeActionProviderContext,
 	ColorizerContext,
@@ -295,6 +296,11 @@ export class Service {
 				const raw = this.project.symbols.resolveAlias(node.symbol)
 				const symbol = SymbolUtil.viewFromContext(raw, doc.uri)
 				if (raw && symbol) {
+					const importedUsages = GlobalSymbol.getImportedUsageContainer(
+						this.project.symbols,
+						raw,
+						doc.uri,
+					)
 					for (const searchedUsages of usageGroups(raw)) {
 						this.debug(
 							`Getting symbol locations of usage '${
@@ -304,6 +310,21 @@ export class Service {
 						const rawLocations: SymbolLocation[] = []
 						for (const usage of searchedUsages) {
 							let locs = symbol[usage] ?? []
+							if (importedUsages?.[usage]?.length) {
+								const seen = new Set<string>()
+								locs = [...locs, ...importedUsages[usage]!].filter(location => {
+									const key = JSON.stringify([
+										location.uri,
+										location.range,
+										location.posRange,
+									])
+									if (seen.has(key)) {
+										return false
+									}
+									seen.add(key)
+									return true
+								})
+							}
 							if (currentFileOnly) {
 								locs = locs.filter((l) => l.uri === doc.uri)
 							}

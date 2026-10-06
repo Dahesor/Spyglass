@@ -1,74 +1,55 @@
 exports[`SymbolUtil > clear() > Should clear all 1`] = `
 CATEGORY mcdoc
-+ SYMBOL ShouldBeKept1 {mcdoc} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL ShouldBeKept1 {mcdoc}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
 + + members:
-+ + + SYMBOL ShouldBeKept1.ShouldBeRemoved1 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL ShouldBeKept1.ShouldBeRemoved1 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
 + + + ------------
-+ + + SYMBOL ShouldBeKept1.ShouldBeKept2 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
-+ + + + + ------------
-+ + + + + {"uri":"spyglassmc://another_test_file"}
++ + + SYMBOL ShouldBeKept1.ShouldBeKept2 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"},{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ShouldBeKept3 {mcdoc} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://another_test_file"}
++ SYMBOL ShouldBeKept3 {mcdoc}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
 + + members:
-+ + + SYMBOL ShouldBeKept3.ShouldBeKept4 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://another_test_file"}
++ + + SYMBOL ShouldBeKept3.ShouldBeKept4 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
 + + + ------------
-+ + + SYMBOL ShouldBeKept3.ShouldBeKept5 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://another_test_file"}
-+ + + + + ------------
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL ShouldBeKept3.ShouldBeKept5 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"},{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
 + + + ------------
-+ + + SYMBOL ShouldBeKept3.ShouldBeRemoved3 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL ShouldBeKept3.ShouldBeRemoved3 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
 `;
 
 exports[`SymbolUtil > clear() > Should clear all 2`] = `
 CATEGORY mcdoc
-+ SYMBOL ShouldBeKept1 {mcdoc} [Public]
-+ + definition:
-
++ SYMBOL ShouldBeKept1 {mcdoc}
++ + facets: {"global":{"isotopes":[],"definition":[]}}
 + + members:
-+ + + SYMBOL ShouldBeKept1.ShouldBeKept2 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://another_test_file"}
++ + + SYMBOL ShouldBeKept1.ShouldBeKept2 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
 + ------------
-+ SYMBOL ShouldBeKept3 {mcdoc} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://another_test_file"}
++ SYMBOL ShouldBeKept3 {mcdoc}
++ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
 + + members:
-+ + + SYMBOL ShouldBeKept3.ShouldBeKept4 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://another_test_file"}
++ + + SYMBOL ShouldBeKept3.ShouldBeKept4 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
 + + + ------------
-+ + + SYMBOL ShouldBeKept3.ShouldBeKept5 {mcdoc} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://another_test_file"}
++ + + SYMBOL ShouldBeKept3.ShouldBeKept5 {mcdoc}
++ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
 `;
 
 exports[`SymbolUtil > contributeAs > Should execute correctly 1`] = `
 CATEGORY test
-+ SYMBOL Bound {test} [Public]
-+ + description: This symbol is URI bound.
-+ + reference:
-+ + + {"uri":"spyglassmc://test_file","contributor":"uri_binder"}
++ SYMBOL Bound {test}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",\\"uri_binder\\"]","source":3,"origin":{"uri":"spyglassmc://test_file","contributor":"uri_binder"},"desc":"This symbol is URI bound."}],"reference":[{"uri":"spyglassmc://test_file","contributor":"uri_binder","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",\\"uri_binder\\"]"}]}}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar.Qux.Xer” 1`] = `
 parentSymbol:
-+ SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar.Qux {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 parentMap:
 undefined
 symbol:
@@ -77,69 +58,55 @@ undefined
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar.Qux” 1`] = `
 parentSymbol:
-+ SYMBOL Foo.Bar {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 parentMap:
-+ SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar.Qux {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
-+ SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar.Qux {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar.Unknown” 1`] = `
 parentSymbol:
-+ SYMBOL Foo.Bar {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 parentMap:
-+ SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar.Qux {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
 undefined
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar” 1`] = `
 parentSymbol:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 parentMap:
-+ SYMBOL Foo.Bar {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
-+ SYMBOL Foo.Bar {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Baz.Xer” 1`] = `
@@ -153,50 +120,40 @@ undefined
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Baz” 1`] = `
 parentSymbol:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 parentMap:
-+ SYMBOL Foo.Bar {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
 undefined
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Unknown” 1`] = `
 parentSymbol:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 parentMap:
-+ SYMBOL Foo.Bar {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo.Bar {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
 undefined
 `;
@@ -205,46 +162,37 @@ exports[`SymbolUtil > lookup() > Should return correctly for “Foo” 1`] = `
 parentSymbol:
 undefined
 parentMap:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Unknown” 1`] = `
 parentSymbol:
 undefined
 parentMap:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
 undefined
 `;
@@ -253,17 +201,14 @@ exports[`SymbolUtil > lookup() > Should return correctly for “” 1`] = `
 parentSymbol:
 undefined
 parentMap:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
 undefined
 `;
@@ -272,29 +217,23 @@ exports[`SymbolUtil > lookup() > Should return correctly when URI is not specifi
 parentSymbol:
 undefined
 parentMap:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 symbol:
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux.Xer” 1`] = `
@@ -302,55 +241,45 @@ undefined
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux.Xer” 2`] = `
-SYMBOL Foo.Bar.Qux.Xer {advancement} [Public]
-+ description: Entered.
+SYMBOL Foo.Bar.Qux.Xer {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux.Xer” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + + + members:
-+ + + + + + + SYMBOL Foo.Bar.Qux.Xer {advancement} [Public]
-+ + + + + + + + description: Entered.
++ + + + + + + SYMBOL Foo.Bar.Qux.Xer {advancement}
++ + + + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux” 1`] = `
-SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ definition:
-+ + {"uri":"spyglassmc://test_file"}
+SYMBOL Foo.Bar.Qux {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux” 2`] = `
-SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ description: Entered.
-+ definition:
-+ + {"uri":"spyglassmc://test_file"}
+SYMBOL Foo.Bar.Qux {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + description: Entered.
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Unknown” 1`] = `
@@ -358,63 +287,51 @@ undefined
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Unknown” 2`] = `
-SYMBOL Foo.Bar.Unknown {advancement} [Public]
-+ description: Entered.
+SYMBOL Foo.Bar.Unknown {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Unknown” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + + ------------
-+ + + + + SYMBOL Foo.Bar.Unknown {advancement} [Public]
-+ + + + + + description: Entered.
++ + + + + SYMBOL Foo.Bar.Unknown {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar” 1`] = `
-SYMBOL Foo.Bar {advancement} [Public]
-+ definition:
-+ + {"uri":"spyglassmc://test_file"}
+SYMBOL Foo.Bar {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + members:
-+ + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + definition:
-+ + + + {"uri":"spyglassmc://test_file"}
++ + SYMBOL Foo.Bar.Qux {advancement}
++ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar” 2`] = `
-SYMBOL Foo.Bar {advancement} [Public]
-+ description: Entered.
-+ definition:
-+ + {"uri":"spyglassmc://test_file"}
+SYMBOL Foo.Bar {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + members:
-+ + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + definition:
-+ + + + {"uri":"spyglassmc://test_file"}
++ + SYMBOL Foo.Bar.Qux {advancement}
++ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + description: Entered.
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz.Xer” 1`] = `
@@ -431,17 +348,14 @@ undefined
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz.Xer” 4`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz” 1`] = `
@@ -449,26 +363,23 @@ undefined
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz” 2`] = `
-SYMBOL Foo.Baz {advancement} [Public]
-+ description: Entered.
+SYMBOL Foo.Baz {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + ------------
-+ + + SYMBOL Foo.Baz {advancement} [Public]
-+ + + + description: Entered.
++ + + SYMBOL Foo.Baz {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Unknown” 1`] = `
@@ -476,71 +387,57 @@ undefined
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Unknown” 2`] = `
-SYMBOL Foo.Unknown {advancement} [Public]
-+ description: Entered.
+SYMBOL Foo.Unknown {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Unknown” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + ------------
-+ + + SYMBOL Foo.Unknown {advancement} [Public]
-+ + + + description: Entered.
++ + + SYMBOL Foo.Unknown {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo” 1`] = `
-SYMBOL Foo {advancement} [Public]
-+ definition:
-+ + {"uri":"spyglassmc://test_file"}
+SYMBOL Foo {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + members:
-+ + SYMBOL Foo.Bar {advancement} [Public]
-+ + + definition:
-+ + + + {"uri":"spyglassmc://test_file"}
++ + SYMBOL Foo.Bar {advancement}
++ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + members:
-+ + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + definition:
-+ + + + + + {"uri":"spyglassmc://test_file"}
++ + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo” 2`] = `
-SYMBOL Foo {advancement} [Public]
-+ description: Entered.
-+ definition:
-+ + {"uri":"spyglassmc://test_file"}
+SYMBOL Foo {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + members:
-+ + SYMBOL Foo.Bar {advancement} [Public]
-+ + + definition:
-+ + + + {"uri":"spyglassmc://test_file"}
++ + SYMBOL Foo.Bar {advancement}
++ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + members:
-+ + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + definition:
-+ + + + + + {"uri":"spyglassmc://test_file"}
++ + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + description: Entered.
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Unknown” 1`] = `
@@ -548,24 +445,21 @@ undefined
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Unknown” 2`] = `
-SYMBOL Unknown {advancement} [Public]
-+ description: Entered.
+SYMBOL Unknown {advancement}
++ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Unknown” 3`] = `
 CATEGORY advancement
-+ SYMBOL Foo {advancement} [Public]
-+ + definition:
-+ + + {"uri":"spyglassmc://test_file"}
++ SYMBOL Foo {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + members:
-+ + + SYMBOL Foo.Bar {advancement} [Public]
-+ + + + definition:
-+ + + + + {"uri":"spyglassmc://test_file"}
++ + + SYMBOL Foo.Bar {advancement}
++ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + + + + members:
-+ + + + + SYMBOL Foo.Bar.Qux {advancement} [Public]
-+ + + + + + definition:
-+ + + + + + + {"uri":"spyglassmc://test_file"}
++ + + + + SYMBOL Foo.Bar.Qux {advancement}
++ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
 + ------------
-+ SYMBOL Unknown {advancement} [Public]
-+ + description: Entered.
++ SYMBOL Unknown {advancement}
++ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
 `;

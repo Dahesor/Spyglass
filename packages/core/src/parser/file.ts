@@ -3,6 +3,7 @@ import { AstNode } from '../node/index.js'
 import type { ParserContext } from '../service/index.js'
 import type { Source } from '../source/index.js'
 import { Range } from '../source/index.js'
+import { LocalSymbol } from '../symbol/LocalSymbol.js'
 import { error } from './error.js'
 import type { InfallibleParser, Parser } from './Parser.js'
 import { Failure } from './Parser.js'
@@ -18,7 +19,7 @@ export function file(parser: Parser<AstNode>): InfallibleParser<FileNode<AstNode
 			type: 'file',
 			range: fullRange,
 			children: [],
-			locals: Object.create(null),
+			locals: LocalSymbol.createTable(),
 			parserErrors: [],
 		}
 

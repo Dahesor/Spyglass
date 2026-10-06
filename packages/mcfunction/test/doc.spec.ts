@@ -1,10 +1,16 @@
+import { GlobalSymbol } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import { localize } from '@spyglassmc/locales'
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { entry, initialize } from '../lib/index.js'
-import { bindDoc, DefaultDocDirective, doc as parseDoc, registerDocDirective } from '../lib/parser/doc.js'
+import {
+	bindDoc,
+	DefaultDocDirective,
+	doc as parseDoc,
+	registerDocDirective,
+} from '../lib/parser/doc.js'
 
 const root = 'file:///pack/data/demo/function/'
 function setup() {
@@ -37,6 +43,71 @@ function setup() {
 }
 
 describe('doc access and command usages', () => {
+	it('shares usages between public doc overrides and restores metadata after deleting the winning doc', t => {
+		const env = setup()
+		class PublicOverride extends DefaultDocDirective {
+			override readonly identifier = 'public'
+			override readonly isAccessModifier = true
+			override modifyAccess() {
+				return { visibility: core.SymbolIsotopeScope.Global, overrideLevel: 7 }
+			}
+		}
+		env.declaration(root + 'first.mcfunction', '')
+		registerDocDirective(env.project.meta, new PublicOverride())
+		const second = root + 'second.mcfunction'
+		env.declaration(second, '@public', '\n#> @public objective coins Override documentation')
+		env.command(root + 'command.mcfunction')
+		t.assert.equal(env.raw().facets?.global?.isotopes.length, 2)
+		t.assert.equal(env.view(root)?.desc, ' Override documentation')
+		t.assert.equal(env.view(root)?.declaration?.length, 2)
+		t.assert.equal(env.view(root)?.implementation?.length, 1)
+		GlobalSymbol.clear(env.project.symbols, { uri: second, contributor: 'binder' })
+		t.assert.equal(env.view(root)?.desc, ' 金币')
+		t.assert.equal(env.view(root)?.declaration?.length, 1)
+		t.assert.equal(env.view(root)?.implementation?.length, 1)
+	})
+	it('keeps multiple Internal declarations in one shared facet ahead of Public', t => {
+		const env = setup()
+		env.declaration(root + 'public.mcfunction', '@public')
+		env.declaration(root + 'internal1.mcfunction', '@internal')
+		env.declaration(root + 'internal2.mcfunction', '@internal')
+		env.command(root + 'command.mcfunction')
+		t.assert.equal(env.raw().facets?.internal?.isotopes.length, 2)
+		t.assert.equal(env.raw().facets?.global?.isotopes.length, 1)
+		t.assert.equal(env.view(root)?.declaration?.length, 2)
+		t.assert.equal(env.view(root)?.implementation?.length, 1)
+	})
+	for (const docFirst of [false, true]) {
+		it(`routes JSON references to their doc facet independent of binding order (doc first: ${docFirst})`, t => {
+			const env = setup()
+			const doc = TextDocument.create(root + 'private/use.json', 'json', 0, 'demo:value')
+			const reference = () => {
+				const node = core.ResourceLocationNode.mock(core.Range.create(0, 10), {
+					category: 'function',
+					usageType: 'reference',
+				})
+				node.namespace = 'demo'
+				node.path = ['value']
+				core.binder.resourceLocation(node, core.BinderContext.create(env.project, { doc }))
+			}
+			const declaration = () =>
+				env.declaration(
+					root + 'private/doc.mcfunction',
+					'@private',
+					'\n#> @private function demo:value Documentation',
+				)
+			if (docFirst) {
+				declaration()
+				reference()
+			} else {
+				reference()
+				declaration()
+			}
+			const raw = env.project.symbols.global.function!['demo:value']
+			t.assert.equal(core.SymbolUtil.viewFromContext(raw, doc.uri)?.reference?.length, 1)
+			t.assert.equal(core.SymbolUtil.viewFromContext(raw, root + 'outside.json'), undefined)
+		})
+	}
 	it('uses directive-provided glob lists instead of deriving a folder in the target', t => {
 		const env = setup()
 		class CustomPrivate extends DefaultDocDirective {
@@ -44,22 +115,35 @@ describe('doc access and command usages', () => {
 			override readonly isAccessModifier = true
 			override modifyAccess() {
 				return {
-					visibility: 2 as const,
-					isotope: {
-						scope: 1 as const,
-						overrideLevel: 7,
-						visibleWithin: ['**/allowed/**', '**/second/**'],
-					},
+					visibility: core.SymbolIsotopeScope.Private,
+					overrideLevel: 7,
+					visibleWithin: ['**/allowed/**', '**/second/**'],
 				}
 			}
 		}
 		registerDocDirective(env.project.meta, new CustomPrivate())
 		t.assert.deepEqual(env.declaration(root + 'source/doc.mcfunction').errors, [])
-		t.assert.equal(env.raw().isotopes![0].scope, 1)
-		t.assert.equal(env.raw().isotopes![0].overrideLevel, 7)
+		t.assert.equal(env.raw().facets?.isotopes![0].scope, core.SymbolIsotopeScope.Private)
+		t.assert.equal(env.raw().facets?.isotopes![0].overrideLevel, 7)
 		t.assert.notEqual(env.view(root + 'allowed/use.mcfunction'), undefined)
 		t.assert.notEqual(env.view(root + 'second/use.mcfunction'), undefined)
 		t.assert.equal(env.view(root + 'source/use.mcfunction'), undefined)
+	})
+	it('uses directive-provided namespace access', t => {
+		const env = setup()
+		class NamespaceAccess extends DefaultDocDirective {
+			override readonly identifier = 'private'
+			override readonly isAccessModifier = true
+			override modifyAccess() {
+				return { visibility: core.SymbolIsotopeScope.Namespace, namespace: 'demo' }
+			}
+		}
+		registerDocDirective(env.project.meta, new NamespaceAccess())
+		t.assert.deepEqual(env.declaration(root + 'doc.mcfunction').errors, [])
+		t.assert.deepEqual(env.raw().facets?.isotopes![0].namespace, ['demo'])
+		t.assert.equal(env.raw().facets?.isotopes![0].scope, core.SymbolIsotopeScope.Namespace)
+		t.assert.notEqual(env.view(root + 'use.mcfunction'), undefined)
+		t.assert.equal(env.view('file:///pack/data/other/function/use.mcfunction'), undefined)
 	})
 	for (const commandsFirst of [false, true]) {
 		it(`private declaration scopes commands to its folder (commands first: ${commandsFirst})`, t => {
@@ -99,10 +183,15 @@ describe('doc access and command usages', () => {
 				if (!commandsFirst) {
 					commands()
 				}
-				t.assert.equal(env.raw().declaration?.length, 1)
-				t.assert.equal(env.raw().implementation?.length, 2)
-				t.assert.equal(env.raw().definition?.length ?? 0, 0)
-				t.assert.equal(env.raw().visibility, modifier === '@internal' ? 3 : 4)
+				t.assert.equal(env.view(root)?.declaration?.length, 1)
+				t.assert.equal(env.view(root)?.implementation?.length, 2)
+				t.assert.equal(env.view(root)?.definition?.length ?? 0, 0)
+				t.assert.equal(
+					core.Isotope.scopeOf(env.raw(), core.Isotope.selectIsotope(env.raw(), root)!),
+					modifier === '@internal'
+						? core.SymbolIsotopeScope.Project
+						: core.SymbolIsotopeScope.Global,
+				)
 			})
 		}
 	}
@@ -113,7 +202,11 @@ describe('doc access and command usages', () => {
 		t.assert.equal(env.view(root + 'private/sub/file.mcfunction')?.reference?.length, 1)
 		t.assert.equal(env.view(root + 'outside.mcfunction'), undefined)
 		t.assert.equal(
-			env.project.symbols.getVisibleSymbols('objective', root + 'outside.mcfunction')['coins'],
+			GlobalSymbol.getVisibleSymbols(
+				env.project.symbols,
+				'objective',
+				root + 'outside.mcfunction',
+			)['coins'],
 			undefined,
 		)
 	})
@@ -123,11 +216,11 @@ describe('doc access and command usages', () => {
 		env.declaration(source)
 		env.command(root + 'private/command.mcfunction')
 		env.command(root + 'private/ref.mcfunction', 'reference')
-		env.project.symbols.clear({ uri: source, contributor: 'binder' })
-		t.assert.equal(env.raw().isotopes?.length ?? 0, 0)
-		t.assert.equal(env.raw().definition?.length, 1)
-		t.assert.equal(env.raw().reference?.length, 1)
-		t.assert.equal(env.raw().implementation?.length ?? 0, 0)
+		GlobalSymbol.clear(env.project.symbols, { uri: source, contributor: 'binder' })
+		t.assert.equal(env.raw().facets?.isotopes?.length ?? 0, 0)
+		t.assert.equal(env.view(root)?.definition?.length, 1)
+		t.assert.equal(env.view(root)?.reference?.length, 1)
+		t.assert.equal(env.view(root)?.implementation?.length ?? 0, 0)
 	})
 	it('private function headers declare the name and hide the file definition outside', t => {
 		const env = setup()
@@ -149,9 +242,9 @@ describe('doc access and command usages', () => {
 			core.SymbolUtil.viewFromContext(symbol, root + 'outside.mcfunction'),
 			undefined,
 		)
-		env.project.symbols.clear({ uri, contributor: 'binder' })
-		t.assert.equal(symbol.definition?.length, 1)
-		t.assert.equal(symbol.isotopes?.length ?? 0, 0)
+		GlobalSymbol.clear(env.project.symbols, { uri, contributor: 'binder' })
+		t.assert.equal(symbol.facets?.global?.definition?.length, 1)
+		t.assert.equal(symbol.facets?.isotopes?.length ?? 0, 0)
 	})
 
 	it('removing internal documentation restores public command definitions', t => {
@@ -159,10 +252,11 @@ describe('doc access and command usages', () => {
 		const uri = root + 'doc.mcfunction'
 		env.declaration(uri, '@internal')
 		env.command(root + 'command.mcfunction')
-		env.project.symbols.clear({ uri, contributor: 'binder' })
-		t.assert.equal(env.raw().definition?.length, 1)
-		t.assert.equal(env.raw().implementation?.length ?? 0, 0)
-		t.assert.equal(env.raw().visibility, 4)
+		GlobalSymbol.clear(env.project.symbols, { uri, contributor: 'binder' })
+		t.assert.equal(env.view(root)?.definition?.length, 1)
+		t.assert.equal(env.view(root)?.implementation?.length ?? 0, 0)
+		t.assert.equal(env.raw().facets?.internal?.isotopes.length, 0)
+		t.assert.equal(env.raw().facets?.global?.isotopes.length, 1)
 	})
 
 	it('private folder matching treats glob punctuation literally', t => {
@@ -296,7 +390,10 @@ describe('doc directive descriptions', () => {
 				override readonly identifier = 'private'
 				override readonly isAccessModifier = true
 				override get description() {
-					return ['mcfunction.doc.directive.desc.private', 'mcfunction.doc.directive.desc.local']
+					return [
+						'mcfunction.doc.directive.desc.private',
+						'mcfunction.doc.directive.desc.local',
+					]
 				}
 			}
 			registerDocDirective(env.service.project.meta, new DescribedPrivate())
@@ -337,7 +434,8 @@ describe('doc directive descriptions', () => {
 		const env = setupDescriptions(t, '\n#> ')
 		const { node } = env.parse()
 		t.assert.equal(
-			env.complete(node, env.doc.getText().length).find(item => item.label === '@public')?.documentation,
+			env.complete(node, env.doc.getText().length).find(item => item.label === '@public')
+				?.documentation,
 			localize('mcfunction.doc.directive.desc.public'),
 		)
 	})

@@ -70,7 +70,11 @@ describe('mcmeta', () => {
 				registries: Fixtures.Registries,
 			}, '1.18.2')
 			const symbols = new SymbolUtil({})
-			registrar(symbols, {})
+			symbols.contributeAs('symbol_registrar/mcmeta', () => registrar(symbols, {}))
+			t.assert.equal(
+				symbols.global.block!['minecraft:acacia_button'].facets?.global?.isotopes[0].source,
+				2,
+			)
 			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
 		})
 	})
