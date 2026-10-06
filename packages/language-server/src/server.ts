@@ -487,12 +487,25 @@ connection.onDocumentSymbol(async ({ textDocument: { uri } }) => {
 		return undefined
 	}
 	const { doc, node } = docAndNode
-	return toLS.documentSymbolsFromTables(
-		[service.project.symbols.global, ...core.LocalSymbol.getLocalsToLeaves(node)],
-		doc,
-		capabilities.textDocument?.documentSymbol?.hierarchicalDocumentSymbolSupport,
-		capabilities.textDocument?.documentSymbol?.symbolKind?.valueSet,
-	)
+	const hierarchicalSupport = capabilities.textDocument?.documentSymbol
+		?.hierarchicalDocumentSymbolSupport
+	const supportedKinds = capabilities.textDocument?.documentSymbol?.symbolKind?.valueSet
+	return [
+		...toLS.documentSymbolsFromSymbols(
+			core.GlobalSymbol.getSymbolsInFile(service.project.symbols, doc.uri).filter(symbol =>
+				!symbol.parentSymbol
+			),
+			doc,
+			hierarchicalSupport,
+			supportedKinds,
+		),
+		...toLS.documentSymbolsFromTables(
+			[...core.LocalSymbol.getLocalsToLeaves(node)],
+			doc,
+			hierarchicalSupport,
+			supportedKinds,
+		),
+	]
 })
 
 connection.onHover(async ({ textDocument: { uri }, position }) => {

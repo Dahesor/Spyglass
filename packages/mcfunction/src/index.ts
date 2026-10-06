@@ -1,8 +1,9 @@
 import * as core from '@spyglassmc/core'
 import { entry as bindEntry } from './binder/entry.js'
 import * as colorizer from './colorizer/index.js'
+import { completeDoc } from './completer/doc.js'
 import type { DocNode, LiteralCommandChildNode } from './node/index.js'
-import { bindDoc, completeDoc } from './parser/doc.js'
+import { bindDoc } from './parser/doc.js'
 import { registerDocDirectives } from './parser/doc/directives.js'
 import { registerDocTargets } from './parser/doc/targets.js'
 

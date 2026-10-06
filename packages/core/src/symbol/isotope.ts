@@ -120,7 +120,14 @@ export namespace Isotope {
 			throw new Error('An isotope source cannot be undefined.')
 		}
 		const facets = symbol.facets ??= {}
-		let isotope = allIsotopes(symbol).find(value => value.identifier === identifier)
+		let isotope: GlobalSymbolIsotope | SymbolIsotope | undefined =
+			facets.isotopes?.find(value => value.identifier === identifier)
+				?? facets.internal?.isotopes.find(value => value.identifier === identifier)
+				?? facets.global?.isotopes.find(value => value.identifier === identifier)
+		const needsSorting = !isotope
+			|| (addition.data?.source !== undefined && addition.data.source !== isotope.source)
+			|| (addition.data && 'overrideLevel' in addition.data
+				&& addition.data.overrideLevel !== isotope?.overrideLevel)
 		const oldScope = isotope && scopeOf(symbol, isotope)
 		const scope = addition.data?.scope ?? oldScope
 		if (scope === undefined || (!isotope && addition.data?.source === undefined)) {
@@ -157,10 +164,12 @@ export namespace Isotope {
 					: source === SymbolIsotopeProvider.Builtin
 					? 2
 					: 3
-			isotopeContainer.isotopes.sort((a, b) =>
-				(b.overrideLevel ?? 0) - (a.overrideLevel ?? 0)
-				|| priority(a.source) - priority(b.source)
-			)
+			if (needsSorting) {
+				isotopeContainer.isotopes.sort((a, b) =>
+					(b.overrideLevel ?? 0) - (a.overrideLevel ?? 0)
+					|| priority(a.source) - priority(b.source)
+				)
+			}
 		} // Case: Restricted scoped isotopes
 		else {
 			if (!isotope) {
@@ -487,15 +496,17 @@ export namespace Isotope {
 		uri: string | undefined,
 	): GlobalSymbolIsotope | SymbolIsotope | undefined {
 		symbol = contextualSymbols.get(symbol) ?? symbol
+		const facets = symbol.facets
 		if (symbol.category === 'mcdoc' || symbol.category === 'mcdoc/dispatcher') {
-			return symbol.facets?.global?.isotopes[0]
+			return facets?.global?.isotopes[0]
+		}
+		const restricted = facets?.isotopes
+		if (!uri || !restricted?.length) {
+			return facets?.internal?.isotopes[0] ?? facets?.global?.isotopes[0]
 		}
 		const namespace = uri && /\/(?:data|assets)\/([^/]+)\//.exec(uri)?.[1]
 		let selected: SymbolIsotope | undefined
-		for (const isotope of symbol.facets?.isotopes ?? []) {
-			if (!uri) {
-				continue
-			}
+		for (const isotope of restricted) {
 			if (isotope.namespace?.length && !isotope.namespace.includes(namespace ?? '')) {
 				continue
 			}
@@ -522,7 +533,7 @@ export namespace Isotope {
 				selected = isotope
 			}
 		}
-		return selected ?? symbol.facets?.internal?.isotopes[0] ?? symbol.facets?.global?.isotopes[0]
+		return selected ?? facets?.internal?.isotopes[0] ?? facets?.global?.isotopes[0]
 	}
 
 	/** @returns a view of the symbol from the context of the given URI. */
@@ -567,7 +578,8 @@ export namespace Isotope {
 	 * @returns `true` if a file symbol is defined but cannot be accessed here
 	 */
 	export function hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
-		return !!symbol && isFromFile(symbol) && !isVisible(symbol, uri)
+		// Visible symbols cannot violate access, regardless of how many usages they have.
+		return !!symbol && !isVisible(symbol, uri) && isFromFile(symbol)
 	}
 
 	/** Prune metadata affected by removed locations and reconcile remaining doc usages. */
@@ -575,25 +587,38 @@ export namespace Isotope {
 		util: SymbolUtil,
 		symbol: Symbol,
 		removedIds: ReadonlySet<string>,
+		needsReconciliation = true,
 	): void {
 		for (const facet of [symbol.facets?.global, symbol.facets?.internal]) {
 			if (!facet) {
 				continue
 			}
+			const previousCount = facet.isotopes.length
+			const retainedIds = new Set<string>()
+			for (const type of SymbolUsageTypes) {
+				for (const location of facet[type] ?? []) {
+					if (location.isotopeIdentifier) {
+						retainedIds.add(location.isotopeIdentifier)
+					}
+				}
+			}
 			facet.isotopes = facet.isotopes.filter(isotope =>
 				!removedIds.has(isotope.identifier)
-				|| SymbolUsageTypes.some(type =>
-					facet[type]?.some(location => location.isotopeIdentifier === isotope.identifier)
-				)
+				|| retainedIds.has(isotope.identifier)
 			)
+			needsReconciliation ||= previousCount !== facet.isotopes.length
 		}
 		if (symbol.facets?.isotopes) {
+			const previousCount = symbol.facets.isotopes.length
 			symbol.facets.isotopes = symbol.facets.isotopes.filter(isotope =>
 				!removedIds.has(isotope.identifier)
 				|| SymbolUsageTypes.some(type => isotope[type]?.length)
 			)
+			needsReconciliation ||= previousCount !== symbol.facets.isotopes.length
 		}
-		reconcileDocUsages(util, symbol)
+		if (needsReconciliation) {
+			reconcileDocUsages(util, symbol)
+		}
 	}
 
 	/** Route command usages into the selected isotope

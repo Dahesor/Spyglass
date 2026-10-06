@@ -19,6 +19,10 @@ export * from './uri_processors.js'
 /* istanbul ignore next */
 export const initialize = ({ meta }: { meta: core.MetaRegistry }): void => {
 	meta.registerLanguage('mcdoc', { extensions: ['.mcdoc'], parser: parser.module_ })
+	meta.registerParser('mcdoc:type', (src, ctx) => {
+		const child = parser.type(src, ctx)
+		return { type: 'mcdoc:type', range: child.range, children: [child] }
+	})
 
 	registerBuiltinAttributes(meta)
 
