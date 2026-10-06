@@ -1,8 +1,10 @@
 import * as core from '@spyglassmc/core'
 import type { DocDirectiveNode, DocNode } from '../node/index.js'
 
-export const docDirective: core.Colorizer<DocDirectiveNode> =
-	node => [core.ColorToken.create(node.identifierRange, 'literal')]
+export const docDirective: core.Colorizer<DocDirectiveNode> = (node, ctx) => [
+	core.ColorToken.create(node.identifierRange, 'literal'),
+	...(node.children ?? []).flatMap(child => core.colorizer.fallback(child, ctx)),
+]
 
 export const doc: core.Colorizer<DocNode> = (node, ctx) => {
 	const tokens = core.ColorToken.fillGap(

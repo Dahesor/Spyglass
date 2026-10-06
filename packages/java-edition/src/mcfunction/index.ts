@@ -6,6 +6,7 @@ import { ReleaseVersion } from '../dependency/index.js'
 import * as checker from './checker/index.js'
 import * as colorizer from './colorizer/index.js'
 import * as completer from './completer/index.js'
+import { registerDocInput } from './doc/input.js'
 import { inlayHintProvider } from './inlayHintProvider.js'
 import { registerMcdocAttributes } from './mcdocAttributes.js'
 import * as parser from './parser/index.js'
@@ -61,6 +62,7 @@ export const initialize = (
 	checker.register(meta)
 	colorizer.register(meta)
 	completer.register(meta)
+	registerDocInput(meta)
 
 	meta.registerInlayHintProvider(inlayHintProvider)
 	meta.registerSignatureHelpProvider(signatureHelpProvider(tree))

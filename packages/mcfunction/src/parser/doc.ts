@@ -4,8 +4,52 @@ import type { DocAccess, DocDirectiveNode, DocNode } from '../node/index.js'
 
 export type DocDirectiveOverride = ReadonlyMap<
 	string,
-	Partial<Pick<DocDirective, 'modifyAccess' | 'handleDirective'>>
+	Partial<
+		Pick<
+			DocDirective,
+			'modifyAccess' | 'handleDirective' | 'parseArguments' | 'includeInSuggestion'
+		>
+	>
 >
+/**
+ * The return type of a documentation directive handler.
+ */
+export type DocDirectiveReturn = {
+	/** The documentation produced. Joined with `\n` */
+	desc?: string[]
+	/** Additional data produced by the directive handler. */
+	data?: Record<string, unknown>
+}
+
+export interface DocCommentInput {
+	readonly text: string
+	readonly indent: number
+	/** The complete comment line, including # and indentation. */
+	readonly range: core.Range
+	readonly textRange: core.Range
+}
+
+export interface DocDirectiveParserContext {
+	readonly caller?: core.DeepReadonly<DocDirectiveNode>
+	readonly indent: number
+	/** Inspect a more deeply indented ordinary comment without consuming it. */
+	peekComment(): DocCommentInput | undefined
+	/** Read and consume a more deeply indented ordinary comment if accepted. */
+	readComment(accepts?: (comment: DocCommentInput) => boolean): DocCommentInput | undefined
+	/** Read another directive as the input */
+	readDirective(accepts: (identifier: string) => boolean): DocDirectiveNode | undefined
+}
+
+export interface DocDirectiveSuggestCtx {
+	readonly node: core.DeepReadonly<DocNode>
+	readonly occurrence?: core.DeepReadonly<DocDirectiveNode>
+	readonly possibleCallers: readonly core.DeepReadonly<DocDirectiveNode>[]
+}
+
+export interface DocDirectiveHandlerContext {
+	readonly caller?: core.DeepReadonly<DocDirectiveNode>
+	handleDirective(child: core.DeepReadonly<DocDirectiveNode>): DocDirectiveReturn | undefined
+}
 
 /*
 	Represents a documentation target.
@@ -42,6 +86,12 @@ export interface DocDirective {
 	readonly allowDuplicates: boolean
 	/** Its description. Should be a list of localize key */
 	readonly description?: string[]
+	parseArguments?(
+		src: core.Source,
+		directive: DocDirectiveNode,
+		ctx: core.ParserContext,
+		input: DocDirectiveParserContext,
+	): void
 	modifyAccess(
 		directive: core.DeepReadonly<DocDirectiveNode>,
 		node: DocNode,
@@ -51,7 +101,12 @@ export interface DocDirective {
 		directive: core.DeepReadonly<DocDirectiveNode>,
 		node: DocNode,
 		ctx: core.BinderContext,
-	): string
+		input: DocDirectiveHandlerContext,
+	): DocDirectiveReturn
+	/** Whether this directive should be included in suggestion lists
+	 * Note that this does not affect the actual parsing or handling of the directive.
+	 */
+	includeInSuggestion(ctx: core.CompleterContext, input: DocDirectiveSuggestCtx): boolean
 }
 
 export class DefaultDocTarget implements DocTargets {
@@ -71,13 +126,23 @@ export class DefaultDocTarget implements DocTargets {
 }
 
 export class DefaultDocDirective implements DocDirective {
-	readonly identifier: string = 'null'
+	readonly identifier: string = 'thisshuoldnotshowupsoreportifyouseeme'
 	readonly isCommon: boolean = true
 	readonly allowDuplicates: boolean = false
 	readonly isAccessModifier: boolean = false
 	readonly hasMandatoryArgument: boolean = false
 	get description(): string[] | undefined {
 		return ['mcfunction.doc.directive.desc.' + this.identifier]
+	}
+	parseArguments(
+		src: core.Source,
+		directive: DocDirectiveNode,
+		_ctx: core.ParserContext,
+		_input: DocDirectiveParserContext,
+	): void {
+		while (src.skipSpace().canReadInLine()) {
+			directive.arguments.push(src.readUntil(...core.Whitespaces))
+		}
 	}
 	modifyAccess(
 		_directive: core.DeepReadonly<DocDirectiveNode>,
@@ -90,9 +155,21 @@ export class DefaultDocDirective implements DocDirective {
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
 		_ctx: core.BinderContext,
-	): string {
-		return ''
+		_input: DocDirectiveHandlerContext,
+	): DocDirectiveReturn {
+		return {}
 	}
+	includeInSuggestion(_ctx: core.CompleterContext, input: DocDirectiveSuggestCtx): boolean {
+		return input.possibleCallers.length === 0
+	}
+}
+
+export function registerDocTarget(meta: core.MetaRegistry, target: DocTargets): void {
+	meta.registerCustom<DocTargets>('impdoc:target', target.identifier, target)
+}
+
+export function registerDocDirective(meta: core.MetaRegistry, directive: DocDirective): void {
+	meta.registerCustom<DocDirective>('impdoc:directive', directive.identifier, directive)
 }
 
 /** Writes a symbol declaration for a doc block */
@@ -122,15 +199,17 @@ export function declareDocSymbol(
 	query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 		data: {
 			scope: access?.visibility ?? core.SymbolIsotopeScope.Global,
-			...(access?.visibility === core.SymbolIsotopeScope.Private
-				? { visibleWithin: access.visibleWithin }
-				: access?.visibility === core.SymbolIsotopeScope.Namespace
-				? { namespace: [access.namespace], visibleWithin: ['**'] }
-				: local
-				? { visibleWithin: [ctx.doc.uri.replace(/[\\*?\[\]{}()!+@]/g, '\\$&')] }
-				: {}),
+			...(
+				access?.visibility === core.SymbolIsotopeScope.Private
+					? { visibleWithin: access.visibleWithin }
+					: access?.visibility === core.SymbolIsotopeScope.Namespace
+					? { namespace: [access.namespace], visibleWithin: ['**'] }
+					: {}
+			),
 			source: core.SymbolIsotopeProvider.DocBlock,
-			...(access?.overrideLevel !== undefined ? { overrideLevel: access.overrideLevel } : {}),
+			...(
+				access?.overrideLevel !== undefined ? { overrideLevel: access.overrideLevel } : {}
+			),
 			origin: { uri: ctx.doc.uri, contributor: 'binder' },
 			desc: node.description ?? '',
 		},
@@ -138,19 +217,12 @@ export function declareDocSymbol(
 	})
 }
 
-export function registerDocTarget(meta: core.MetaRegistry, target: DocTargets): void {
-	meta.registerCustom<DocTargets>('impdoc:target', target.identifier, target)
-}
-
-export function registerDocDirective(meta: core.MetaRegistry, directive: DocDirective): void {
-	meta.registerCustom<DocDirective>('impdoc:directive', directive.identifier, directive)
-}
-
 export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
 	const start = src.cursor
 	src.skip(2).skipSpace()
-	const inlineAccessModifier = src.tryPeek('@') ? parseDirective(src, true) : undefined
-	if (inlineAccessModifier) {
+	const inlineDirectives: DocDirectiveNode[] = []
+	while (src.tryPeek('@')) {
+		inlineDirectives.push(parseDirective(src, true, ctx))
 		src.skipSpace()
 	}
 	const directiveStart = src.cursor
@@ -176,9 +248,9 @@ export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
 	const ans: DocNode = {
 		type: 'mcfunction:doc',
 		range: core.Range.create(start),
-		children: inlineAccessModifier ? [inlineAccessModifier, directive] : [directive],
+		children: [...inlineDirectives, directive],
 		fields: [],
-		docDirectives: inlineAccessModifier ? [inlineAccessModifier] : [],
+		docDirectives: inlineDirectives,
 		directive,
 		valid: false,
 		isFunctionHeader,
@@ -209,13 +281,12 @@ export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
 		ctx.err.report(localize('expected', names), directive)
 		src.readLine()
 	}
-	if (inlineAccessModifier) {
-		inlineAccessModifier.valid = validateDirective(inlineAccessModifier, docTarget, ctx)
-		ans.valid = ans.valid && inlineAccessModifier.valid
+	for (const occurrence of inlineDirectives) {
+		occurrence.valid = validateDirective(occurrence, docTarget, ctx)
+		ans.valid = ans.valid && occurrence.valid
 	}
 
 	// Look ahead for block doc and directives
-	let wasDirectiveLine = false
 	while (true) {
 		const next = src.clone().nextLine().skipSpace()
 		if (!next.tryPeek('#') || next.tryPeek('#>')) {
@@ -227,22 +298,18 @@ export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
 		const contentStart = src.cursor
 		src.skipSpace()
 		if (src.tryPeek('@')) {
-			const occurrence = parseDirective(src, false)
+			const indent = src.cursor - contentStart
+			const occurrence = parseDirective(src, false, ctx, undefined, indent, docTarget)
 			occurrence.range.start = commentStart
 			occurrence.valid = validateDirective(occurrence, docTarget, ctx)
 			ans.valid = ans.valid && occurrence.valid
 			ans.docDirectives.push(occurrence)
 			ans.children.push(occurrence)
-			if (!wasDirectiveLine) {
-				docBlockLines.push('')
-			}
-			wasDirectiveLine = true
 			continue
 		}
 		src.cursor = contentStart
 		const comment = src.readLine()
 		docBlockLines.push(comment)
-		wasDirectiveLine = false
 		const commentNode: core.CommentNode = {
 			type: 'comment',
 			prefix: '#',
@@ -252,6 +319,7 @@ export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
 		ans.children.push(commentNode)
 	}
 	ans.description = docBlockLines.length ? docBlockLines.join('\n') : undefined
+	ans.commentDescription = ans.description
 	ans.range.end = src.cursor
 	return ans
 }
@@ -283,77 +351,50 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 			}
 		}
 	}
-	const errors = ctx.err.errors.length
-	docTarget.binder(node, ctx)
-	if (ctx.err.errors.length !== errors) {
-		return
+	for (const occurrence of node.docDirectives) {
+		core.binder.fallbackSync(occurrence, ctx)
 	}
 	const seenDirectives: string[] = []
-	for (const docDirective of node.docDirectives) {
-		if (docDirective.valid) {
-			handleDocDirective(docDirective, docTarget, node, ctx, seenDirectives)
+	const descriptions: string[] = []
+	for (const occurrence of node.docDirectives) {
+		if (occurrence.valid) {
+			const result = handleDocDirective(occurrence, docTarget, node, ctx, seenDirectives)
+			if (result?.desc?.length) {
+				descriptions.push(result.desc.join('\n'))
+			}
 		}
 	}
+	node.description = [node.commentDescription, ...descriptions].filter(value =>
+		value !== undefined && value !== ''
+	)
+		.join('\n\n') || undefined
+	docTarget.binder(node, ctx)
 })
 
-export const completeDoc: core.Completer<DocNode> = (node, ctx) => {
-	const docTargets = ctx.meta.getCustom<DocTargets>('impdoc:target')
-	const docTarget = docTargets?.get(node.directive.value)
-	const docDirectives = [...(ctx.meta.getCustom<DocDirective>('impdoc:directive')?.values() ?? [])]
-	const accepts = (docDirective: DocDirective, candidate: DocTargets) =>
-		docDirective.isCommon || candidate.acceptedDirectives.includes(docDirective.identifier)
-	const inlineDocDirectives = docDirectives.filter(docDirective =>
-		docDirective.isAccessModifier && !docDirective.hasMandatoryArgument
-	)
-	const completeDirectives = (pool: DocDirective[], range: core.RangeLike) =>
-		pool.map(docDirective =>
-			core.CompletionItem.create(`@${docDirective.identifier}`, range, {
-				kind: core.CompletionKind.Property,
-				documentation: getDirectiveDescription(docDirective),
-			})
-		)
-	const occurrence = node.docDirectives.find(docDirective =>
-		core.Range.contains(docDirective.range, ctx.offset, true)
-	)
-	if (occurrence) {
-		if (ctx.offset > occurrence.identifierRange.end) {
-			return []
+export function getCurrentFunctionIdentifier(ctx: core.ProcessorContext): string | undefined {
+	const privateIdentifier = ctx.meta.getCustom<Map<string, string>>('impdoc:private_function')
+		?.get('uris')?.get(ctx.doc.uri)
+	if (privateIdentifier) {
+		return privateIdentifier
+	}
+	for (const symbol of core.GlobalSymbol.getSymbolsInFile(ctx.symbols, ctx.doc.uri)) {
+		if (symbol.category !== 'function') {
+			continue
 		}
-		return completeDirectives(
-			occurrence.isInline
-				? inlineDocDirectives
-				: docDirectives.filter(directive => docTarget && accepts(directive, docTarget)),
-			occurrence.identifierRange,
-		)
+		for (const owner of core.SymbolUtil.allUsageContainers(symbol)) {
+			const isCurrentFile = (location: core.SymbolLocation) =>
+				location.uri === ctx.doc.uri
+				&& (location.fromFile || location.contributor === 'uri_binder')
+			if (owner.definition?.some(isCurrentFile) || owner.implementation?.some(isCurrentFile)) {
+				return symbol.identifier
+			}
+		}
 	}
-	if (
-		node.children.some(child =>
-			child.type === 'comment' && core.Range.contains(child.range, ctx.offset, true)
-		)
-	) {
-		return []
-	}
-	if (ctx.offset < node.range.start + 2) {
-		return []
-	}
-	const emptyImplicitFunction = node.isImplicitFunction && node.fields[0]?.range.start
-			=== node.fields[0]?.range.end
-	if (
-		ctx.offset <= node.directive.range.end
-		&& (!node.isImplicitFunction || emptyImplicitFunction)
-	) {
-		const range = ctx.offset < node.directive.range.start
-			? core.Range.create(ctx.offset)
-			: node.directive.range
-		const items = core.completer.literal({ ...node.directive, range }, ctx)
-		return node.docDirectives.some(directive => directive.isInline)
-			? items
-			: [...items, ...completeDirectives(inlineDocDirectives, range)]
-	}
-	return docTarget?.completer(node, ctx) ?? []
+	const match = /\/data\/([^/]+)\/functions?\/(.+)\.mcfunction$/.exec(ctx.doc.uri)
+	return match ? `${decodeURIComponent(match[1])}:${decodeURIComponent(match[2])}` : undefined
 }
 
-function getDirectiveDescription(directive: DocDirective): string | undefined {
+export function getDirectiveDescription(directive: DocDirective): string | undefined {
 	return directive.description?.length
 		? directive.description.map(key => localize(key)).join('  \n')
 		: undefined
@@ -361,14 +402,15 @@ function getDirectiveDescription(directive: DocDirective): string | undefined {
 
 function getDocDirective(
 	meta: core.MetaRegistry,
-	target: DocTargets,
+	target: DocTargets | undefined,
 	identifier: string,
 ): DocDirective | undefined {
 	const directive = meta.getCustom<DocDirective>('impdoc:directive')?.get(identifier)
 	if (!directive) {
 		return undefined
 	}
-	const overrides = target.directiveOverrides?.get(identifier)
+	const overrides = target?.directiveOverrides?.get(identifier)
+	const parseArguments = overrides?.parseArguments ?? directive.parseArguments
 	return {
 		identifier: directive.identifier,
 		isCommon: directive.isCommon,
@@ -376,14 +418,21 @@ function getDocDirective(
 		hasMandatoryArgument: directive.hasMandatoryArgument,
 		allowDuplicates: directive.allowDuplicates,
 		description: directive.description ?? undefined,
+		parseArguments: parseArguments?.bind(directive),
+		includeInSuggestion: (completionCtx, input) =>
+			(overrides?.includeInSuggestion ?? directive.includeInSuggestion).call(
+				directive,
+				completionCtx,
+				input,
+			),
 		modifyAccess: (occurrence, node, ctx) =>
 			overrides?.modifyAccess
 				? overrides.modifyAccess(occurrence, node, ctx)
 				: directive.modifyAccess(occurrence, node, ctx),
-		handleDirective: (occurrence, node, ctx) =>
+		handleDirective: (occurrence, node, ctx, input) =>
 			overrides?.handleDirective
-				? overrides.handleDirective(occurrence, node, ctx)
-				: directive.handleDirective(occurrence, node, ctx),
+				? overrides.handleDirective(occurrence, node, ctx, input)
+				: directive.handleDirective(occurrence, node, ctx, input),
 	}
 }
 
@@ -393,7 +442,8 @@ function handleDocDirective(
 	node: DocNode,
 	ctx: core.BinderContext,
 	seenDirectives: string[],
-): string | undefined {
+	caller?: core.DeepReadonly<DocDirectiveNode>,
+): DocDirectiveReturn | undefined {
 	const identifier = occurrence.identifier
 	const range = occurrence.range
 	const directive = getDocDirective(ctx.meta, target, identifier)
@@ -404,7 +454,9 @@ function handleDocDirective(
 		)
 		return undefined
 	}
-	if (!directive.isCommon && !target.acceptedDirectives.includes(directive.identifier)) {
+	if (
+		!caller && !directive.isCommon && !target.acceptedDirectives.includes(directive.identifier)
+	) {
 		ctx.err.report(
 			localize(
 				'mcfunction.doc.directive.diagnostic.disallowed',
@@ -424,30 +476,140 @@ function handleDocDirective(
 		return undefined
 	}
 	seenDirectives.push(identifier)
-	return directive.handleDirective(occurrence, node, ctx)
+	const seenChildren: string[] = []
+	const handled = new Set<core.DeepReadonly<DocDirectiveNode>>()
+	return directive.handleDirective(occurrence, node, ctx, {
+		caller,
+		handleDirective: child => {
+			if (!occurrence.docDirectives.includes(child) || !child.valid || handled.has(child)) {
+				return undefined
+			}
+			handled.add(child)
+			return handleDocDirective(child, target, node, ctx, seenChildren, occurrence)
+		},
+	})
 }
 
-function parseDirective(src: core.Source, isInline: boolean): DocDirectiveNode {
+function peekIndentedDocLine(src: core.Source, indent: number) {
+	const next = src.clone().nextLine().skipSpace()
+	if (!next.trySkip('#') || next.tryPeek('>')) {
+		return undefined
+	}
+	const commentStart = next.cursor - 1
+	const contentStart = next.cursor
+	next.skipSpace()
+	const childIndent = next.cursor - contentStart
+	return childIndent > indent ? { next, commentStart, childIndent } : undefined
+}
+
+function peekCommentInput(src: core.Source, indent: number): DocCommentInput | undefined {
+	const line = peekIndentedDocLine(src, indent)
+	if (!line || line.next.tryPeek('@')) {
+		return undefined
+	}
+	const textStart = line.next.cursor
+	const text = line.next.readLine()
+	return {
+		text,
+		indent: line.childIndent,
+		range: core.Range.create(line.commentStart, line.next),
+		textRange: core.Range.create(textStart, line.next),
+	}
+}
+
+function parseDirective(
+	src: core.Source,
+	isInline: boolean,
+	ctx: core.ParserContext,
+	caller?: DocDirectiveNode,
+	indent = 0,
+	target?: DocTargets,
+): DocDirectiveNode {
 	const cursorStart = src.cursor
 	// skip initial '@'
 	src.skip()
 	const identifier = src.readUntil(...core.Whitespaces)
 	const identifierRange = core.Range.create(cursorStart, src)
-	const args: string[] = []
-	if (!isInline) {
-		while (src.skipSpace().canReadInLine()) {
-			args.push(src.readUntil(...core.Whitespaces))
-		}
-	}
-	return {
+	const node: DocDirectiveNode = {
 		type: 'mcfunction:doc_directive',
 		range: core.Range.create(cursorStart, src),
 		identifier,
 		identifierRange,
-		arguments: args,
+		arguments: [],
+		children: [],
+		docDirectives: [],
 		isInline,
 		valid: false,
 	}
+	if (!isInline) {
+		const directive = getDocDirective(ctx.meta, target, identifier)
+		const input: DocDirectiveParserContext = {
+			caller,
+			indent,
+			peekComment: () => peekCommentInput(src, indent),
+			readComment: accepts => {
+				const comment = peekCommentInput(src, indent)
+				if (!comment || (accepts && !accepts(comment))) {
+					return undefined
+				}
+				src.cursor = comment.range.end
+				node.children.push(
+					{
+						type: 'comment',
+						prefix: '#',
+						comment: comment.text,
+						range: comment.range,
+					} as core.CommentNode,
+				)
+				return comment
+			},
+			readDirective: accepts => {
+				const line = peekIndentedDocLine(src, indent)
+				if (!line) {
+					return undefined
+				}
+				const { next, commentStart, childIndent } = line
+				const suggestionStart = next.cursor
+				if (!next.tryPeek('@')) {
+					return undefined
+				}
+				const identifiers = [
+					...(ctx.meta.getCustom<DocDirective>('impdoc:directive')?.keys() ?? []),
+				]
+					.filter(accepts)
+				const suggestionEnd = next.clone().readLine().length + suggestionStart
+				node.argumentSuggestions ??= []
+				node.argumentSuggestions.push({
+					range: core.Range.create(suggestionStart, suggestionEnd),
+					identifiers,
+				})
+				if (!next.trySkip('@')) {
+					return undefined
+				}
+				const childIdentifier = next.readUntil(...core.Whitespaces)
+				if (!accepts(childIdentifier)) {
+					return undefined
+				}
+				src.cursor = suggestionStart
+				const child = parseDirective(src, false, ctx, node, childIndent, target)
+				child.range.start = commentStart
+				child.valid = validateDirective(child, undefined, ctx)
+				node.children.push(child)
+				node.docDirectives.push(child)
+				return child
+			},
+		}
+		if (directive?.parseArguments) {
+			directive.parseArguments(src, node, ctx, input)
+		} else {
+			while (src.skipSpace().canReadInLine()) {
+				node.arguments.push(src.readUntil(...core.Whitespaces))
+			}
+		}
+		src.readLine()
+	}
+	node.range.end = src.cursor
+	return node
 }
 
 function validateDirective(
@@ -475,7 +637,7 @@ function validateDirective(
 		)
 		return false
 	}
-	if (node.isInline && (!docDirective.isAccessModifier || docDirective.hasMandatoryArgument)) {
+	if (node.isInline && docDirective.hasMandatoryArgument) {
 		ctx.err.report(localize('mcfunction.doc.directive.diagnostic.inline'), node)
 		return false
 	}

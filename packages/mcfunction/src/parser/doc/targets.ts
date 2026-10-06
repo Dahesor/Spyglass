@@ -2,7 +2,12 @@ import { GlobalSymbol } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type { DocNode } from '../../node/index.js'
-import { declareDocSymbol, DefaultDocTarget, registerDocTarget } from '../doc.js'
+import {
+	declareDocSymbol,
+	DefaultDocTarget,
+	getCurrentFunctionIdentifier,
+	registerDocTarget,
+} from '../doc.js'
 
 export function registerDocTargets(meta: core.MetaRegistry): void {
 	registerDocTarget(meta, new FunctionDocTarget())
@@ -165,25 +170,13 @@ class FunctionDocTarget extends RegistryDocTarget {
 			return
 		}
 		if (node.isFunctionHeader) {
-			const currentFunction = Object.values(ctx.symbols.global.function ?? {}).find(symbol => {
-				let found = false
-				core.SymbolUtil.forEachLocationOfSymbol(symbol, ({ type, location }) => {
-					if (
-						(type === 'definition' || type === 'implementation')
-						&& (location.fromFile || location.contributor === 'uri_binder')
-						&& location.uri === ctx.doc.uri
-					) {
-						found = true
-					}
-				})
-				return found
-			})
+			const currentFunction = getCurrentFunctionIdentifier(ctx)
 			const identifier = core.ResourceLocationNode.toString(field, 'full')
-			if (!currentFunction || currentFunction.identifier !== identifier) {
+			if (!currentFunction || currentFunction !== identifier) {
 				ctx.err.report(
 					localize(
 						'expected',
-						currentFunction?.identifier ?? 'THIS',
+						currentFunction ?? 'THIS',
 					),
 					field,
 				)

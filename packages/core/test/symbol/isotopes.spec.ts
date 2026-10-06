@@ -27,6 +27,24 @@ function add(util: SymbolUtil, identifier: string, scope: IsotopeScope, override
 }
 
 describe('symbol facets', () => {
+	it('only sorts metadata when its priority changes, not when adding usages', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'first', Scope.Global, 1)
+		add(util, 'second', Scope.Global, 2)
+		const isotopes = symbol.facets!.global!.isotopes
+		const sort = isotopes.sort.bind(isotopes)
+		let sorts = 0
+		isotopes.sort = compare => {
+			sorts++
+			return sort(compare)
+		}
+		util.query(uri, 'tag', 'test').enterIsotope('first', { usage: { type: 'reference' } })
+		util.query(uri, 'tag', 'test').enterIsotope('first', { data: { desc: 'updated' } })
+		t.assert.equal(sorts, 0)
+		util.query(uri, 'tag', 'test').enterIsotope('first', { data: { overrideLevel: 3 } })
+		t.assert.equal(sorts, 1)
+		t.assert.equal(isotopes[0].identifier, 'first')
+	})
 	it('reuses the first matching file location and removes only duplicates during reconciliation', t => {
 		const util = new SymbolUtil({})
 		const symbol = add(util, 'doc', Scope.Global)
@@ -292,5 +310,34 @@ describe('symbol facets', () => {
 		)
 		GlobalSymbol.clear(reloaded, { uri })
 		t.assert.equal(reloaded.global.tag!['test'], undefined)
+	})
+})
+
+describe('file symbol access checks', () => {
+	it('does not scan usages of a visible symbol with many command definitions', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'public', Scope.Global)
+		let reads = 0
+		symbol.facets!.global!.definition = Array.from({ length: 10000 }, () => ({
+			uri,
+			get fromFile() {
+				reads++
+				return false
+			},
+		}))
+		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, uri), false)
+		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, outside), false)
+		t.assert.equal(reads, 0)
+	})
+	it('still reports inaccessible file symbols but allows non-file symbols', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'private', Scope.Private)
+		const isotope = symbol.facets!.isotopes![0]!
+		isotope.definition = [{ uri, fromFile: true }]
+		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, uri), false)
+		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, outside), true)
+		isotope.definition = [{ uri }]
+		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, outside), false)
+		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(undefined, outside), false)
 	})
 })

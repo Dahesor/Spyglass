@@ -127,7 +127,16 @@ export function documentSymbols(
 	hierarchicalSupport: boolean | undefined,
 	supportedKinds: ls.SymbolKind[] = [],
 ): ls.DocumentSymbol[] {
-	return Object.values(map).map((s) =>
+	return documentSymbolsFromSymbols(Object.values(map), doc, hierarchicalSupport, supportedKinds)
+}
+
+export function documentSymbolsFromSymbols(
+	symbols: core.Symbol[],
+	doc: TextDocument,
+	hierarchicalSupport: boolean | undefined,
+	supportedKinds: ls.SymbolKind[] = [],
+): ls.DocumentSymbol[] {
+	return symbols.map((s) =>
 		[
 			s,
 			core.SymbolUtil.allUsageContainers(s).flatMap(owner => [
