@@ -28,6 +28,7 @@ export interface DocNode extends core.AstNode {
 	fields: core.AstNode[]
 	docDirectives: DocDirectiveNode[]
 	directive: core.LiteralNode
+	commentDescription?: string
 	description?: string
 	isFunctionHeader?: boolean
 	isImplicitFunction?: boolean
@@ -38,8 +39,14 @@ export interface DocNode extends core.AstNode {
 export interface DocDirectiveNode extends core.AstNode {
 	type: 'mcfunction:doc_directive'
 	identifier: string
+	children: core.AstNode[]
 	identifierRange: core.Range
 	arguments: string[]
+	argumentNode?: core.AstNode
+	inputComment?: string
+	/** References to the nested directives in children */
+	docDirectives: DocDirectiveNode[]
+	argumentSuggestions?: { range: core.Range; identifiers: string[] }[]
 	isInline: boolean
 	valid: boolean
 }

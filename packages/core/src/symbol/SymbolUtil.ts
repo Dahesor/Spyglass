@@ -277,13 +277,17 @@ export class SymbolUtil extends EventDispatcher<{
 		this.runOrDefer(() => {
 			for (const container of SymbolUtil.allUsageContainers(symbol)) {
 				for (const type of SymbolUsageTypes) {
-					container[type] = container[type]?.filter(location => {
+					const locations = container[type]
+					const retained = locations?.filter(location => {
 						if (!predicate({ location, symbol, type })) {
 							return true
 						}
 						this.emit('symbolLocationRemoved', { symbol, type, location })
 						return false
 					})
+					if (retained?.length !== locations?.length) {
+						container[type] = retained
+					}
 				}
 			}
 		})

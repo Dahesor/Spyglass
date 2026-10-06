@@ -139,6 +139,8 @@ export namespace GlobalSymbol {
 					continue
 				}
 				const removedIds = new Set<string>()
+				let removed = false
+				let removedDocDeclaration = false
 				util.removeLocationsFromSymbol(
 					symbol,
 					(data) => {
@@ -148,10 +150,14 @@ export namespace GlobalSymbol {
 						if (remove && data.location.isotopeIdentifier) {
 							removedIds.add(data.location.isotopeIdentifier)
 						}
+						removed ||= remove
+						removedDocDeclaration ||= remove && !!data.location.fromDocDeclaration
 						return remove
 					},
 				)
-				Isotope.cleanupAfterLocationRemoval(util, symbol, removedIds)
+				if (removed) {
+					Isotope.cleanupAfterLocationRemoval(util, symbol, removedIds, removedDocDeclaration)
+				}
 			}
 			trim(util)
 		})
@@ -172,6 +178,24 @@ export namespace GlobalSymbol {
 		return SymbolUtil.filterVisibleSymbols(uri, map)
 	}
 
+	export function getSymbolsInFile(util: SymbolUtil, uri: string): Symbol[] {
+		const paths = new Set<string>()
+		for (const cache of Object.values(states.get(util)!.cache)) {
+			for (const path of cache[uri] ?? []) {
+				paths.add(path)
+			}
+		}
+		const symbols: Symbol[] = []
+		for (const key of paths) {
+			const path = SymbolPath.fromString(key)
+			const symbol = lookup(util, path.category, path.path).symbol
+			if (symbol) {
+				symbols.push(symbol)
+			}
+		}
+		return symbols
+	}
+
 	/** Remove unused global symbols recorded by the global cache. */
 	export function trim(util: SymbolUtil): void {
 		util.runOrDefer(() => {
@@ -187,6 +211,7 @@ export namespace GlobalSymbol {
 				}
 			}
 			for (const pathString of state.trimmableSymbols) {
+				state.trimmableSymbols.delete(pathString)
 				const path = SymbolPath.fromString(pathString)
 				const { symbol } = lookup(util, path.category, path.path)
 				trimSymbol(symbol)

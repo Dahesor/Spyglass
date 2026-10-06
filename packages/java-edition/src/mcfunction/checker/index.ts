@@ -27,7 +27,9 @@ const entry: core.Checker<mcf.McfunctionNode> = (node, ctx) => {
 	if (parts?.ok === false) {
 		reportDissectError(parts.path, parts.expected, ctx)
 	}
-	core.checker.dispatchSync(node, ctx)
+	for (const child of node.children) {
+		core.checker.fallbackSync(child, ctx)
+	}
 }
 
 export const command: core.Checker<mcf.CommandNode> = (node, ctx) => {

@@ -4,6 +4,44 @@ import type { AstNode } from '../../lib/index.js'
 import { GlobalSymbol, LocalSymbol, Range, SymbolUtil } from '../../lib/index.js'
 
 describe('GlobalSymbol', () => {
+	it('does not revisit live trim candidates on subsequent unrelated clears', t => {
+		const util = new SymbolUtil({})
+		util.contributeAs('binder', () => {
+			util.query('file:///first', 'test', 'shared').enter({ usage: { type: 'definition' } })
+			util.query('file:///second', 'test', 'shared').enter({ usage: { type: 'definition' } })
+		})
+		GlobalSymbol.clear(util, { uri: 'file:///first' })
+		const symbol = util.global['test']!['shared']
+		let checks = 0
+		Object.defineProperty(symbol, 'members', {
+			get() {
+				checks++
+				return undefined
+			},
+		})
+		GlobalSymbol.clear(util, { uri: 'file:///unrelated' })
+		t.assert.equal(checks, 0)
+		GlobalSymbol.clear(util, { uri: 'file:///second' })
+		t.assert.equal(util.global['test']!['shared'], undefined)
+	})
+	it('does not reconcile unaffected usages when a shared isotope survives cleanup', t => {
+		const util = new SymbolUtil({})
+		util.contributeAs('binder', () => {
+			util.query('file:///first', 'test', 'shared').enter({ usage: { type: 'definition' } })
+			util.query('file:///second', 'test', 'shared').enter({
+				usage: { type: 'reference', originalUsageType: 'reference' },
+			})
+		})
+		const facet = util.global['test']!['shared'].facets!.global!
+		const reference = facet.reference![0]
+		const removed: unknown[] = []
+		util.on('symbolLocationRemoved', ({ location }) => removed.push(location))
+		GlobalSymbol.clear(util, { uri: 'file:///second' })
+		t.assert.deepEqual(removed, [reference])
+		const definitions = facet.definition
+		GlobalSymbol.clear(util, { uri: 'file:///second' })
+		t.assert.equal(facet.definition, definitions)
+	})
 	it('separates global-only queries from combined queries and completion', t => {
 		const util = new SymbolUtil({})
 		const doc = TextDocument.create('file:///test.mcfunction', 'mcfunction', 0, '')
