@@ -358,7 +358,6 @@ function tryGetUnicodeNameCompletion(
 	}
 	const partial = match[1]!
 	const replaceRange = Range.create(ctx.offset - partial.length, ctx.offset)
-
 	const map = GlobalSymbol.getVisibleSymbols(ctx.symbols, 'unicode-name')
 	const items: CompletionItem[] = []
 	for (const [identifier, symbol] of Object.entries(map)) {

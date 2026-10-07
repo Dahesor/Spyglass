@@ -9,10 +9,12 @@ import { localize } from '@spyglassmc/locales'
 import path from 'path'
 import * as vsc from 'vscode'
 import * as lc from 'vscode-languageclient/node.js'
+import { registerDocBlockEnter } from './docBlockEnter.mjs'
 
 let client: lc.LanguageClient
 
 export async function activate(context: vsc.ExtensionContext) {
+	context.subscriptions.push(registerDocBlockEnter())
 	if ((vsc.workspace.workspaceFolders ?? []).length === 0) {
 		// Don't start the language server without a workspace folder
 		return
