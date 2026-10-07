@@ -549,6 +549,7 @@ exports[`mcdoc __fixture__ > use statement/use before file loaded 1`] = `
       "locals": {
         "mcdoc": {
           "::client::Used": {
+            "isLocal": true,
             "category": "mcdoc",
             "identifier": "::client::Used",
             "path": [
@@ -561,61 +562,40 @@ exports[`mcdoc __fixture__ > use statement/use before file loaded 1`] = `
               ]
             },
             "subcategory": "use_statement_binding",
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///client.mcdoc",
-                      "contributor": "binder"
-                    },
-                    "data": {
-                      "target": [
-                        "later",
-                        "Used"
-                      ]
-                    }
+            "definition": [
+              {
+                "uri": "file:///client.mcdoc",
+                "range": {
+                  "start": 13,
+                  "end": 17
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 13
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 17
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "file:///client.mcdoc",
-                    "range": {
-                      "start": 13,
-                      "end": 17
-                    },
-                    "posRange": {
-                      "start": {
-                        "line": 0,
-                        "character": 13
-                      },
-                      "end": {
-                        "line": 0,
-                        "character": 17
-                      }
-                    },
-                    "fullRange": {
-                      "start": 0,
-                      "end": 18
-                    },
-                    "fullPosRange": {
-                      "start": {
-                        "line": 0,
-                        "character": 0
-                      },
-                      "end": {
-                        "line": 1,
-                        "character": 0
-                      }
-                    },
-                    "contributor": "binder",
-                    "isotopeIdentifier": "regular"
+                },
+                "fullRange": {
+                  "start": 0,
+                  "end": 18
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 1,
+                    "character": 0
                   }
-                ]
+                },
+                "contributor": "binder"
               }
-            }
+            ]
           }
         }
       },

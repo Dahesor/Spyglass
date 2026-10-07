@@ -750,96 +750,81 @@ exports[`mcdoc __fixture__ > type parameter/dispatcher 1`] = `
               "locals": {
                 "mcdoc": {
                   "::test::T": {
+                    "isLocal": true,
                     "category": "mcdoc",
                     "identifier": "::test::T",
                     "path": [
                       "::test::T"
                     ],
-                    "facets": {
-                      "global": {
-                        "isotopes": [
-                          {
-                            "identifier": "regular",
-                            "source": 3,
-                            "origin": {
-                              "uri": "file:///test.mcdoc",
-                              "contributor": "binder"
-                            }
+                    "declaration": [
+                      {
+                        "uri": "file:///test.mcdoc",
+                        "range": {
+                          "start": 32,
+                          "end": 33
+                        },
+                        "posRange": {
+                          "start": {
+                            "line": 0,
+                            "character": 32
+                          },
+                          "end": {
+                            "line": 0,
+                            "character": 33
                           }
-                        ],
-                        "declaration": [
-                          {
-                            "uri": "file:///test.mcdoc",
-                            "range": {
-                              "start": 32,
-                              "end": 33
-                            },
-                            "posRange": {
-                              "start": {
-                                "line": 0,
-                                "character": 32
-                              },
-                              "end": {
-                                "line": 0,
-                                "character": 33
-                              }
-                            },
-                            "fullRange": {
-                              "start": 32,
-                              "end": 33
-                            },
-                            "fullPosRange": {
-                              "start": {
-                                "line": 0,
-                                "character": 32
-                              },
-                              "end": {
-                                "line": 0,
-                                "character": 33
-                              }
-                            },
-                            "contributor": "binder",
-                            "isotopeIdentifier": "regular"
+                        },
+                        "fullRange": {
+                          "start": 32,
+                          "end": 33
+                        },
+                        "fullPosRange": {
+                          "start": {
+                            "line": 0,
+                            "character": 32
+                          },
+                          "end": {
+                            "line": 0,
+                            "character": 33
                           }
-                        ],
-                        "reference": [
-                          {
-                            "uri": "file:///test.mcdoc",
-                            "range": {
-                              "start": 55,
-                              "end": 56
-                            },
-                            "posRange": {
-                              "start": {
-                                "line": 1,
-                                "character": 8
-                              },
-                              "end": {
-                                "line": 1,
-                                "character": 9
-                              }
-                            },
-                            "fullRange": {
-                              "start": 55,
-                              "end": 56
-                            },
-                            "fullPosRange": {
-                              "start": {
-                                "line": 1,
-                                "character": 8
-                              },
-                              "end": {
-                                "line": 1,
-                                "character": 9
-                              }
-                            },
-                            "contributor": "binder",
-                            "isotopeIdentifier": "regular",
-                            "skipRenaming": false
-                          }
-                        ]
+                        },
+                        "contributor": "binder"
                       }
-                    }
+                    ],
+                    "reference": [
+                      {
+                        "uri": "file:///test.mcdoc",
+                        "range": {
+                          "start": 55,
+                          "end": 56
+                        },
+                        "posRange": {
+                          "start": {
+                            "line": 1,
+                            "character": 8
+                          },
+                          "end": {
+                            "line": 1,
+                            "character": 9
+                          }
+                        },
+                        "fullRange": {
+                          "start": 55,
+                          "end": 56
+                        },
+                        "fullPosRange": {
+                          "start": {
+                            "line": 1,
+                            "character": 8
+                          },
+                          "end": {
+                            "line": 1,
+                            "character": 9
+                          }
+                        },
+                        "contributor": "binder",
+                        "skipRenaming": false
+                      }
+                    ]
                   }
                 }
               }

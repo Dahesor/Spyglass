@@ -5,7 +5,7 @@ import * as mcf from '@spyglassmc/mcfunction'
 import { bindDoc, doc as parseDoc } from '@spyglassmc/mcfunction/lib/parser/doc.js'
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
-import { uriBinder } from '../../lib/binder/index.js'
+import { registerResourceLocationResolver, uriBinder } from '../../lib/binder/index.js'
 
 const root = 'file:///pack/'
 const privateDoc = root + 'data/demo/function/private/doc.mcfunction'
@@ -14,6 +14,7 @@ const outside = root + 'data/demo/function/outside.mcfunction'
 
 function setup(category = 'function', ext = '.mcfunction', delayed = false) {
 	const project = mockProjectData({ roots: [root], ctx: { loadedVersion: '1.21' } })
+	registerResourceLocationResolver(project.meta)
 	mcf.initialize(project)
 	if (delayed) {
 		project.symbols = project.symbols.clone()
@@ -38,7 +39,8 @@ function setup(category = 'function', ext = '.mcfunction', delayed = false) {
 			() => uriBinder([fileUri], core.UriBinderContext.create(project)),
 		)
 	const raw = () => project.symbols.global[category]!['demo:example']
-	const view = (uri: string) => core.SymbolUtil.viewFromContext(raw(), uri)
+	const view = (uri: string) =>
+		core.SymbolUtil.viewFromContext(raw(), uri, project.symbols.resolveResourceLocation)
 	return { project, fileUri, declare, bindFile, raw, view }
 }
 
@@ -205,20 +207,38 @@ describe('file-origin definitions and doc declarations', () => {
 		const env = setup()
 		core.binder.registerBinders(env.project.meta)
 		const parser = core.file(mcf.entry({ type: 'root', children: {} }, () => () => core.Failure))
-		const bind = async (text: string) => {
+		const bind = async (text: string, restoreFromUriBinder = true) => {
 			const doc = TextDocument.create(env.fileUri, 'mcfunction', 0, text)
 			const node = parser(new core.Source(text), core.ParserContext.create(env.project, { doc }))
-			env.bindFile()
+			if (restoreFromUriBinder) {
+				env.bindFile()
+			}
 			GlobalSymbol.clear(env.project.symbols, { uri: env.fileUri, contributor: 'binder' })
 			const ctx = core.BinderContext.create(env.project, { doc })
+			let restoredDefinitions = 0
+			const listener = ({ location }: core.SymbolLocationEvent) => {
+				if (location.contributor === 'uri_binder' && location.fromFile) {
+					restoredDefinitions++
+				}
+			}
+			const controller = new AbortController()
+			env.project.symbols.on('symbolLocationCreated', listener, { signal: controller.signal })
 			await env.project.symbols.contributeAsAsync('binder', async () => {
-				await env.project.meta.getBinder(node.type)(node, ctx)
+				await env.project.meta.getBinder(node.type)(core.StateProxy.create(node), ctx)
 			})
+			controller.abort()
+			t.assert.equal(restoredDefinitions, restoreFromUriBinder ? 0 : 1)
 			t.assert.deepEqual(ctx.err.errors, [])
 			return node
 		}
 		const header = '#> @local function demo:example Local function'
 		await bind(header)
+		const rebound = await bind(header)
+		t.assert.equal(
+			core.SymbolUtil.viewFromContext(rebound.locals?.function?.['demo:example'], env.fileUri)
+				?.declaration?.length,
+			1,
+		)
 		t.assert.equal(
 			GlobalSymbol.getVisibleSymbols(env.project.symbols, 'function', outside)['demo:example'],
 			undefined,
@@ -242,5 +262,31 @@ describe('file-origin definitions and doc declarations', () => {
 		await bind('')
 		t.assert.equal(env.view(outside)?.definition?.length, 1)
 		t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)
+		await bind(header)
+		await bind('', false)
+		t.assert.equal(env.view(outside)?.definition?.length, 1)
 	})
+})
+
+it('binds protected documentation using the registered resource resolver', t => {
+	const env = setup()
+	env.bindFile()
+	t.assert.deepEqual(env.declare(privateDoc, '@protected'), [])
+	t.assert.deepEqual(env.raw().facets?.isotopes?.[0].visibleWithin, [{ namespace: 'demo' }])
+	t.assert.equal(env.view(outside)?.desc, ' Documentation')
+	t.assert.equal(env.view(outside.replace('/demo/', '/other/')), undefined)
+	const restored = core.SymbolTable.deserialize(
+		core.SymbolTable.serialize(env.project.symbols.global),
+	)
+	const symbols = new core.SymbolUtil(
+		restored,
+		undefined,
+		false,
+		env.project.symbols.resolveResourceLocation,
+	)
+	t.assert.equal(symbols.query(outside, 'function', 'demo:example').symbol?.desc, ' Documentation')
+	t.assert.equal(
+		symbols.query(outside.replace('/demo/', '/other/'), 'function', 'demo:example').symbol,
+		undefined,
+	)
 })

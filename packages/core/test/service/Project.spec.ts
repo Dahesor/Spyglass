@@ -27,6 +27,7 @@ import type {
 	RootUriString,
 } from '../../lib/index.js'
 import { getNodeJsExternals } from '../../lib/nodejs.js'
+import { mockResourceLocation } from '../utils.ts'
 
 const CacheRoot: RootUriString = 'file:///cache/'
 const ProjectRoot: RootUriString = 'file:///root/'
@@ -253,7 +254,7 @@ describe('Project', () => {
 					const usage = { type: 'declaration' as const, fromDocDeclaration: true }
 					if (node.value === 'private') {
 						query.enterIsotope('private', {
-							data: { source: 0, scope: 0, visibleWithin: ['**/dependency/**'] },
+							data: { source: 0, scope: 0, visibleWithin: [{ glob: '**/dependency/**' }] },
 							usage,
 						})
 					} else {
@@ -424,6 +425,7 @@ describe('Project', () => {
 		const bindCount = new Map<string, number>()
 		const dependencyReads: boolean[] = []
 		const initializer: ProjectInitializer = ({ meta }) => {
+			meta.resolveResourceLocation = mockResourceLocation
 			meta.registerLanguage('spyglasstest', {
 				extensions: ['.spyglasstest'],
 				parser: literal(...names),
@@ -472,7 +474,11 @@ describe('Project', () => {
 				}
 				if (name.startsWith('namespace_') || name === 'private') {
 					query.enterIsotope(`private:${ctx.doc.uri}`, {
-						data: { scope: 0, visibleWithin: ['file:///dependency/**'], source: 0 },
+						data: {
+							scope: 0,
+							visibleWithin: [{ glob: 'file:///dependency/**' }],
+							source: 0,
+						},
 						usage: { type: 'declaration', node, fromDocDeclaration: true },
 					})
 				}
@@ -480,8 +486,7 @@ describe('Project', () => {
 					query.enterIsotope(`namespace:${ctx.doc.uri}`, {
 						data: {
 							scope: 1,
-							namespace: ['demo'],
-							visibleWithin: ['**/data/demo/**'],
+							visibleWithin: [{ namespace: 'demo', glob: '**/data/demo/**' }],
 							desc: 'namespace documentation',
 							source: 0,
 						},
@@ -542,6 +547,7 @@ describe('Project', () => {
 				const view = SymbolUtil.viewFromContext(
 					symbol,
 					`${ProjectRoot}data/demo/function/use.spyglasstest`,
+					project.symbols.resolveResourceLocation,
 				)
 				assert.equal(view?.desc, 'namespace documentation')
 				assert.equal(view?.implementation?.length, 1)
@@ -549,6 +555,7 @@ describe('Project', () => {
 					SymbolUtil.viewFromContext(
 						symbol,
 						`${ProjectRoot}data/other/function/use.spyglasstest`,
+						project.symbols.resolveResourceLocation,
 					),
 					undefined,
 				)
@@ -610,7 +617,7 @@ describe('Project', () => {
 						data: {
 							source: 0,
 							scope: 0,
-							visibleWithin: [`${ProjectRoot}private/**`],
+							visibleWithin: [{ glob: `${ProjectRoot}private/**` }],
 							desc: 'local private',
 						},
 						usage: { type: 'declaration', fromDocDeclaration: true },
@@ -670,7 +677,7 @@ describe('Project', () => {
 					'demo:example',
 				)
 					.enterIsotope('private', {
-						data: { scope: 0, visibleWithin: ['**/private/**'], source: 0 },
+						data: { scope: 0, visibleWithin: [{ glob: '**/private/**' }], source: 0 },
 						usage: { type: 'declaration', fromDocDeclaration: true },
 					})
 			})

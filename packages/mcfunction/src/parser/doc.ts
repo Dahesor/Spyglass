@@ -179,7 +179,7 @@ export function declareDocSymbol(
 	category: string,
 	identifier: string,
 	ctx: core.BinderContext,
-): void {
+): core.SymbolQuery {
 	const usage = { type: 'declaration' as const, node: field, fromDocDeclaration: true }
 	const access = node.access
 	const local = access?.visibility === core.SymbolIsotopeScope.Local
@@ -193,17 +193,15 @@ export function declareDocSymbol(
 		)
 		: ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
 	if (local) {
-		query.enter({ data: { desc: node.description ?? '' }, usage })
-		return
+		return query.enter({ data: { desc: node.description ?? '' }, usage })
 	}
-	query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
+	return query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 		data: {
 			scope: access?.visibility ?? core.SymbolIsotopeScope.Global,
 			...(
 				access?.visibility === core.SymbolIsotopeScope.Private
+					|| access?.visibility === core.SymbolIsotopeScope.Protected
 					? { visibleWithin: access.visibleWithin }
-					: access?.visibility === core.SymbolIsotopeScope.Namespace
-					? { namespace: [access.namespace], visibleWithin: ['**'] }
 					: {}
 			),
 			source: core.SymbolIsotopeProvider.DocBlock,

@@ -232,6 +232,7 @@ exports[`mcdoc __fixture__ > use statement/unknown identifier 1`] = `
       "locals": {
         "mcdoc": {
           "::client::Foo": {
+            "isLocal": true,
             "category": "mcdoc",
             "identifier": "::client::Foo",
             "path": [
@@ -244,61 +245,40 @@ exports[`mcdoc __fixture__ > use statement/unknown identifier 1`] = `
               ]
             },
             "subcategory": "use_statement_binding",
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///client.mcdoc",
-                      "contributor": "binder"
-                    },
-                    "data": {
-                      "target": [
-                        "module",
-                        "Foo"
-                      ]
-                    }
+            "definition": [
+              {
+                "uri": "file:///client.mcdoc",
+                "range": {
+                  "start": 19,
+                  "end": 22
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 19
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 22
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "file:///client.mcdoc",
-                    "range": {
-                      "start": 19,
-                      "end": 22
-                    },
-                    "posRange": {
-                      "start": {
-                        "line": 0,
-                        "character": 19
-                      },
-                      "end": {
-                        "line": 0,
-                        "character": 22
-                      }
-                    },
-                    "fullRange": {
-                      "start": 0,
-                      "end": 22
-                    },
-                    "fullPosRange": {
-                      "start": {
-                        "line": 0,
-                        "character": 0
-                      },
-                      "end": {
-                        "line": 0,
-                        "character": 22
-                      }
-                    },
-                    "contributor": "binder",
-                    "isotopeIdentifier": "regular"
+                },
+                "fullRange": {
+                  "start": 0,
+                  "end": 22
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 22
                   }
-                ]
+                },
+                "contributor": "binder"
               }
-            }
+            ]
           }
         }
       },

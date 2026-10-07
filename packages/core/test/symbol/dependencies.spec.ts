@@ -6,6 +6,7 @@ import {
 	SymbolUtil,
 } from '@spyglassmc/core'
 import { describe, it } from 'node:test'
+import { mockResourceLocation } from '../utils.ts'
 
 const inside = 'file:///project/private/use.mcfunction'
 const outside = 'file:///project/use.mcfunction'
@@ -23,7 +24,7 @@ function declarePrivate(symbols: SymbolUtil) {
 			data: {
 				source: Provider.DocBlock,
 				scope: Scope.Private,
-				visibleWithin: ['file:///project/private/**'],
+				visibleWithin: [{ glob: 'file:///project/private/**' }],
 				desc: 'local private',
 			},
 			usage: { type: 'declaration', fromDocDeclaration: true },
@@ -115,14 +116,14 @@ describe('dependency symbol exports', () => {
 		GlobalSymbol.removeDependencySymbols(symbols, 'second')
 		t.assert.equal(symbols.global.function!['shared'], undefined)
 	})
-	it('exports Global and Namespace facets, excluding Project, Private, Local and Imported', t => {
+	it('exports Global and Protected facets, excluding Project, Private, Local and Imported', t => {
 		const source = new SymbolUtil({})
 		for (
 			const [name, scope] of [
 				['public', Scope.Global],
 				['internal', Scope.Project],
 				['private', Scope.Private],
-				['namespace', Scope.Namespace],
+				['namespace', Scope.Protected],
 				['local', Scope.Local],
 			] as const
 		) {
@@ -130,8 +131,10 @@ describe('dependency symbol exports', () => {
 				data: {
 					source: Provider.Regular,
 					scope,
-					visibleWithin: ['**/data/demo/**'],
-					namespace: scope === Scope.Namespace ? ['demo'] : undefined,
+					visibleWithin: [{
+						glob: '**/data/demo/**',
+						namespace: scope === Scope.Protected ? 'demo' : undefined,
+					}],
 				},
 				usage: { type: 'declaration' },
 			})
@@ -147,11 +150,12 @@ describe('dependency symbol exports', () => {
 			exported.function!['public'].facets?.global?.isotopes[0].source,
 			Provider.Imported,
 		)
-		t.assert.equal(exported.function!['namespace'].facets?.isotopes?.[0].scope, Scope.Namespace)
+		t.assert.equal(exported.function!['namespace'].facets?.isotopes?.[0].scope, Scope.Protected)
 		t.assert.notEqual(
 			SymbolUtil.viewFromContext(
 				exported.function!['namespace'],
 				'file:///consumer/data/demo/function/use',
+				mockResourceLocation,
 			),
 			undefined,
 		)
@@ -159,6 +163,7 @@ describe('dependency symbol exports', () => {
 			SymbolUtil.viewFromContext(
 				exported.function!['namespace'],
 				'file:///consumer/data/other/function/use',
+				mockResourceLocation,
 			),
 			undefined,
 		)

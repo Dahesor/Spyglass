@@ -20,6 +20,7 @@ import type {
 	SymbolView,
 } from './Symbol.js'
 import { SymbolLocation, SymbolPath, SymbolUsageTypes } from './Symbol.js'
+import type { ResourceLocationResolver } from './visibility.js'
 
 export interface LookupResult {
 	/**
@@ -84,6 +85,7 @@ export class SymbolUtil extends EventDispatcher<{
 		_currentContributor?: string,
 		/** @internal */
 		_inDelayMode = false,
+		readonly resolveResourceLocation?: ResourceLocationResolver,
 	) {
 		super()
 		this.global = global
@@ -104,6 +106,7 @@ export class SymbolUtil extends EventDispatcher<{
 			this.global,
 			this.#currentContributor,
 			true,
+			this.resolveResourceLocation,
 		)
 	}
 
@@ -241,7 +244,9 @@ export class SymbolUtil extends EventDispatcher<{
 		const lookup = (category: string, path: readonly string[]) =>
 			SymbolUtil.lookupTable(table, category, path)
 		const { parentSymbol, parentMap, symbol } = lookup(category, path)
-		const visible = symbol ? SymbolUtil.isVisible(symbol, SymbolUtil.toUri(doc)) : true
+		const visible = symbol
+			? this.isVisible(symbol, SymbolUtil.toUri(doc))
+			: true
 		return new SymbolQuery({
 			category,
 			doc,
@@ -545,11 +550,31 @@ export class SymbolUtil extends EventDispatcher<{
 			: symbol
 	}
 
-	static filterVisibleSymbols(uri: string | undefined, map: SymbolMap = {}): SymbolMap {
+	filterVisibleSymbols(uri: string | undefined, map: SymbolMap = {}): SymbolMap {
+		return SymbolUtil.filterVisibleSymbols(uri, map, this.resolveResourceLocation)
+	}
+
+	viewFromContext(symbol: Symbol | undefined, uri: string | undefined): SymbolView | undefined {
+		return SymbolUtil.viewFromContext(symbol, uri, this.resolveResourceLocation)
+	}
+
+	isVisible(symbol: Symbol, uri: string | undefined): boolean {
+		return SymbolUtil.isVisible(symbol, uri, this.resolveResourceLocation)
+	}
+
+	hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
+		return SymbolUtil.hasNoAccessToFileSymbol(symbol, uri, this.resolveResourceLocation)
+	}
+
+	static filterVisibleSymbols(
+		uri: string | undefined,
+		map: SymbolMap = {},
+		resolve?: ResourceLocationResolver,
+	): SymbolMap {
 		const ans: SymbolMap = {}
 
 		for (const [identifier, symbol] of Object.entries(map)) {
-			if (SymbolUtil.isVisible(symbol, uri)) {
+			if (SymbolUtil.isVisible(symbol, uri, resolve)) {
 				ans[identifier] = symbol
 			}
 		}
@@ -574,11 +599,16 @@ export class SymbolUtil extends EventDispatcher<{
 	static viewFromContext(
 		symbol: Symbol | undefined,
 		uri: string | undefined,
+		resolve?: ResourceLocationResolver,
 	): SymbolView | undefined {
-		return LocalSymbol.is(symbol) ? symbol : Isotope.viewFromContext(symbol, uri)
+		return LocalSymbol.is(symbol) ? symbol : Isotope.viewFromContext(symbol, uri, resolve)
 	}
-	static isVisible(symbol: Symbol, uri: string | undefined): boolean {
-		return LocalSymbol.is(symbol) || Isotope.isVisible(symbol, uri)
+	static isVisible(
+		symbol: Symbol,
+		uri: string | undefined,
+		resolve?: ResourceLocationResolver,
+	): boolean {
+		return LocalSymbol.is(symbol) || Isotope.isVisible(symbol, uri, resolve)
 	}
 	static isFromFile(symbol: Symbol | undefined): boolean {
 		return !!symbol
@@ -587,8 +617,13 @@ export class SymbolUtil extends EventDispatcher<{
 				|| owner.implementation?.some(location => location.fromFile)
 			)
 	}
-	static hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
-		return !!symbol && !LocalSymbol.is(symbol) && Isotope.hasNoAccessToFileSymbol(symbol, uri)
+	static hasNoAccessToFileSymbol(
+		symbol: Symbol | undefined,
+		uri: string,
+		resolve?: ResourceLocationResolver,
+	): boolean {
+		return !!symbol && !LocalSymbol.is(symbol)
+			&& Isotope.hasNoAccessToFileSymbol(symbol, uri, resolve)
 	}
 
 	private static locationsFor(
@@ -794,11 +829,11 @@ export class SymbolQuery {
 	util: SymbolUtil
 
 	get symbol(): SymbolView | undefined {
-		return SymbolUtil.viewFromContext(this.#symbol, this.#doc.uri)
+		return this.util.viewFromContext(this.#symbol, this.#doc.uri)
 	}
 
 	get visibleMembers(): SymbolMap {
-		return SymbolUtil.filterVisibleSymbols(
+		return this.util.filterVisibleSymbols(
 			this.#doc.uri,
 			this.path.length === 0 ? this.#map : this.#symbol?.members,
 		)

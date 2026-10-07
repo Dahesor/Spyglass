@@ -187,7 +187,7 @@ export class Service {
 			this.debug(`Getting hover for ${doc.uri} # ${doc.version} @ ${offset}`)
 			let node = AstNode.findDeepestChild({ node: file, needle: offset })
 			while (node) {
-				const symbol = SymbolUtil.viewFromContext(
+				const symbol = this.project.symbols.viewFromContext(
 					this.project.symbols.resolveAlias(node.symbol),
 					doc.uri,
 				)
@@ -294,7 +294,10 @@ export class Service {
 			let node = AstNode.findDeepestChild({ node: file, needle: offset })
 			while (node) {
 				const raw = this.project.symbols.resolveAlias(node.symbol)
-				const symbol = SymbolUtil.viewFromContext(raw, doc.uri)
+				const symbol = this.project.symbols.viewFromContext(
+					raw,
+					doc.uri,
+				)
 				if (raw && symbol) {
 					const importedUsages = GlobalSymbol.getImportedUsageContainer(
 						this.project.symbols,
