@@ -1,5 +1,5 @@
-import picomatch from 'picomatch'
 import { TextDocument } from 'vscode-languageserver-textdocument'
+import type { ResourceLocation } from '../common/index.js'
 import type {
 	GlobalSymbolIsotope,
 	IsotopeScope,
@@ -12,16 +12,13 @@ import type {
 } from './Symbol.js'
 import { SymbolIsotopeProvider, SymbolIsotopeScope, SymbolUsageTypes } from './Symbol.js'
 import type { SymbolAddition, SymbolAdditionUsage, SymbolUtil } from './SymbolUtil.js'
+import { matchesVisibility, type ResourceLocationResolver } from './visibility.js'
 
 export interface SymbolIsotopeAddition {
 	data?: Partial<Omit<SymbolIsotope, SymbolUsageType | 'identifier'>>
 	usage?: SymbolAdditionUsage
 }
 const contextualSymbols = new WeakMap<Symbol, Symbol>()
-const isotopeMatchers = new WeakMap<
-	SymbolIsotope,
-	{ patterns: string[]; match: (uri: string) => boolean }
->()
 
 type UsageOwner = SymbolGlobalData | SymbolIsotope
 interface PendingDocUsage {
@@ -64,7 +61,7 @@ export namespace Isotope {
 				|| 'source' in addition.data
 				|| 'overrideLevel' in addition.data)
 		const isReference = (addition.usage?.type ?? 'reference') === 'reference' && !hasMetadata
-		const existing = selectIsotope(symbol, doc.uri)
+		const existing = selectIsotope(symbol, doc.uri, util.resolveResourceLocation)
 			?? (isReference ? allIsotopes(symbol)[0] : undefined)
 		const source = addition.data?.source
 			?? (addition.usage?.fromDocDeclaration
@@ -151,7 +148,6 @@ export namespace Isotope {
 			}
 			const {
 				scope: _scope,
-				namespace: _namespace,
 				visibleWithin: _visibleWithin,
 				...metadata
 			} = addition.data ?? {}
@@ -206,7 +202,7 @@ export namespace Isotope {
 		const usageContainers = allUsageContainers(symbol)
 		const declarations = collectDocDeclarations(symbol, usageContainers)
 		const pending = collectDocUsages(symbol, usageContainers)
-		removeImplicitFileMetadata(symbol, declarations, pending)
+		removeImplicitFileMetadata(util, symbol, declarations, pending)
 		reassignDocUsages(util, symbol, declarations, pending)
 	}
 
@@ -278,6 +274,7 @@ export namespace Isotope {
 	}
 
 	function removeImplicitFileMetadata(
+		util: SymbolUtil,
 		symbol: Symbol,
 		declarations: GlobalSymbolIsotope[],
 		pending: PendingDocUsage[],
@@ -297,7 +294,10 @@ export namespace Isotope {
 			for (const { location } of pending) {
 				if (!location.fromFile && location.originalUsageType === 'definition') {
 					if (!selectedByUri.has(location.uri)) {
-						selectedByUri.set(location.uri, selectIsotope(symbol, location.uri))
+						selectedByUri.set(
+							location.uri,
+							selectIsotope(symbol, location.uri, util.resolveResourceLocation),
+						)
 					}
 					if (selectedByUri.get(location.uri)?.source !== SymbolIsotopeProvider.DocBlock) {
 						retainedIds.add(location.isotopeIdentifier)
@@ -345,7 +345,10 @@ export namespace Isotope {
 				targets = declarations
 			} else {
 				if (!selectedByUri.has(location.uri)) {
-					selectedByUri.set(location.uri, selectIsotope(symbol, location.uri))
+					selectedByUri.set(
+						location.uri,
+						selectIsotope(symbol, location.uri, util.resolveResourceLocation),
+					)
 				}
 				let selected = selectedByUri.get(location.uri)
 				if (!selected) {
@@ -494,6 +497,7 @@ export namespace Isotope {
 	export function selectIsotope(
 		symbol: Symbol,
 		uri: string | undefined,
+		resolve?: ResourceLocationResolver,
 	): GlobalSymbolIsotope | SymbolIsotope | undefined {
 		symbol = contextualSymbols.get(symbol) ?? symbol
 		const facets = symbol.facets
@@ -504,25 +508,22 @@ export namespace Isotope {
 		if (!uri || !restricted?.length) {
 			return facets?.internal?.isotopes[0] ?? facets?.global?.isotopes[0]
 		}
-		const namespace = uri && /\/(?:data|assets)\/([^/]+)\//.exec(uri)?.[1]
 		let selected: SymbolIsotope | undefined
+		let location: ResourceLocation | undefined
+		let resolved = false
 		for (const isotope of restricted) {
-			if (isotope.namespace?.length && !isotope.namespace.includes(namespace ?? '')) {
+			const visibility = isotope.visibleWithin
+			if (!visibility?.length) {
 				continue
 			}
-			const patterns = isotope.visibleWithin
-			if (!patterns?.length) {
-				continue
-			}
-			let cached = isotopeMatchers.get(isotope)
 			if (
-				!cached || cached.patterns.length !== patterns.length
-				|| patterns.some((pattern, index) => pattern !== cached!.patterns[index])
+				!resolved
+				&& visibility.some(rule => rule.namespace !== undefined || rule.path !== undefined)
 			) {
-				cached = { patterns: [...patterns], match: picomatch(patterns, { dot: true }) }
-				isotopeMatchers.set(isotope, cached)
+				location = resolve?.(uri)
+				resolved = true
 			}
-			if (!cached.match(uri)) {
+			if (!matchesVisibility(visibility, uri, location)) {
 				continue
 			}
 			if (
@@ -540,12 +541,13 @@ export namespace Isotope {
 	export function viewFromContext(
 		symbol: Symbol | undefined,
 		uri: string | undefined,
+		resolve?: ResourceLocationResolver,
 	): SymbolView | undefined {
 		if (!symbol) {
 			return undefined
 		}
 		symbol = contextualSymbols.get(symbol) ?? symbol
-		const isotope = selectIsotope(symbol, uri)
+		const isotope = selectIsotope(symbol, uri, resolve)
 		if (!isotope) {
 			return undefined
 		}
@@ -559,8 +561,12 @@ export namespace Isotope {
 	}
 
 	/** @returns `true` if the symbol is visible from the context of the given URI. */
-	export function isVisible(symbol: Symbol, uri: string | undefined): boolean {
-		return !!selectIsotope(symbol, uri)
+	export function isVisible(
+		symbol: Symbol,
+		uri: string | undefined,
+		resolve?: ResourceLocationResolver,
+	): boolean {
+		return !!selectIsotope(symbol, uri, resolve)
 	}
 
 	/** @returns `true` if the symbol is contributed by a file itself instead of its content. */
@@ -577,9 +583,13 @@ export namespace Isotope {
 	 * @param uri The URI of the file from which access is being checked.
 	 * @returns `true` if a file symbol is defined but cannot be accessed here
 	 */
-	export function hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
+	export function hasNoAccessToFileSymbol(
+		symbol: Symbol | undefined,
+		uri: string,
+		resolve?: ResourceLocationResolver,
+	): boolean {
 		// Visible symbols cannot violate access, regardless of how many usages they have.
-		return !!symbol && !isVisible(symbol, uri) && isFromFile(symbol)
+		return !!symbol && !isVisible(symbol, uri, resolve) && isFromFile(symbol)
 	}
 
 	/** Prune metadata affected by removed locations and reconcile remaining doc usages. */
@@ -594,18 +604,28 @@ export namespace Isotope {
 				continue
 			}
 			const previousCount = facet.isotopes.length
-			const retainedIds = new Set<string>()
+			const unusedIds = new Set(
+				facet.isotopes.filter(isotope => removedIds.has(isotope.identifier))
+					.map(isotope => isotope.identifier),
+			)
+			if (!unusedIds.size) {
+				continue
+			}
+			usages:
 			for (const type of SymbolUsageTypes) {
 				for (const location of facet[type] ?? []) {
 					if (location.isotopeIdentifier) {
-						retainedIds.add(location.isotopeIdentifier)
+						unusedIds.delete(location.isotopeIdentifier)
+						if (!unusedIds.size) {
+							break usages
+						}
 					}
 				}
 			}
-			facet.isotopes = facet.isotopes.filter(isotope =>
-				!removedIds.has(isotope.identifier)
-				|| retainedIds.has(isotope.identifier)
-			)
+			if (!unusedIds.size) {
+				continue
+			}
+			facet.isotopes = facet.isotopes.filter(isotope => !unusedIds.has(isotope.identifier))
 			needsReconciliation ||= previousCount !== facet.isotopes.length
 		}
 		if (symbol.facets?.isotopes) {
@@ -631,7 +651,7 @@ export namespace Isotope {
 		doc: TextDocument,
 		contributor: string | undefined,
 	): SymbolAdditionUsage | undefined {
-		const isotope = raw && Isotope.selectIsotope(raw, doc.uri)
+		const isotope = raw && Isotope.selectIsotope(raw, doc.uri, util.resolveResourceLocation)
 		const originalType = addition.usage?.type ?? 'reference'
 		const usage: SymbolAdditionUsage = { ...addition.usage, originalUsageType: originalType }
 		if (raw && isotope) {

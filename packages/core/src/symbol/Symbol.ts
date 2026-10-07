@@ -367,10 +367,10 @@ export const SymbolIsotopeScope = {
 	 * A local scoped isotope should not be record in the global symbol table.
 	 */
 	Local: -1,
-	/** Visible within certain glob */
+	/** Visible within this project with constraints; not exported. */
 	Private: 0,
-	/** Visible within a namespace */
-	Namespace: 1,
+	/** Visible with constraints; exported. */
+	Protected: 1,
 	...IsotopeScopesGlobal,
 } as const
 
@@ -448,14 +448,18 @@ export interface SymbolIsotope
 	 * The scope of this isotope. Smaller scopes always have higher priority over larger scopes.
 	 */
 	scope: IsotopeScope
-	/** The namespace which this isotope can be accessed in.
-	 * Only applicable if {@link scope} is namespace.
-	 */
-	namespace?: string[]
-	/**
-	 * The contexts in which this isotope is visible.
-	 */
-	visibleWithin?: string[]
+	/** Visibility rules. Entries are ORed together.*/
+	visibleWithin?: IsotopeVisibility[]
+}
+
+/** Visibility rules. Different checks are ANDed together within a single rule */
+export interface IsotopeVisibility {
+	/**  Glob pattern to check. An empty string matches nothing. */
+	glob?: string
+	/** Exact resource namespace. */
+	namespace?: string
+	/** path prefix, excluding namespace (e.g. "path/subdir/"). */
+	path?: string
 }
 
 /**
@@ -715,7 +719,7 @@ export namespace SymbolTable {
 				}
 				const isotopes = (symbol.facets?.isotopes ?? []).filter(isotope =>
 					isotope.source !== SymbolIsotopeProvider.Imported
-					&& isotope.scope === SymbolIsotopeScope.Namespace
+					&& isotope.scope === SymbolIsotopeScope.Protected
 				).map(isotope => ({
 					...isotope,
 					identifier: JSON.stringify([checksum, 'isotope', isotope.identifier]),

@@ -329,6 +329,7 @@ exports[`mcdoc __fixture__ > duplicated path with implicit use statement binding
       "locals": {
         "mcdoc": {
           "::client::Used": {
+            "isLocal": true,
             "category": "mcdoc",
             "identifier": "::client::Used",
             "path": [
@@ -341,61 +342,40 @@ exports[`mcdoc __fixture__ > duplicated path with implicit use statement binding
               ]
             },
             "subcategory": "use_statement_binding",
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///client.mcdoc",
-                      "contributor": "binder"
-                    },
-                    "data": {
-                      "target": [
-                        "used",
-                        "Used"
-                      ]
-                    }
+            "definition": [
+              {
+                "uri": "file:///client.mcdoc",
+                "range": {
+                  "start": 17,
+                  "end": 21
+                },
+                "posRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 17
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 21
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "file:///client.mcdoc",
-                    "range": {
-                      "start": 17,
-                      "end": 21
-                    },
-                    "posRange": {
-                      "start": {
-                        "line": 0,
-                        "character": 17
-                      },
-                      "end": {
-                        "line": 0,
-                        "character": 21
-                      }
-                    },
-                    "fullRange": {
-                      "start": 0,
-                      "end": 23
-                    },
-                    "fullPosRange": {
-                      "start": {
-                        "line": 0,
-                        "character": 0
-                      },
-                      "end": {
-                        "line": 2,
-                        "character": 0
-                      }
-                    },
-                    "contributor": "binder",
-                    "isotopeIdentifier": "regular"
+                },
+                "fullRange": {
+                  "start": 0,
+                  "end": 23
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 0
                   }
-                ]
+                },
+                "contributor": "binder"
               }
-            }
+            ]
           }
         }
       },
@@ -441,8 +421,7 @@ exports[`mcdoc __fixture__ > duplicated path with implicit use statement binding
                       "character": 0
                     }
                   },
-                  "contributor": "binder",
-                  "isotopeIdentifier": "regular"
+                  "contributor": "binder"
                 },
                 "message": "“::client::Used” is already declared here"
               }

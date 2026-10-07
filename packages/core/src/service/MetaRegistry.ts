@@ -1,4 +1,4 @@
-import type { Logger } from '../common/index.js'
+import type { Logger, ResourceLocation } from '../common/index.js'
 import { Lazy } from '../common/index.js'
 import type { AstNode } from '../node/index.js'
 import type { Parser } from '../parser/index.js'
@@ -23,6 +23,7 @@ import {
 import type { Linter } from '../processor/linter/Linter.js'
 import type { SignatureHelpProvider } from '../processor/SignatureHelpProvider.js'
 import type { UriPredicateContext } from '../service/index.js'
+import type { ContextBase } from './Context.js'
 import type { DependencyKey, DependencyProvider } from './Dependency.js'
 import type { FileExtension } from './fileUtil.js'
 import type { SymbolRegistrar } from './SymbolRegistrar.js'
@@ -320,4 +321,5 @@ export class MetaRegistry {
 	public get uriSorter(): UriSorter {
 		return this.#uriSorter
 	}
+	public resolveResourceLocation?: (uri: string, ctx: ContextBase) => ResourceLocation | undefined
 }

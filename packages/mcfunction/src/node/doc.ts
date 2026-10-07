@@ -13,12 +13,10 @@ export type DocAccess =
 				| typeof core.SymbolIsotopeScope.Global
 		}
 		| {
-			visibility: typeof core.SymbolIsotopeScope.Private
-			visibleWithin: string[]
-		}
-		| {
-			visibility: typeof core.SymbolIsotopeScope.Namespace
-			namespace: string
+			visibility:
+				| typeof core.SymbolIsotopeScope.Private
+				| typeof core.SymbolIsotopeScope.Protected
+			visibleWithin: core.IsotopeVisibility[]
 		}
 	)
 

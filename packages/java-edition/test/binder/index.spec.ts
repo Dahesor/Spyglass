@@ -2,7 +2,11 @@ import { UriBinderContext, VanillaConfig } from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { dissectUri, registerCustomResources } from '../../lib/binder/index.js'
+import {
+	dissectUri,
+	registerCustomResources,
+	registerResourceLocationResolver,
+} from '../../lib/binder/index.js'
 
 describe('dissectUri()', () => {
 	const suites: { uri: string; version?: `1.${number}` }[] = [
@@ -68,4 +72,68 @@ describe('dissectUri() with customResources', () => {
 			t.assert.snapshot(dissectUri(uri, ctx) ?? 'undefined')
 		})
 	}
+})
+
+describe('resource visibility resolver', () => {
+	it('uses canonical resource parsing, including nested types, escapes and custom directories', t => {
+		const project = mockProjectData({ ctx: { loadedVersion: '1.21' }, roots: ['file:///'] })
+		registerResourceLocationResolver(project.meta)
+		const ctx = UriBinderContext.create(project)
+		for (
+			const path of [
+				'function/folder/a.mcfunction',
+				'functions/folder/a.mcfunction',
+				'tags/function/folder/a.json',
+				'worldgen/biome/folder/a.json',
+				'tags/worldgen/biome/folder/a.json',
+				'function/fold%65r/a.mcfunction',
+			]
+		) {
+			t.assert.deepEqual(
+				project.meta.resolveResourceLocation!('file:///pack/data/demo/' + path, ctx),
+				{ namespace: 'demo', isTag: path.startsWith('tags/'), path: ['folder', 'a'] },
+			)
+		}
+		t.assert.deepEqual(
+			project.meta.resolveResourceLocation!('file:///pack/assets/demo/sounds.json', ctx),
+			{ namespace: 'demo', isTag: false, path: ['sounds'] },
+		)
+		const uri = 'file:///pack/data/demo/visibility_test/nested/folder/a.json'
+		t.assert.equal(project.meta.resolveResourceLocation!(uri, ctx), undefined)
+		registerCustomResources({
+			...VanillaConfig,
+			env: {
+				...VanillaConfig.env,
+				customResources: { 'visibility_test/nested': { category: 'test:visibility' } },
+			},
+		})
+		t.assert.deepEqual(project.meta.resolveResourceLocation!(uri, ctx), {
+			namespace: 'demo',
+			isTag: false,
+			path: ['folder', 'a'],
+		})
+		t.assert.equal(
+			project.meta.resolveResourceLocation!('file:///data/%oops/function/a.mcfunction', ctx),
+			undefined,
+		)
+	})
+	it('invalidates a cached result when the project version changes and isolates projects', t => {
+		const first = mockProjectData({ ctx: {}, roots: ['file:///'] })
+		const second = mockProjectData({ ctx: {}, roots: ['file:///'] })
+		registerResourceLocationResolver(first.meta)
+		registerResourceLocationResolver(second.meta)
+		const uri = 'file:///data/demo/function/folder/a.mcfunction'
+		const ctx = UriBinderContext.create(first)
+		t.assert.equal(first.meta.resolveResourceLocation!(uri, ctx), undefined)
+		first.ctx['loadedVersion'] = '1.21'
+		const resolved = first.meta.resolveResourceLocation!(uri, ctx)
+		t.assert.deepEqual(resolved, { namespace: 'demo', isTag: false, path: ['folder', 'a'] })
+		t.assert.equal(first.meta.resolveResourceLocation!(uri, ctx), resolved)
+		t.assert.equal(
+			second.meta.resolveResourceLocation!(uri, UriBinderContext.create(second)),
+			undefined,
+		)
+		const clone = first.symbols.clone()
+		t.assert.deepEqual(clone.resolveResourceLocation!(uri), resolved)
+	})
 })

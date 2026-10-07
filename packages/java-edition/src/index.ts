@@ -2,7 +2,12 @@ import * as core from '@spyglassmc/core'
 import * as json from '@spyglassmc/json'
 import * as mcdoc from '@spyglassmc/mcdoc'
 import * as nbt from '@spyglassmc/nbt'
-import { jeFileUriPredicate, registerUriBuilders, uriBinder } from './binder/index.js'
+import {
+	jeFileUriPredicate,
+	registerResourceLocationResolver,
+	registerUriBuilders,
+	uriBinder,
+} from './binder/index.js'
 import * as jeChecker from './checker/index.js'
 import type { McmetaSummary, PackInfo } from './dependency/index.js'
 import {
@@ -78,6 +83,7 @@ export const initialize: core.ProjectInitializer = async (ctx) => {
 		return packs
 	}
 
+	registerResourceLocationResolver(meta)
 	meta.registerUriBinder(uriBinder)
 	registerUriBuilders(meta)
 

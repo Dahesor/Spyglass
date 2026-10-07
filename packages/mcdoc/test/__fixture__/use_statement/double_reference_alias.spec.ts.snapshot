@@ -469,6 +469,7 @@ exports[`mcdoc __fixture__ > use statement/double reference alias 1`] = `
       "locals": {
         "mcdoc": {
           "::test::Used1": {
+            "isLocal": true,
             "category": "mcdoc",
             "identifier": "::test::Used1",
             "path": [
@@ -481,61 +482,40 @@ exports[`mcdoc __fixture__ > use statement/double reference alias 1`] = `
               ]
             },
             "subcategory": "use_statement_binding",
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///test.mcdoc",
-                      "contributor": "binder"
-                    },
-                    "data": {
-                      "target": [
-                        "test",
-                        "Used0"
-                      ]
-                    }
+            "definition": [
+              {
+                "uri": "file:///test.mcdoc",
+                "range": {
+                  "start": 37,
+                  "end": 42
+                },
+                "posRange": {
+                  "start": {
+                    "line": 1,
+                    "character": 21
+                  },
+                  "end": {
+                    "line": 1,
+                    "character": 26
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "file:///test.mcdoc",
-                    "range": {
-                      "start": 37,
-                      "end": 42
-                    },
-                    "posRange": {
-                      "start": {
-                        "line": 1,
-                        "character": 21
-                      },
-                      "end": {
-                        "line": 1,
-                        "character": 26
-                      }
-                    },
-                    "fullRange": {
-                      "start": 16,
-                      "end": 43
-                    },
-                    "fullPosRange": {
-                      "start": {
-                        "line": 1,
-                        "character": 0
-                      },
-                      "end": {
-                        "line": 2,
-                        "character": 0
-                      }
-                    },
-                    "contributor": "binder",
-                    "isotopeIdentifier": "regular"
+                },
+                "fullRange": {
+                  "start": 16,
+                  "end": 43
+                },
+                "fullPosRange": {
+                  "start": {
+                    "line": 1,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 0
                   }
-                ]
+                },
+                "contributor": "binder"
               }
-            }
+            ]
           },
           "::test::Used2": {
             "isLocal": true,

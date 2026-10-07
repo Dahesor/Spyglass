@@ -100,7 +100,7 @@ export class PrivateDocDirective extends AccessModifierDirective {
 		const escapedFolder = folder.replace(/[\\*?\[\]{}()!+@]/g, '\\$&')
 		return {
 			visibility: core.SymbolIsotopeScope.Private,
-			visibleWithin: [`${escapedFolder}**`],
+			visibleWithin: [{ glob: `${escapedFolder}**` }],
 		}
 	}
 }
@@ -128,7 +128,17 @@ export class ChatOnlyDocDirective extends DefaultDocDirective {
 
 export class ProtectedDocDirective extends AccessModifierDirective {
 	override readonly identifier = 'protected'
-	// TODO
+	override modifyAccess(
+		_directive: core.DeepReadonly<DocDirectiveNode>,
+		_node: DocNode,
+		ctx: core.BinderContext,
+	): DocAccess {
+		const namespace = ctx.meta.resolveResourceLocation?.(ctx.doc.uri, ctx)?.namespace
+		return {
+			visibility: core.SymbolIsotopeScope.Protected,
+			visibleWithin: namespace === undefined ? [] : [{ namespace }],
+		}
+	}
 }
 
 export class InternalDocDirective extends AccessModifierDirective {
@@ -238,7 +248,7 @@ export class ReturnsDocDirective extends DefaultDocDirective {
 		}
 		return {
 			desc: [
-				`returns: ${directive.arguments[0] ?? ''}`,
+				directive.arguments[0] ? `returns: ${directive.arguments[0]}` : 'returns:',
 				'',
 				...['result', 'success'].filter(key => values.has(key))
 					.map(key => '- ' + key + ': ' + values.get(key)),

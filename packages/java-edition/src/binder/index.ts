@@ -1,8 +1,10 @@
 import type {
 	CheckerContext,
 	Config,
+	ContextBase,
 	FileCategory,
 	MetaRegistry,
+	ResourceLocation,
 	RootUriString,
 	TaggableResourceLocationCategory,
 	UriBinder,
@@ -30,10 +32,12 @@ interface Resource {
 }
 
 const Resources = new Map<string, Resource[]>()
+let resourceRevision = 0
 
 function resource(path: string, resource: Partial<Resource> & { category: FileCategory }): void
 function resource(path: FileCategory, resource: Partial<Resource>): void
 function resource(path: string, resource: Partial<Resource> = {}) {
+	resourceRevision++
 	const previous = Resources.get(path) ?? []
 	Resources.set(path, [
 		...previous,
@@ -287,7 +291,7 @@ function getCandidateResourcesForRel(rel: string): ResourceInstance[] {
 	return candidateResources
 }
 
-export function dissectUri(uri: string, ctx: UriBinderContext) {
+export function dissectUri(uri: string, ctx: ContextBase) {
 	const rels = getRels(uri, ctx.roots)
 	const release = ctx.project['loadedVersion'] as ReleaseVersion | undefined
 	if (!release) {
@@ -328,9 +332,10 @@ export const uriBinder: UriBinder = (uris: readonly string[], ctx: UriBinderCont
 	for (const uri of uris) {
 		const parts = dissectUri(uri, ctx)
 		if (parts) {
-			ctx.symbols.query(uri, parts.category, `${parts.namespace}:${parts.identifier}`).enterFileDefinition({
-				usage: { type: 'definition' },
-			})
+			ctx.symbols.query(uri, parts.category, `${parts.namespace}:${parts.identifier}`)
+				.enterFileDefinition({
+					usage: { type: 'definition' },
+				})
 		}
 	}
 }
@@ -430,4 +435,44 @@ export function registerUriBuilders(meta: MetaRegistry) {
 export const jeFileUriPredicate: UriPredicate = (uri, ctx) => {
 	const rels = [...getRels(uri, ctx.roots)]
 	return rels.some((rel) => getCandidateResourcesForRel(rel).length > 0)
+}
+
+export function registerResourceLocationResolver(meta: MetaRegistry): void {
+	// Single Cache. Should be sufficient for most cases
+	// since users are likely to work on a single file at a time
+	let previousUri: string | undefined
+	let previousRoots: readonly RootUriString[] | undefined
+	let previousVersion: string | undefined
+	let previousRevision = -1
+	let previousProject: ContextBase['project'] | undefined
+	let location: ResourceLocation | undefined
+	meta.resolveResourceLocation = (uri, ctx) => {
+		const version = ctx.project['loadedVersion']
+		if (
+			uri !== previousUri || ctx.roots !== previousRoots || version !== previousVersion
+			|| ctx.project !== previousProject || resourceRevision !== previousRevision
+		) {
+			previousUri = uri
+			previousRoots = ctx.roots
+			previousVersion = version
+			previousProject = ctx.project
+			previousRevision = resourceRevision
+			location = undefined
+			try {
+				const parts = dissectUri(uri, ctx)
+				if (parts) {
+					location = Object.freeze({
+						namespace: parts.namespace,
+						path: Object.freeze(parts.identifier.split('/')),
+						isTag: parts.category.startsWith('tag/'),
+					})
+				}
+			} catch (error) {
+				if (!(error instanceof URIError)) {
+					throw error
+				}
+			}
+		}
+		return location
+	}
 }

@@ -26,6 +26,7 @@ import { ConfigService, LinterConfigValue } from './Config.js'
 import {
 	BinderContext,
 	CheckerContext,
+	ContextBase,
 	LinterContext,
 	ParserContext,
 	UriBinderContext,
@@ -375,7 +376,7 @@ export class Project extends EventDispatcher<{
 
 		this.cacheService = new CacheService(cacheRoot, this)
 		this.#configService = new ConfigService(this, defaultConfig)
-		this.symbols = new SymbolUtil({})
+		this.symbols = this.createSymbolUtil({})
 
 		this.#ctx = {}
 
@@ -481,7 +482,7 @@ export class Project extends EventDispatcher<{
 		const __profiler = this.profilers.get('project#init')
 
 		const { symbols } = await this.cacheService.load()
-		this.symbols = new SymbolUtil(symbols)
+		this.symbols = this.createSymbolUtil(symbols)
 		GlobalSymbol.buildCache(this.symbols)
 		__profiler.task('Load Cache')
 
@@ -659,7 +660,7 @@ export class Project extends EventDispatcher<{
 				if (previous !== undefined) {
 					obsoleteProviders.add(previous)
 				}
-				this.#dependencyImports.set(root, { checksum, symbols: new SymbolUtil({}) })
+				this.#dependencyImports.set(root, { checksum, symbols: this.createSymbolUtil({}) })
 			}
 		}
 		for (const checksum of previousImports.values()) {
@@ -805,7 +806,7 @@ export class Project extends EventDispatcher<{
 
 		// Reset cache.
 		const { symbols } = this.cacheService.reset()
-		this.symbols = new SymbolUtil(symbols)
+		this.symbols = this.createSymbolUtil(symbols)
 		GlobalSymbol.buildCache(this.symbols)
 
 		return this.restart()
@@ -935,7 +936,7 @@ export class Project extends EventDispatcher<{
 		if (node.binderErrors) {
 			return
 		}
-		const symbols = new SymbolUtil({
+		const symbols = this.createSymbolUtil({
 			mcdoc: this.symbols.global.mcdoc ?? {},
 			'mcdoc/dispatcher': this.symbols.global['mcdoc/dispatcher'] ?? {},
 		})
@@ -985,7 +986,7 @@ export class Project extends EventDispatcher<{
 			this.updateRoots()
 			return
 		}
-		const symbols = new SymbolUtil({})
+		const symbols = this.createSymbolUtil({})
 		this.#dependencyImports.set(root, { checksum, symbols })
 		const activeRoot = this.#activeDependencyRoot
 		this.#activeDependencyRoot = root
@@ -1422,5 +1423,15 @@ export class Project extends EventDispatcher<{
 
 	public async onEditorConfigurationUpdate(editorConfiguration: PartialConfig) {
 		await this.#configService.onEditorConfigurationUpdate(editorConfiguration)
+	}
+
+	private createSymbolUtil(table: SymbolTable): SymbolUtil {
+		let context: ContextBase | undefined
+		return new SymbolUtil(table, undefined, false, uri => {
+			if (!context || context.roots !== this.roots || context.project !== this.ctx) {
+				context = ContextBase.create(this)
+			}
+			return this.meta.resolveResourceLocation?.(uri, context)
+		})
 	}
 }

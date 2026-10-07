@@ -1,9 +1,39 @@
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import type { AstNode } from '../../lib/index.js'
-import { GlobalSymbol, LocalSymbol, Range, SymbolTable, SymbolUtil } from '../../lib/index.js'
+import {
+	GlobalSymbol,
+	LocalSymbol,
+	Range,
+	StateProxy,
+	SymbolTable,
+	SymbolUtil,
+} from '../../lib/index.js'
 
 describe('GlobalSymbol', () => {
+	it('recognizes local tables and newly created maps through different state proxies', t => {
+		const util = new SymbolUtil({})
+		const doc = TextDocument.create('file:///test.mcfunction', 'mcfunction', 0, '')
+		const node: AstNode = { type: 'file', range: Range.create(0) }
+		LocalSymbol.initialize(node)
+		const proxy = StateProxy.create(node)
+		LocalSymbol.queryForScope(util, { doc, node: proxy }, 1, 'function', 'demo:test').enter({
+			data: { data: { target: 'demo:target' } },
+			usage: { type: 'declaration' },
+		})
+		const secondProxy = StateProxy.create(node)
+		t.assert.equal(LocalSymbol.isTable(secondProxy.locals!), true)
+		t.assert.equal(LocalSymbol.isMap(secondProxy.locals!.function), true)
+		util.query({ doc, node: secondProxy }, 'function', 'demo:test').enterCommand({
+			usage: { type: 'reference' },
+		})
+		const symbol = node.locals!.function!['demo:test']
+		t.assert.equal(LocalSymbol.is(symbol), true)
+		t.assert.equal(symbol.facets, undefined)
+		t.assert.deepEqual(symbol.data, { target: 'demo:target' })
+		t.assert.equal(SymbolUtil.viewFromContext(symbol, doc.uri)?.reference?.length, 1)
+		t.assert.equal(util.global.function, undefined)
+	})
 	it('visits each location once when clearing a symbol shared across files and contributors', t => {
 		const util = new SymbolUtil({})
 		for (const contributor of ['binder', 'checker']) {
@@ -14,7 +44,12 @@ describe('GlobalSymbol', () => {
 			})
 		}
 		let visits = 0
-		GlobalSymbol.clear(util, { predicate: () => { visits++; return false } })
+		GlobalSymbol.clear(util, {
+			predicate: () => {
+				visits++
+				return false
+			},
+		})
 		t.assert.equal(visits, 4)
 		t.assert.equal(util.global['test']!['shared'].facets!.global!.reference!.length, 4)
 	})
