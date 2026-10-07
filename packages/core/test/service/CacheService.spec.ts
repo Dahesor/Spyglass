@@ -6,6 +6,33 @@ import { ConfigService, fileUtil, getSha1, Logger, Project, VanillaConfig } from
 import { getNodeJsExternals } from '../../lib/nodejs.js'
 import { LatestCacheVersion } from '../../lib/service/CacheService.js'
 
+it('reuses hashes only within the supplied validation pass', async t => {
+	const { fs } = memfs({ '/root/spyglass.json': '{}' }, '/')
+	const logger = Logger.noop()
+	const externals = getNodeJsExternals({
+		cacheRoot: 'file:///cache/', logger, nodeFsp: fs.promises as unknown as typeof fsp,
+	})
+	const project = new Project({
+		cacheRoot: 'file:///cache/', projectRoots: ['file:///root/'], externals, logger,
+		defaultConfig: ConfigService.merge(VanillaConfig, { env: { dependencies: [] } }),
+	})
+	try {
+		await project.init()
+		await project.ready()
+		const uri = 'file:///root/spyglass.json'
+		project.cacheService.checksums.files = { [uri]: 'original' }
+		const hash = t.mock.method(project.fs, 'hash', async () => 'edited')
+		const cached = await project.cacheService.validate(new Map([[uri, 'original']]))
+		t.assert.deepEqual(cached.unchangedFiles, [uri])
+		t.assert.equal(hash.mock.callCount(), 0)
+		const refreshed = await project.cacheService.validate()
+		t.assert.deepEqual(refreshed.changedFiles, [uri])
+		t.assert.equal(hash.mock.callCount(), 1)
+	} finally {
+		await project.close()
+	}
+})
+
 for (const [name, version, imports] of [
 	['legacy cache without imports', 8, undefined],
 ] as const) {

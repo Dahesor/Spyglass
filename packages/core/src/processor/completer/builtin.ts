@@ -175,6 +175,16 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 	const includeDefaultNamespace = node.options.requireCanonical || config?.ruleValue !== true
 	const excludeDefaultNamespace = !node.options.requireCanonical && config?.ruleValue !== false
 	const descriptions = new Map<string, string | undefined>()
+	let thisKey: string | undefined
+	let scannedCategory = false
+	const findThis = (key: string, symbol: SymbolView | undefined) => {
+		if (
+			thisKey === undefined
+			&& (symbol?.declaration?.[0] ?? symbol?.definition?.[0])?.uri === ctx.doc.uri
+		) {
+			thisKey = key
+		}
+	}
 
 	const getPool = (category: string) => {
 		const symbols = ctx.symbols.getScopedSymbols(category, {
@@ -182,8 +192,12 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 			node: node as ResourceLocationNode,
 		})
 		const declarations: string[] = []
+		scannedCategory ||= category === node.options.category
 		for (const [key, raw] of Object.entries(symbols)) {
 			const symbol = SymbolUtil.viewFromContext(raw, ctx.doc.uri)
+			if (category === node.options.category) {
+				findThis(key, symbol)
+			}
 			if (symbol && SymbolUtil.isDeclared(symbol)) {
 				declarations.push(key)
 				for (const label of optimizePool([key])) {
@@ -257,27 +271,26 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 		})
 	})
 
-	if (node.options.category) {
+	if (node.options.category && !scannedCategory) {
 		const symbols = ctx.symbols.getScopedSymbols(node.options.category, {
 			doc: ctx.doc,
 			node: node as ResourceLocationNode,
 		})
-		const thisKey = Object.entries(symbols).flatMap(([key, raw]) => {
-			const symbol = SymbolUtil.viewFromContext(raw, ctx.doc.uri)
-			if ((symbol?.declaration?.[0] ?? symbol?.definition?.[0])?.uri === ctx.doc.uri) {
-				return [key]
+		for (const [key, raw] of Object.entries(symbols)) {
+			findThis(key, SymbolUtil.viewFromContext(raw, ctx.doc.uri))
+			if (thisKey !== undefined) {
+				break
 			}
-			return []
-		})
-		if (thisKey.length > 0) {
-			items.push(
-				CompletionItem.create('THIS', node, {
-					kind: CompletionKind.Snippet,
-					insertText: thisKey[0],
-					detail: thisKey[0],
-				}),
-			)
 		}
+	}
+	if (thisKey !== undefined) {
+		items.push(
+			CompletionItem.create('THIS', node, {
+				kind: CompletionKind.Snippet,
+				insertText: thisKey,
+				detail: thisKey,
+			}),
+		)
 	}
 
 	return items

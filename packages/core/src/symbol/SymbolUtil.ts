@@ -198,7 +198,7 @@ export class SymbolUtil extends EventDispatcher<{
 		doc: LocalSymbolContext,
 		path: readonly string[] = [],
 	): SymbolMap {
-		const symbols = { ...GlobalSymbol.query(this, doc.doc, category, ...path).visibleMembers }
+		const symbols = GlobalSymbol.query(this, doc.doc, category, ...path).visibleMembers
 		for (const table of [...LocalSymbol.getLocalsToRoot(doc.node)].reverse()) {
 			const result = SymbolUtil.lookupTable(table, category, path)
 			Object.assign(symbols, path.length ? result.symbol?.members : table[category])
@@ -354,9 +354,6 @@ export class SymbolUtil extends EventDispatcher<{
 				doc,
 				contributor,
 			)
-		}
-		if (addition.usage?.fromDocDeclaration && !LocalSymbol.is(ans)) {
-			Isotope.reconcileDocUsages(this, ans)
 		}
 		this.emit('symbolAmended', { symbol: ans })
 		return ans
@@ -606,7 +603,9 @@ export class SymbolUtil extends EventDispatcher<{
 		if (Isotope.isContextualView(symbol as Symbol)) {
 			return symbol as SymbolView
 		}
-		return Isotope.viewFromContext(symbol as Symbol, undefined) ?? {}
+		const raw = symbol as Symbol
+		const isotope = Isotope.selectIsotope(raw, undefined)
+		return isotope ? Isotope.ownerOf(raw, isotope) : {}
 	}
 
 	/**

@@ -620,11 +620,17 @@ export class Project extends EventDispatcher<{
 		const obsoleteProviders = new Set<string>()
 		this.#dependencyImports.clear()
 		this.#dependencyChecksums.clear()
+		// Reuse these hashes during cache validation.
+		const dependencyHashes = new Map<string, string>()
 		const packages = await Promise.all([...this.#dependencyRoots].map(async root => {
 			const files = [...this.#dependencyFiles!].filter(uri => fileUtil.isSubUriOf(uri, root))
 				.sort()
 			const hashes = await Promise.all(
-				files.map(async uri => [uri.slice(root.length), await this.fs.hash(uri)]),
+				files.map(async uri => {
+					const hash = await this.fs.hash(uri)
+					dependencyHashes.set(uri, hash)
+					return [uri.slice(root.length), hash]
+				}),
 			)
 			return { root, files, checksum: await getSha1(JSON.stringify(hashes)) }
 		}))
@@ -681,7 +687,9 @@ export class Project extends EventDispatcher<{
 		}
 		__profiler.task('Pop Errors')
 
-		const { addedFiles, changedFiles, removedFiles } = await this.cacheService.validate()
+		const { addedFiles, changedFiles, removedFiles } = await this.cacheService.validate(
+			dependencyHashes,
+		)
 		this.logger.info(
 			`[Project#ready] Files added/changed/removed: ${addedFiles.length}/${changedFiles.length}/${removedFiles.length}`,
 		)

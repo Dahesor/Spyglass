@@ -334,16 +334,16 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	}
 	// Resolve the access policy before binding the target.
 	node.access = undefined
-	const accessModifierSeen: string[] = []
+	const accessModifierSeen = new Set<string>()
 	for (const occurrence of node.docDirectives) {
 		const docDirective = getDocDirective(ctx.meta, docTarget, occurrence.identifier)
 		if (
 			!occurrence.valid || !docDirective
-			|| (!docDirective.allowDuplicates && accessModifierSeen.includes(docDirective.identifier))
+			|| (!docDirective.allowDuplicates && accessModifierSeen.has(docDirective.identifier))
 		) {
 			continue
 		}
-		accessModifierSeen.push(docDirective.identifier)
+		accessModifierSeen.add(docDirective.identifier)
 		if (docDirective.isAccessModifier) {
 			const access = docDirective.modifyAccess(occurrence, node, ctx)
 			if (access) {
@@ -354,7 +354,7 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	for (const occurrence of node.docDirectives) {
 		core.binder.fallbackSync(occurrence, ctx)
 	}
-	const seenDirectives: string[] = []
+	const seenDirectives = new Set<string>()
 	const descriptions: string[] = []
 	for (const occurrence of node.docDirectives) {
 		if (occurrence.valid) {
@@ -441,7 +441,7 @@ function handleDocDirective(
 	target: DocTargets,
 	node: DocNode,
 	ctx: core.BinderContext,
-	seenDirectives: string[],
+	seenDirectives: Set<string>,
 	caller?: core.DeepReadonly<DocDirectiveNode>,
 ): DocDirectiveReturn | undefined {
 	const identifier = occurrence.identifier
@@ -467,7 +467,7 @@ function handleDocDirective(
 		)
 		return undefined
 	}
-	if (!directive.allowDuplicates && seenDirectives.includes(identifier)) {
+	if (!directive.allowDuplicates && seenDirectives.has(identifier)) {
 		ctx.err.report(
 			localize('mcfunction.doc.directive.diagnostic.duplicate', localeQuote(identifier)),
 			occurrence.identifierRange,
@@ -475,13 +475,14 @@ function handleDocDirective(
 		)
 		return undefined
 	}
-	seenDirectives.push(identifier)
-	const seenChildren: string[] = []
+	seenDirectives.add(identifier)
+	const seenChildren = new Set<string>()
+	const children = new Set(occurrence.docDirectives)
 	const handled = new Set<core.DeepReadonly<DocDirectiveNode>>()
 	return directive.handleDirective(occurrence, node, ctx, {
 		caller,
 		handleDirective: child => {
-			if (!occurrence.docDirectives.includes(child) || !child.valid || handled.has(child)) {
+			if (!children.has(child) || !child.valid || handled.has(child)) {
 				return undefined
 			}
 			handled.add(child)

@@ -745,14 +745,28 @@ export namespace SymbolTable {
 				}
 			}
 		}
-		// Shared mcdoc tables can be large and are never part of these exports.
-		const exported = unlink(
-			Object.fromEntries(
-				Object.entries(table).filter(([category]) =>
-					category !== 'mcdoc' && category !== 'mcdoc/dispatcher'
-				),
-			),
-		)
+		// To avoid copying all data, even private ones
+		// We can first make a lightweight copy that shares some data with the original one
+		// since filter() makes sure that the original data is not modified.
+		const projectMap = (map: SymbolMap): UnlinkedSymbolMap => {
+			const result: UnlinkedSymbolMap = {}
+			for (const [name, symbol] of Object.entries(map)) {
+				result[name] = {
+					subcategory: symbol.subcategory,
+					relations: symbol.relations,
+					facets: symbol.facets,
+					...(symbol.members ? { members: projectMap(symbol.members) } : {}),
+				}
+			}
+			return result
+		}
+		const exported: UnlinkedSymbolTable = {}
+		for (const [category, map] of Object.entries(table)) {
+			// Shared mcdoc tables can be large and are never part of these exports.
+			if (map && category !== 'mcdoc' && category !== 'mcdoc/dispatcher') {
+				exported[category] = projectMap(map)
+			}
+		}
 		for (const map of Object.values(exported)) {
 			if (map) {
 				filter(map)

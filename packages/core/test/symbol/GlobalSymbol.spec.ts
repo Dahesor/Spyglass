@@ -1,9 +1,32 @@
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import type { AstNode } from '../../lib/index.js'
-import { GlobalSymbol, LocalSymbol, Range, SymbolUtil } from '../../lib/index.js'
+import { GlobalSymbol, LocalSymbol, Range, SymbolTable, SymbolUtil } from '../../lib/index.js'
 
 describe('GlobalSymbol', () => {
+	it('visits each location once when clearing a symbol shared across files and contributors', t => {
+		const util = new SymbolUtil({})
+		for (const contributor of ['binder', 'checker']) {
+			util.contributeAs(contributor, () => {
+				for (const uri of ['file:///first', 'file:///second']) {
+					util.query(uri, 'test', 'shared').enter({ usage: { type: 'reference' } })
+				}
+			})
+		}
+		let visits = 0
+		GlobalSymbol.clear(util, { predicate: () => { visits++; return false } })
+		t.assert.equal(visits, 4)
+		t.assert.equal(util.global['test']!['shared'].facets!.global!.reference!.length, 4)
+	})
+	it('preserves unrelated usage arrays when removing a dependency', t => {
+		const util = new SymbolUtil(SymbolTable.link({ test: { empty: {} } }))
+		util.query('file:///local', 'test', 'local').enter({ usage: { type: 'definition' } })
+		const facet = util.global['test']!['local'].facets!.global!
+		const definitions = facet.definition
+		GlobalSymbol.removeDependencySymbols(util, 'other-package')
+		t.assert.equal(facet.definition, definitions)
+		t.assert.equal(util.global['test']!['empty'], undefined)
+	})
 	it('does not revisit live trim candidates on subsequent unrelated clears', t => {
 		const util = new SymbolUtil({})
 		util.contributeAs('binder', () => {
