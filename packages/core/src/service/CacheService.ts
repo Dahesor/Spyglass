@@ -178,7 +178,7 @@ export class CacheService {
 		return ans
 	}
 
-	async validate(): Promise<ValidateResult> {
+	async validate(fileHashes: ReadonlyMap<string, string> = new Map()): Promise<ValidateResult> {
 		const ans: ValidateResult = {
 			addedFiles: [],
 			changedFiles: [],
@@ -189,7 +189,7 @@ export class CacheService {
 		const unchangedRoots: string[] = []
 		for (const [uri, checksum] of Object.entries(this.checksums.roots)) {
 			try {
-				const hash = await this.project.fs.hash(uri)
+				const hash = fileHashes.get(uri) ?? await this.project.fs.hash(uri)
 				if (hash === checksum) {
 					unchangedRoots.push(uri)
 				}
@@ -212,7 +212,7 @@ export class CacheService {
 			}
 
 			try {
-				const hash = await this.project.fs.hash(uri)
+				const hash = fileHashes.get(uri) ?? await this.project.fs.hash(uri)
 				if (hash === checksum) {
 					ans.unchangedFiles.push(uri)
 				} else {

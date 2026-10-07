@@ -12,19 +12,17 @@ export const doc: core.Colorizer<DocNode> = (node, ctx) => {
 		node.range,
 		'comment',
 	)
-	const headings = [
+	const headings = new Map([
 		...(!node.isImplicitFunction ? [node.directive.range] : []),
 		...node.docDirectives.filter(directive => directive.isInline)
 			.map(directive => directive.identifierRange),
-	]
+	].map(range => [range.start, range.end]))
 	return tokens.map(token => ({
 		...token,
 		modifiers: [
 			...(token.modifiers ?? []),
 			'documentation',
-			...(headings.some(range =>
-					range.start === token.range.start && range.end === token.range.end
-				)
+			...(headings.get(token.range.start) === token.range.end
 				? ['declaration' as const]
 				: []),
 		],

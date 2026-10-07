@@ -139,12 +139,7 @@ export function documentSymbolsFromSymbols(
 	return symbols.map((s) =>
 		[
 			s,
-			core.SymbolUtil.allUsageContainers(s).flatMap(owner => [
-				...(owner.declaration ?? []),
-				...(owner.definition ?? []),
-				...(owner.implementation ?? []),
-				...(owner.typeDefinition ?? []),
-			]).find((l) => l.uri === doc.uri),
+			firstSymbolLocation(s, doc.uri),
 		] as const
 	).filter(([s, l]) => !!l && s.identifier).map(([s, l]) =>
 		documentSymbol(s, l!, doc, hierarchicalSupport, supportedKinds)
@@ -392,6 +387,22 @@ export function symbolInformation(
 	}
 }
 
+function firstSymbolLocation(symbol: core.Symbol, uri?: string): core.SymbolLocation | undefined {
+	for (const owner of core.SymbolUtil.allUsageContainers(symbol)) {
+		for (
+			const type of ['declaration', 'definition', 'implementation', 'typeDefinition'] as const
+		) {
+			const location = uri === undefined
+				? owner[type]?.[0]
+				: owner[type]?.find(l => l.uri === uri)
+			if (location) {
+				return location
+			}
+		}
+	}
+	return undefined
+}
+
 export function symbolInformationArray(
 	map: core.SymbolMap = {},
 	query: string,
@@ -400,14 +411,9 @@ export function symbolInformationArray(
 	return Object.values(map).filter((s) => s.identifier.includes(query)).map((s) =>
 		[
 			s,
-			core.SymbolUtil.allUsageContainers(s).flatMap(owner => [
-				...(owner.declaration ?? []),
-				...(owner.definition ?? []),
-				...(owner.implementation ?? []),
-				...(owner.typeDefinition ?? []),
-			])[0],
+			firstSymbolLocation(s),
 		] as const
-	).filter(([_s, l]) => !!l).map(([s, l]) => symbolInformation(s, l, supportedKinds))
+	).filter(([_s, l]) => !!l).map(([s, l]) => symbolInformation(s, l!, supportedKinds))
 }
 
 export function symbolInformationArrayFromTable(

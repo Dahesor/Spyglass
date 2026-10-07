@@ -380,7 +380,7 @@ export class TypeDocDirective extends DefaultDocDirective {
 			input.innerCursor = start
 			const err = new core.ErrorReporter(ctx.err.source)
 			const node = parser(input, { ...ctx, err })
-			return { input, err, node }
+			return { input, err, node, end }
 		}
 		let result = parse(ends.at(-1)!)
 		if (result.err.errors.length) {
@@ -395,7 +395,9 @@ export class TypeDocDirective extends DefaultDocDirective {
 		const consumed = text.slice(start, result.input.innerCursor).trimEnd()
 		const end = Math.max(ends[0], start + consumed.length)
 		src.innerCursor = ends.find(lineEnd => lineEnd >= end) ?? end
-		result = parse(src.innerCursor)
+		if (result.end !== src.innerCursor) {
+			result = parse(src.innerCursor)
+		}
 		if (result.input.skipSpace().canReadInLine()) {
 			const trailing = core.Range.create(result.input.cursor, src)
 			result.err.report(
