@@ -79,6 +79,13 @@
     "mcfunction"
   ],
   "contributes": {
+    "keybindings": [
+      {
+        "key": "enter",
+        "command": "spyglassmc.docBlockEnter",
+        "when": "editorTextFocus && editorLangId == mcfunction && !editorReadonly && !suggestWidgetVisible && !inSnippetMode && !editorHasMultipleSelections && !editorHasSelection"
+      }
+    ],
     "jsonValidation": [
       {
         "fileMatch": [
