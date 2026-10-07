@@ -32,6 +32,21 @@ function declarePrivate(symbols: SymbolUtil) {
 }
 
 describe('dependency symbol exports', () => {
+	it('deeply isolates exported metadata, members and locations from the source', t => {
+		const source = new SymbolUtil({})
+		const query = source.query('file:///dependency/doc', 'function', 'parent')
+		query.enter({ data: { data: { nested: ['original'] } }, usage: { type: 'definition' } })
+		query.member('child', member => member.enter({ usage: { type: 'definition' } }))
+		const before = SymbolTable.serialize(source.global)
+		const exported = SymbolTable.getDependencyExports(source.global, 'package')
+		const parent = exported.function!['parent']
+		const facet = parent.facets!.global!
+		;(facet.isotopes[0].data as { nested: string[] }).nested.push('changed')
+		facet.definition![0].uri = 'file:///changed'
+		parent.members!['child'].facets!.global!.definition![0].uri = 'file:///changed-child'
+		t.assert.equal(parent.members!['child'].parentSymbol, parent)
+		t.assert.equal(SymbolTable.serialize(source.global), before)
+	})
 	it('does not relocate imported command definitions into a local private doc', t => {
 		const source = new SymbolUtil({})
 		source.query('file:///dependency/command.mcfunction', 'function', 'shared').enterCommand({

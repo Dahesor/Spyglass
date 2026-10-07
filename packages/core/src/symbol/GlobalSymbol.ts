@@ -125,15 +125,21 @@ export namespace GlobalSymbol {
 					return Object.values(state.cache)
 				}
 			}
-			const getPaths = (): SymbolPath[] => {
+			const getPaths = (): Set<string> => {
 				const caches = getCaches()
-				const sets: Set<string>[] = uri
-					? caches.map((cache) => cache[uri] ?? new Set())
-					: caches.map((cache) => Object.values(cache)).flat()
-				return sets.map((s) => [...s]).flat().map(SymbolPath.fromString)
+				const paths = new Set<string>()
+				for (const cache of caches) {
+					for (const set of uri ? [cache[uri]] : Object.values(cache)) {
+						for (const path of set ?? []) {
+							paths.add(path)
+						}
+					}
+				}
+				return paths
 			}
 			const paths = getPaths()
-			for (const path of paths) {
+			for (const key of paths) {
+				const path = SymbolPath.fromString(key)
 				const { symbol } = lookup(util, path.category, path.path)
 				if (!symbol) {
 					continue
@@ -308,6 +314,12 @@ export namespace GlobalSymbol {
 					&& isotope.providerName === checksum
 				).map(isotope => isotope.identifier),
 			)
+			if (!removed.size) {
+				if (SymbolUtil.isTrimmable(symbol)) {
+					state.trimmableSymbols.add(SymbolPath.toString(symbol))
+				}
+				return
+			}
 			for (const owner of Isotope.allUsageContainers(symbol)) {
 				for (const type of SymbolUsageTypes) {
 					owner[type] = owner[type]?.filter(location => {
