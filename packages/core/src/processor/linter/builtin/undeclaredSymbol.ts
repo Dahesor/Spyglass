@@ -12,8 +12,13 @@ import type { Linter } from '../Linter.js'
 export const undeclaredSymbol: Linter<AstNode> = (node, ctx) => {
 	if (
 		!node.symbol
-		|| SymbolUtil.hasNoAccessToFileSymbol(ctx.symbols.resolveAlias(node.symbol), ctx.doc.uri)
-		|| SymbolUtil.isDeclared(SymbolUtil.viewFromContext(node.symbol, ctx.doc.uri))
+		|| ctx.symbols.hasNoAccessToFileSymbol(
+			ctx.symbols.resolveAlias(node.symbol),
+			ctx.doc.uri,
+		)
+		|| SymbolUtil.isDeclared(
+			ctx.symbols.viewFromContext(node.symbol, ctx.doc.uri),
+		)
 	) {
 		return
 	}

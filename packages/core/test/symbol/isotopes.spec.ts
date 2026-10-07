@@ -9,6 +9,7 @@ import {
 } from '@spyglassmc/core'
 import type { IsotopeScope, SymbolLocation } from '@spyglassmc/core'
 import { describe, it } from 'node:test'
+import { mockResourceLocation } from '../utils.ts'
 
 const uri = 'file:///pack/data/demo/function/test.mcfunction'
 const outside = 'file:///pack/data/other/function/test.mcfunction'
@@ -19,7 +20,7 @@ function add(util: SymbolUtil, identifier: string, scope: IsotopeScope, override
 			scope,
 			desc: identifier,
 			overrideLevel,
-			...(scope < Scope.Project ? { visibleWithin: ['**/demo/**'] } : {}),
+			...(scope < Scope.Project ? { visibleWithin: [{ glob: '**/demo/**' }] } : {}),
 		},
 		usage: { type: 'declaration' },
 	})
@@ -27,6 +28,56 @@ function add(util: SymbolUtil, identifier: string, scope: IsotopeScope, override
 }
 
 describe('symbol facets', () => {
+	it('stops cleanup after finding surviving usages for the affected metadata', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'global', Scope.Global)
+		add(util, 'internal', Scope.Project)
+		const facet = symbol.facets!.global!
+		let visited = 0
+		facet.reference = [{
+			uri,
+			get isotopeIdentifier() {
+				visited++
+				return 'global'
+			},
+		}]
+		// The declaration already proves that each isotope survives. Neither the
+		// remaining references nor unaffected facets need a scan.
+		Isotope.cleanupAfterLocationRemoval(util, symbol, new Set(['global', 'internal']), false)
+		t.assert.equal(visited, 0)
+		t.assert.deepEqual(facet.isotopes.map(isotope => isotope.identifier), ['global'])
+		t.assert.deepEqual(symbol.facets!.internal!.isotopes.map(isotope => isotope.identifier), [
+			'internal',
+		])
+		facet.declaration = []
+		Isotope.cleanupAfterLocationRemoval(util, symbol, new Set(['internal']), false)
+		t.assert.equal(visited, 0)
+		Isotope.cleanupAfterLocationRemoval(util, symbol, new Set(['global']), false)
+		t.assert.equal(visited > 0, true)
+		t.assert.equal(facet.isotopes.length, 1)
+	})
+	it('removes only affected metadata without surviving usages across shared facets', t => {
+		const util = new SymbolUtil({})
+		const symbol = add(util, 'surviving', Scope.Global)
+		add(util, 'removed', Scope.Global)
+		add(util, 'internal', Scope.Project)
+		add(util, 'untouched', Scope.Project)
+		symbol.facets!.global!.declaration = symbol.facets!.global!.declaration!
+			.filter(location => location.isotopeIdentifier === 'surviving')
+		symbol.facets!.internal!.declaration = []
+		Isotope.cleanupAfterLocationRemoval(
+			util,
+			symbol,
+			new Set(['surviving', 'removed', 'internal']),
+			false,
+		)
+		t.assert.deepEqual(symbol.facets!.global!.isotopes.map(isotope => isotope.identifier), [
+			'surviving',
+		])
+		t.assert.deepEqual(symbol.facets!.internal!.isotopes.map(isotope => isotope.identifier), [
+			'untouched',
+		])
+	})
 	it('only sorts metadata when its priority changes, not when adding usages', t => {
 		const util = new SymbolUtil({})
 		const symbol = add(util, 'first', Scope.Global, 1)
@@ -177,7 +228,7 @@ describe('symbol facets', () => {
 	})
 	it('prefers scope before override level, and keeps the first equal scoped priority', t => {
 		const util = new SymbolUtil({})
-		add(util, 'namespace', Scope.Namespace, 100)
+		add(util, 'namespace', Scope.Protected, 100)
 		add(util, 'private', Scope.Private, 1)
 		const symbol = add(util, 'tie', Scope.Private, 1)
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'private')
@@ -190,20 +241,20 @@ describe('symbol facets', () => {
 		const symbol = add(util, 'private', Scope.Private)
 		const isotope = symbol.facets!.isotopes![0]
 		t.assert.equal(Isotope.selectIsotope(symbol, uri), isotope)
-		isotope.visibleWithin = ['**/other/**']
+		isotope.visibleWithin = [{ glob: '**/other/**' }]
 		t.assert.equal(Isotope.selectIsotope(symbol, uri), undefined)
-		isotope.visibleWithin[0] = '**/demo/**'
+		isotope.visibleWithin[0].glob = '**/demo/**'
 		t.assert.equal(Isotope.selectIsotope(symbol, uri), isotope)
 		isotope.visibleWithin.length = 0
 		t.assert.equal(Isotope.selectIsotope(symbol, uri), undefined)
 	})
 	it('checks namespace in addition to matching globs', t => {
 		const util = new SymbolUtil({})
-		const symbol = add(util, 'namespace', Scope.Namespace)
-		symbol.facets!.isotopes![0].namespace = ['other']
-		t.assert.equal(Isotope.selectIsotope(symbol, uri), undefined)
-		symbol.facets!.isotopes![0].namespace = ['demo']
-		t.assert.notEqual(Isotope.selectIsotope(symbol, uri), undefined)
+		const symbol = add(util, 'namespace', Scope.Protected)
+		symbol.facets!.isotopes![0].visibleWithin![0].namespace = 'other'
+		t.assert.equal(Isotope.selectIsotope(symbol, uri, mockResourceLocation), undefined)
+		symbol.facets!.isotopes![0].visibleWithin![0].namespace = 'demo'
+		t.assert.notEqual(Isotope.selectIsotope(symbol, uri, mockResourceLocation), undefined)
 	})
 	it('records inaccessible references without creating a public facet', t => {
 		const util = new SymbolUtil({})

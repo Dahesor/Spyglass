@@ -1,11 +1,16 @@
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type { AstNode } from '../../../node/index.js'
-import { SymbolUtil } from '../../../symbol/SymbolUtil.js'
 import type { Linter } from '../Linter.js'
 
 export const noAccessToSymbol: Linter<AstNode> = (node, ctx) => {
 	const symbol = ctx.symbols.resolveAlias(node.symbol)
-	if (!symbol || !SymbolUtil.hasNoAccessToFileSymbol(symbol, ctx.doc.uri)) {
+	if (
+		!symbol
+		|| !ctx.symbols.hasNoAccessToFileSymbol(
+			symbol,
+			ctx.doc.uri,
+		)
+	) {
 		return
 	}
 	ctx.err.lint(

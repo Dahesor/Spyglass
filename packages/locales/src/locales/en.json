@@ -163,6 +163,7 @@
   "mcfunction.doc.directive.desc.chatonly": "Specifies that this function should always be executed by a player in the world.",
   "mcfunction.doc.directive.desc.deprecated": "Specifies that this resource in question is no longer recommended for use.",
   "mcfunction.doc.directive.desc.returns": "Specifies the return value of this resource",
+  "mcfunction.doc.directive.desc.type": "Specifies the mcdoc type of this value",
   "mcfunction.doc.directive.desc.context": "Specifies the execution context that this resource is expected to run in",
   "mcfunction.doc.directive.desc.reads": "Specifies that this resource will attempt to read certain data, typically some global state or configuration",
   "mcfunction.doc.directive.desc.writes": "Specifies data that this resource will attempt to modify",

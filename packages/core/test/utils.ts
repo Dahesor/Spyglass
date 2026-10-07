@@ -9,6 +9,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument'
 import {
 	AstNode,
 	BinderContext,
+	ContextBase,
 	Failure,
 	file,
 	FileService,
@@ -42,7 +43,7 @@ export function mockProjectData(data: Partial<ProjectData> = {}): ProjectData {
 	const cacheRoot: RootUriString = data.cacheRoot ?? 'file:///cache/'
 	const externals = data.externals ?? NodeJsExternals
 	const logger = data.logger ?? Logger.create()
-	return {
+	const project: ProjectData = {
 		cacheRoot,
 		config: data.config ?? VanillaConfig,
 		ctx: data.ctx ?? {},
@@ -55,8 +56,15 @@ export function mockProjectData(data: Partial<ProjectData> = {}): ProjectData {
 		profilers: data.profilers ?? ProfilerFactory.noop(),
 		projectRoots: data.projectRoots ?? ['file:///'],
 		roots: data.roots ?? [],
-		symbols: data.symbols ?? new SymbolUtil({}),
+		symbols: data.symbols
+			?? new SymbolUtil(
+				{},
+				undefined,
+				false,
+				uri => project.meta.resolveResourceLocation?.(uri, ContextBase.create(project)),
+			),
 	}
+	return project
 }
 
 /**
@@ -350,4 +358,13 @@ export async function assertUriNotExists(nodeFsp: typeof fsp, uri: string) {
 			fail(e as Error)
 		}
 	}
+}
+
+export function mockResourceLocation(uri: string) {
+	const segments = new globalThis.URL(uri).pathname.split('/')
+	const data = segments.indexOf('data')
+	if (data < 0 || segments[data + 2] !== 'function') {
+		return undefined
+	}
+	return { isTag: false, namespace: segments[data + 1], path: segments.slice(data + 3) }
 }

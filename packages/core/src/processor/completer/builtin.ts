@@ -194,7 +194,10 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 		const declarations: string[] = []
 		scannedCategory ||= category === node.options.category
 		for (const [key, raw] of Object.entries(symbols)) {
-			const symbol = SymbolUtil.viewFromContext(raw, ctx.doc.uri)
+			const symbol = ctx.symbols.viewFromContext(
+				raw,
+				ctx.doc.uri,
+			)
 			if (category === node.options.category) {
 				findThis(key, symbol)
 			}
@@ -277,7 +280,10 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 			node: node as ResourceLocationNode,
 		})
 		for (const [key, raw] of Object.entries(symbols)) {
-			findThis(key, SymbolUtil.viewFromContext(raw, ctx.doc.uri))
+			findThis(
+				key,
+				ctx.symbols.viewFromContext(raw, ctx.doc.uri),
+			)
 			if (thisKey !== undefined) {
 				break
 			}
@@ -385,7 +391,12 @@ export const symbol: Completer<SymbolBaseNode> = (node, ctx) => {
 		node: node as SymbolBaseNode,
 	}, path)
 	return Object.entries(symbols)
-		.map(([k, v]) => [k, SymbolUtil.viewFromContext(v, ctx.doc.uri)] as const)
+		.map(([k, v]) =>
+			[
+				k,
+				ctx.symbols.viewFromContext(v, ctx.doc.uri),
+			] as const
+		)
 		.filter((entry): entry is readonly [string, SymbolView] =>
 			!!entry[1] && SymbolUtil.isDeclared(entry[1])
 		)

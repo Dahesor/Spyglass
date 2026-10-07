@@ -69,12 +69,12 @@ export namespace GlobalSymbol {
 		if (symbol.isLocal || ownsSymbol(util, symbol)) {
 			return undefined
 		}
-		const source = Isotope.selectIsotope(symbol, uri)
+		const source = Isotope.selectIsotope(symbol, uri, util.resolveResourceLocation)
 		if (!source?.origin) {
 			return undefined
 		}
 		const scope = Isotope.scopeOf(symbol, source)
-		if (scope !== SymbolIsotopeScope.Global && scope !== SymbolIsotopeScope.Namespace) {
+		if (scope !== SymbolIsotopeScope.Global && scope !== SymbolIsotopeScope.Protected) {
 			return undefined
 		}
 		const imported = lookup(util, symbol.category, symbol.path).symbol
@@ -181,7 +181,7 @@ export namespace GlobalSymbol {
 	export function getVisibleSymbols(util: SymbolUtil, category: string, uri?: string): SymbolMap {
 		const map = lookup(util, category, []).parentMap ?? undefined
 
-		return SymbolUtil.filterVisibleSymbols(uri, map)
+		return util.filterVisibleSymbols(uri, map)
 	}
 
 	export function getSymbolsInFile(util: SymbolUtil, uri: string): Symbol[] {

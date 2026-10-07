@@ -193,22 +193,14 @@ class FunctionDocTarget extends RegistryDocTarget {
 					ctx.doc.uri,
 					identifier,
 				)
-				const query = core.LocalSymbol.queryForScope(
-					ctx.symbols,
-					{ doc: ctx.doc, node: field },
-					core.LocalSymbolVisibility.File,
-					'function',
-					identifier,
-				)
-				query.enter({
-					usage: {
-						type: 'implementation',
-						range: core.Range.create(0),
-						fromFile: true,
-					},
-				})
 				declareDocSymbol(node, field, 'function', identifier, ctx)
-				field.symbol = query.symbol
+					.enter({
+						usage: {
+							type: 'implementation',
+							range: core.Range.create(0),
+							fromFile: true,
+						},
+					})
 				return
 			}
 			declareDocSymbol(node, field, 'function', identifier, ctx)

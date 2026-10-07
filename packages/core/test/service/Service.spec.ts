@@ -13,7 +13,7 @@ import {
 	SymbolTable,
 	SymbolUtil,
 } from '../../lib/index.js'
-import { mockProjectData } from '../utils.ts'
+import { mockProjectData, mockResourceLocation } from '../utils.ts'
 
 const uri = 'file:///pack/private/use.mcfunction'
 const doc = TextDocument.create(uri, 'mcfunction', 0, 'name')
@@ -53,23 +53,24 @@ function location(type: SymbolUsageType, fromFile = false): SymbolLocation {
 }
 
 describe('Service.getDefinitionLocations()', () => {
-	for (const scope of [SymbolIsotopeScope.Global, SymbolIsotopeScope.Namespace]) {
+	for (const scope of [SymbolIsotopeScope.Global, SymbolIsotopeScope.Protected]) {
 		it(`finds consumer references and implementations from a dependency declaration (scope: ${scope})`, async t => {
 			const { service } = setup(t)
+			service.project.meta.resolveResourceLocation = mockResourceLocation
 			const declarationDoc = TextDocument.create(
 				'file:///dependency/data/demo/function/doc.mcfunction',
 				'mcfunction',
 				0,
 				'name',
 			)
-			const dependency = new SymbolUtil({})
+			const dependency = new SymbolUtil({}, undefined, false, mockResourceLocation)
 			dependency.query(declarationDoc, 'objective', 'aaaaaa').enterIsotope('doc', {
 				data: {
 					scope,
 					source: SymbolIsotopeProvider.DocBlock,
 					origin: { uri: declarationDoc.uri },
-					...(scope === SymbolIsotopeScope.Namespace
-						? { namespace: ['demo'], visibleWithin: ['**'] }
+					...(scope === SymbolIsotopeScope.Protected
+						? { visibleWithin: [{ namespace: 'demo' }] }
 						: {}),
 				},
 				usage: { type: 'declaration', fromDocDeclaration: true, range: Range.create(0, 4) },
@@ -170,7 +171,7 @@ describe('Service.getDefinitionLocations()', () => {
 				source.facets!.isotopes = [{
 					...facet.isotopes[0],
 					scope,
-					visibleWithin: ['**/private/**'],
+					visibleWithin: [{ glob: '**/private/**' }],
 					declaration: facet.declaration,
 				}]
 			}
@@ -209,7 +210,7 @@ describe('Service.getDefinitionLocations()', () => {
 						identifier: 'other',
 						source: 1,
 						scope: 0,
-						visibleWithin: ['**/other/**'],
+						visibleWithin: [{ glob: '**/other/**' }],
 						implementation: [location('implementation', true)],
 					}]
 				}
@@ -226,14 +227,14 @@ describe('Service.getDefinitionLocations()', () => {
 			identifier: 'private',
 			source: 1,
 			scope: 0,
-			visibleWithin: ['**/private/**'],
+			visibleWithin: [{ glob: '**/private/**' }],
 			declaration: [location('declaration')],
 			implementation: [location('implementation', true)],
 		}, {
 			identifier: 'other',
 			source: 1,
 			scope: 0,
-			visibleWithin: ['**/other/**'],
+			visibleWithin: [{ glob: '**/other/**' }],
 			definition: [location('definition', true)],
 		}]
 		const node = file(symbol)

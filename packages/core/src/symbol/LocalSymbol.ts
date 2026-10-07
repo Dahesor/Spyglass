@@ -1,4 +1,5 @@
 import type { TextDocument } from 'vscode-languageserver-textdocument'
+import { StateProxy } from '../common/StateProxy.js'
 import type { AstNode } from '../node/index.js'
 import type { Symbol, SymbolMap, SymbolTable, SymbolView } from './Symbol.js'
 import { SymbolUsageTypes } from './Symbol.js'
@@ -29,20 +30,22 @@ export namespace LocalSymbol {
 		return symbol?.isLocal === true
 	}
 	export function isTable(table: SymbolTable): boolean {
-		return localTables.has(table)
+		return localTables.has(StateProxy.dereference(table))
 	}
 	export function registerTable(table: SymbolTable): void {
-		localTables.add(table)
+		localTables.add(StateProxy.dereference(table))
 		for (const map of Object.values(table)) {
-			if (map) { localMaps.add(map) }
+			if (map) {
+				registerMap(map)
+			}
 		}
 	}
 	export function registerMap(map: SymbolMap): SymbolMap {
-		localMaps.add(map)
+		localMaps.add(StateProxy.dereference(map))
 		return map
 	}
 	export function isMap(map: SymbolMap | undefined): boolean {
-		return !!map && localMaps.has(map)
+		return !!map && localMaps.has(StateProxy.dereference(map))
 	}
 	export function amendSymbol(
 		util: SymbolUtil,
@@ -51,13 +54,21 @@ export namespace LocalSymbol {
 		doc: TextDocument,
 		contributor: string | undefined,
 	): void {
-		if (addition.data && 'desc' in addition.data) { symbol.desc = addition.data.desc }
+		if (addition.data && 'data' in addition.data) {
+			symbol.data = addition.data.data
+		}
+		if (addition.data && 'desc' in addition.data) {
+			symbol.desc = addition.data.desc
+		}
 		const usage = addition.usage && { ...addition.usage }
-		if (usage) { delete usage.isotopeIdentifier }
+		if (usage) {
+			delete usage.isotopeIdentifier
+		}
 		util.amendSymbolUsage(symbol, usage, doc, contributor, symbol)
 	}
 	export function isTrimmable(symbol: LocalSymbol): boolean {
-		return !Object.keys(symbol.members ?? {}).length && !SymbolUsageTypes.some(type => symbol[type]?.length)
+		return !Object.keys(symbol.members ?? {}).length
+			&& !SymbolUsageTypes.some(type => symbol[type]?.length)
 	}
 	/** Create a new local symbol table. */
 	export function createTable(): SymbolTable {

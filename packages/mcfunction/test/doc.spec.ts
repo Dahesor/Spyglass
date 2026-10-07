@@ -1,7 +1,7 @@
 import { GlobalSymbol } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
-import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
-import { localize } from '@spyglassmc/locales'
+import { mockProjectData, mockResourceLocation } from '@spyglassmc/core/test/utils.ts'
+import { localeQuote, localize } from '@spyglassmc/locales'
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { completeDoc } from '../lib/completer/doc.js'
@@ -136,6 +136,7 @@ describe('function header completion', () => {
 })
 function setup() {
 	const project = mockProjectData()
+	project.meta.resolveResourceLocation = mockResourceLocation
 	initialize(project)
 	function declaration(uri: string, modifier = '@private', sourceText?: string) {
 		const text = sourceText ?? `\n#> ${modifier} objective coins 金币`
@@ -159,7 +160,8 @@ function setup() {
 		return node
 	}
 	const raw = () => project.symbols.global.objective!['coins']
-	const view = (uri: string) => core.SymbolUtil.viewFromContext(raw(), uri)
+	const view = (uri: string) =>
+		core.SymbolUtil.viewFromContext(raw(), uri, project.symbols.resolveResourceLocation)
 	return { project, declaration, command, raw, view }
 }
 
@@ -229,7 +231,7 @@ describe('doc access and command usages', () => {
 			t.assert.equal(core.SymbolUtil.viewFromContext(raw, root + 'outside.json'), undefined)
 		})
 	}
-	it('uses directive-provided glob lists instead of deriving a folder in the target', t => {
+	it('uses directive-provided visibility alternatives instead of deriving a folder in the target', t => {
 		const env = setup()
 		class CustomPrivate extends DefaultDocDirective {
 			override readonly identifier = 'private'
@@ -238,7 +240,7 @@ describe('doc access and command usages', () => {
 				return {
 					visibility: core.SymbolIsotopeScope.Private,
 					overrideLevel: 7,
-					visibleWithin: ['**/allowed/**', '**/second/**'],
+					visibleWithin: [{ glob: '**/allowed/**' }, { glob: '**/second/**' }],
 				}
 			}
 		}
@@ -256,15 +258,44 @@ describe('doc access and command usages', () => {
 			override readonly identifier = 'private'
 			override readonly isAccessModifier = true
 			override modifyAccess() {
-				return { visibility: core.SymbolIsotopeScope.Namespace, namespace: 'demo' }
+				return {
+					visibility: core.SymbolIsotopeScope.Protected,
+					visibleWithin: [{ namespace: 'demo' }],
+				}
 			}
 		}
 		registerDocDirective(env.project.meta, new NamespaceAccess())
 		t.assert.deepEqual(env.declaration(root + 'doc.mcfunction').errors, [])
-		t.assert.deepEqual(env.raw().facets?.isotopes![0].namespace, ['demo'])
-		t.assert.equal(env.raw().facets?.isotopes![0].scope, core.SymbolIsotopeScope.Namespace)
+		t.assert.deepEqual(env.raw().facets?.isotopes![0].visibleWithin, [{ namespace: 'demo' }])
+		t.assert.equal(env.raw().facets?.isotopes![0].scope, core.SymbolIsotopeScope.Protected)
 		t.assert.notEqual(env.view(root + 'use.mcfunction'), undefined)
 		t.assert.equal(env.view('file:///pack/data/other/function/use.mcfunction'), undefined)
+	})
+	it('exports protected declarations while restricting consumers to the declaring namespace', t => {
+		const env = setup()
+		t.assert.deepEqual(env.declaration(root + 'doc.mcfunction', '@protected').errors, [])
+		t.assert.deepEqual(env.raw().facets?.isotopes?.[0].visibleWithin, [{ namespace: 'demo' }])
+		const exported = core.SymbolTable.getDependencyExports(
+			env.project.symbols.global,
+			'dependency',
+		)
+		const symbol = exported.objective!['coins']
+		t.assert.notEqual(
+			core.Isotope.selectIsotope(
+				symbol,
+				'file:///consumer/data/demo/function/use.mcfunction',
+				mockResourceLocation,
+			),
+			undefined,
+		)
+		t.assert.equal(
+			core.Isotope.selectIsotope(
+				symbol,
+				'file:///consumer/data/other/function/use.mcfunction',
+				mockResourceLocation,
+			),
+			undefined,
+		)
 	})
 	for (const commandsFirst of [false, true]) {
 		it(`private declaration scopes commands to its folder (commands first: ${commandsFirst})`, t => {
@@ -568,7 +599,11 @@ describe('doc directive descriptions', () => {
 		t.assert.equal(completions.some(item => item.label === '@input'), true)
 		for (const item of completions) {
 			t.assert.equal(typeof item.documentation, 'string')
-			t.assert.equal(item.documentation?.includes('mcfunction.doc.directive.desc.'), false)
+			t.assert.equal(
+				item.documentation?.includes('mcfunction.doc.directive.desc.'),
+				false,
+				item.label,
+			)
 		}
 	})
 })
@@ -830,12 +865,12 @@ describe('directive controlled input', () => {
 				t.assert.deepEqual(env.errors, [])
 				t.assert.deepEqual(env.node.docDirectives.map(d => d.identifier), ['returns'])
 				const parent = env.node.docDirectives[0]!
-				t.assert.deepEqual(parent.arguments, ['score', 'sometparam'])
+				t.assert.deepEqual(parent.arguments, ['score sometparam'])
 				t.assert.deepEqual(parent.docDirectives.map(d => d.arguments), [['some   param'], [
 					'other param',
 				]])
 				const expected =
-					' Intro\n Continued\n\nreturns:\n\n- result: other param\n- success: some   param'
+					' Intro\n Continued\n\nreturns: score sometparam\n\n- result: other param\n- success: some   param'
 				t.assert.equal(env.node.description, expected)
 				const raw = env.project.symbols.global.function!['demo:test']
 				t.assert.equal(core.SymbolUtil.viewFromContext(raw, root)?.desc, expected)
@@ -915,7 +950,14 @@ describe('directive controlled input', () => {
 		it('reports a missing returns caller for ' + identifier, t => {
 			const env = parseAndBind('\n#> function demo:test\n# @' + identifier + ' some param')
 			t.assert.equal(env.errors.length, 1)
-			t.assert.equal(env.errors[0]?.message, '@' + identifier + ' must be called by @returns')
+			t.assert.equal(
+				env.errors[0]?.message,
+				localize(
+					'mcfunction.doc.directive.diagnostic.wrong_context.reason',
+					localeQuote(identifier),
+					localeQuote('@returns'),
+				),
+			)
 		})
 	}
 	it('lets each directive choose consumption and invoke nested handlers recursively', t => {
@@ -1019,7 +1061,14 @@ describe('directive controlled input', () => {
 			},
 		)
 		t.assert.deepEqual(env.node.docDirectives.map(d => d.identifier), ['returns', 'result'])
-		t.assert.equal(env.errors[0]?.message, '@result must be called by @returns')
+		t.assert.equal(
+			env.errors[0]?.message,
+			localize(
+				'mcfunction.doc.directive.diagnostic.wrong_context.reason',
+				localeQuote('result'),
+				localeQuote('@returns'),
+			),
+		)
 	})
 })
 
