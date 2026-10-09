@@ -9,7 +9,7 @@ export function getUris(
 	id: string,
 	ctx: core.ProcessorContext,
 ): readonly string[] {
-	return (ctx.symbols.query(ctx.doc, category, core.ResourceLocation.lengthen(id)).symbol
+	return (ctx.symbols.query(ctx.doc, category, core.ResourceLocation.lengthen(id)).symbolView
 		?.definition?.map((v) => v.uri) ?? [])
 }
 

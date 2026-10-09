@@ -1,5 +1,5 @@
-import { GlobalSymbol, Range, Source } from '@spyglassmc/core'
-import type { CheckerContext, FullResourceLocation, Symbol, SymbolQuery } from '@spyglassmc/core'
+import { Range, Source, SymbolUtil } from '@spyglassmc/core'
+import type { CheckerContext, FullResourceLocation, Symbol, SymbolHandle } from '@spyglassmc/core'
 import { localize } from '@spyglassmc/locales'
 import { TypeDefSymbolData } from '../../binder/index.js'
 import type {
@@ -866,8 +866,8 @@ function simplifyReference<T>(
 		return { typeDef: mapped, dynamicData: true }
 	}
 	// TODO Probably need to keep original symbol around in some way to support "go to definition"
-	const symbol = context.ctx.symbols.query(context.ctx.doc, 'mcdoc', typeDef.path)
-	const data = GlobalSymbol.getCanonicalData(symbol.heyGimmeDaSymbol())
+	const handle = context.ctx.symbols.query(context.ctx.doc, 'mcdoc', typeDef.path)
+	const data = SymbolUtil.getCanonicalData(handle.heyGimmeDaSymbol())
 	if (!TypeDefSymbolData.is(data)) {
 		context.ctx.logger.warn(`Tried to access unknown reference ${typeDef.path}`)
 		return { typeDef: { kind: 'union', members: [] } }
@@ -883,7 +883,7 @@ function simplifyReference<T>(
 		}
 	}
 	if (context.ctx.config.env.enableMcdocCaching && !simplifiedResult.dynamicData) {
-		symbol.amend({
+		handle.amend({
 			data: {
 				data: {
 					...data,
@@ -946,14 +946,14 @@ function simplifyIndexed<T>(
 function resolveIndices<T>(
 	parallelIndices: ParallelIndices,
 	symbolMap: { [key: string]: Pick<Symbol, 'data' | 'facets'> },
-	symbolQuery: SymbolQuery | undefined,
+	symbolHandle: SymbolHandle | undefined,
 	context: SimplifyContext<T>,
 ): SimplifyResult<SimplifiedMcdocType> {
 	let dynamicData = false
 	let values: SimplifiedMcdocTypeNoUnion[] = []
 	const dataAt = (key: string): unknown =>
-		symbolQuery
-			? GlobalSymbol.getCanonicalData(symbolMap[key])
+		symbolHandle
+			? SymbolUtil.getCanonicalData(symbolMap[key])
 			: symbolMap[key]?.data
 	function pushValue(key: string, data: TypeDefSymbolData) {
 		if (!shouldKeepAccordingToAttributeFilters(data.typeDef.attributes, context.ctx)) {
@@ -970,8 +970,8 @@ function resolveIndices<T>(
 			const simplifiedResult = simplify(data.typeDef, context)
 			if (simplifiedResult.dynamicData) {
 				dynamicData = true
-			} else if (context.ctx.config.env.enableMcdocCaching && symbolQuery) {
-				symbolQuery.member(
+			} else if (context.ctx.config.env.enableMcdocCaching && symbolHandle) {
+				symbolHandle.member(
 					key,
 					s =>
 						s.amend({

@@ -191,7 +191,7 @@ export function symbolRegistrar(
 	function addStatesSymbols(
 		category: 'block' | 'fluid',
 		states: McmetaStates,
-		symbols: core.SymbolUtil,
+		symbols: core.SymbolService,
 	): void {
 		const capitalizedCategory = `${category[0].toUpperCase()}${category.slice(1)}` as Capitalize<
 			typeof category
@@ -278,7 +278,7 @@ export function symbolRegistrar(
 		}
 	}
 
-	function addRegistriesSymbols(registries: McmetaRegistries, symbols: core.SymbolUtil) {
+	function addRegistriesSymbols(registries: McmetaRegistries, symbols: core.SymbolService) {
 		type Category = core.FileCategory | core.RegistryCategory
 		function isCategory(str: string): str is Category {
 			return (core.FileCategories.includes(str as any)
@@ -295,7 +295,7 @@ export function symbolRegistrar(
 		}
 	}
 
-	function addBuiltinSymbols(symbols: core.SymbolUtil) {
+	function addBuiltinSymbols(symbols: core.SymbolService) {
 		if (ReleaseVersion.cmp(release, '1.21.2') < 0) {
 			symbols.query(McmetaSummaryUri, 'loot_table', 'minecraft:empty')
 				.enter({ usage: { type: 'declaration' } })

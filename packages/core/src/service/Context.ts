@@ -5,7 +5,7 @@ import type { Logger } from '../common/index.js'
 import { formatterContextIndentation } from '../processor/index.js'
 import type { Range } from '../source/index.js'
 import { ReadonlySource } from '../source/index.js'
-import type { SymbolUtil } from '../symbol/index.js'
+import { SymbolService } from '../symbol/index.js'
 import type { Config } from './Config.js'
 import { ErrorReporter } from './ErrorReporter.js'
 import type { FileService } from './FileService.js'
@@ -62,9 +62,10 @@ export interface ProcessorContext extends ContextBase {
 	config: Config
 	doc: TextDocument
 	src: ReadonlySource
-	symbols: SymbolUtil
+	symbols: SymbolService
 }
 interface ProcessorContextOptions {
+	symbols?: SymbolService
 	doc: TextDocument
 	src?: ReadonlySource
 }
@@ -75,7 +76,7 @@ export namespace ProcessorContext {
 			config: project.config,
 			doc: opts.doc,
 			src: opts.src ?? new ReadonlySource(opts.doc.getText()),
-			symbols: project.symbols,
+			symbols: opts.symbols ?? new SymbolService(project.symbolStorage),
 		}
 	}
 }
@@ -242,11 +243,14 @@ export namespace SignatureHelpProviderContext {
 
 export interface UriBinderContext extends ContextBase {
 	config: Config
-	symbols: SymbolUtil
+	symbols: SymbolService
 }
 export namespace UriBinderContext {
-	export function create(project: ProjectData): UriBinderContext {
-		return { ...ContextBase.create(project), config: project.config, symbols: project.symbols }
+	export function create(
+		project: ProjectData,
+		symbols = new SymbolService(project.symbolStorage),
+	): UriBinderContext {
+		return { ...ContextBase.create(project), config: project.config, symbols }
 	}
 }
 

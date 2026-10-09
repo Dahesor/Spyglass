@@ -1,4 +1,4 @@
-import { GlobalSymbol, SymbolFormatter, SymbolUtil, UriBinderContext } from '@spyglassmc/core'
+import { SymbolFormatter, SymbolUtil, UriBinderContext } from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import { uriBinder } from '@spyglassmc/mcdoc/lib/uri_processors.js'
 import { describe, it } from 'node:test'
@@ -8,23 +8,21 @@ describe('mcdoc uriBinder()', () => {
 		const project = mockProjectData({ roots: ['file:///root/'] })
 		const uri = 'file:///root/example.mcdoc'
 		const docUri = 'file:///root/private/doc.mcfunction'
-		project.symbols.contributeAs(
-			'uri_binder',
-			() => uriBinder([uri], UriBinderContext.create(project)),
-		)
-		project.symbols.contributeAs('binder', () => {
-			project.symbols.query(docUri, 'mcdoc', '::example').enterIsotope('doc', {
+		const ctx = UriBinderContext.create(project)
+		ctx.symbols.contributeAs('uri_binder', () => uriBinder([uri], ctx))
+		ctx.symbols.contributeAs('binder', () => {
+			ctx.symbols.query(docUri, 'mcdoc', '::example').enterIsotope('doc', {
 				data: { scope: 0, visibleWithin: [{ glob: '**/private/**' }], source: 0 },
 				usage: { type: 'declaration', fromDocDeclaration: true },
 			})
 		})
-		const symbol = project.symbols.global.mcdoc!['::example']
+		const symbol = project.symbolStorage.global.mcdoc!['::example']
 		t.assert.equal(symbol.subcategory, 'module')
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.definition?.[0].uri, uri)
 		t.assert.equal(symbol.facets?.global?.definition?.[0].fromFile, undefined)
 		t.assert.equal(symbol.facets?.global?.definition?.[0].originalUsageType, undefined)
 		t.assert.equal(symbol.facets?.isotopes?.[0].implementation?.length ?? 0, 0)
-		GlobalSymbol.clear(project.symbols, { uri: docUri })
+		ctx.symbols.clear({ uri: docUri })
 		t.assert.equal(symbol.facets?.global?.definition?.length, 1)
 		t.assert.equal(symbol.facets?.global?.definition?.[0].uri, uri)
 	})
@@ -70,7 +68,7 @@ describe('mcdoc uriBinder()', () => {
 			(t) => {
 				const ctx = UriBinderContext.create(mockProjectData({ roots: ['file:///root/'] }))
 				uriBinder(uris, ctx)
-				t.assert.snapshot(SymbolFormatter.stringifySymbolTable(ctx.symbols.global))
+				t.assert.snapshot(SymbolFormatter.stringifySymbolTable(ctx.symbols.storage.global))
 			},
 		)
 	}

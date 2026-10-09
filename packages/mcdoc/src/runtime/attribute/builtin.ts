@@ -103,13 +103,14 @@ export function registerBuiltinAttributes(meta: core.MetaRegistry) {
 	})
 	registerAttribute(meta, 'dispatcher_key', validator.string, {
 		stringMocker: (config, _, ctx) => {
-			const symbol = ctx.symbols.query(ctx.doc, 'mcdoc/dispatcher', config).heyGimmeDaSymbol()
+			const symbol = ctx.symbols.query(ctx.doc, 'mcdoc/dispatcher', config)
+				.heyGimmeDaSymbol()
 			const keys = Object.entries(symbol?.members ?? {})
 				.filter(([k, v]) => {
 					if (k.startsWith('%')) {
 						return false
 					}
-					const data = core.GlobalSymbol.getCanonicalData(v)
+					const data = core.SymbolUtil.getCanonicalData(v)
 					if (!TypeDefSymbolData.is(data)) {
 						return false
 					}

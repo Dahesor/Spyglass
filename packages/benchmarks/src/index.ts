@@ -1,5 +1,6 @@
 import { Bench } from 'tinybench'
 import * as mcdoc from './mcdoc.js'
+import * as symbol from './symbol.js'
 import * as uri from './uri.js'
 
 export interface BenchContext {
@@ -19,6 +20,7 @@ async function run(arg: string) {
 
 	await uri.register(ctx)
 	await mcdoc.register(ctx)
+	symbol.register(ctx)
 
 	await bench.warmup()
 	await bench.run()

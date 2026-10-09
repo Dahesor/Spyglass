@@ -339,7 +339,7 @@ undefined
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz.Xer” 2`] = `
-Error: Cannot create the symbol map for “advancement.Foo/Baz/Xer”
+Error: Could not find the map for “advancement.Foo/Baz/Xer”
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz.Xer” 3`] = `

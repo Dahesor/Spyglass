@@ -260,10 +260,10 @@ export function getStates(
 	const ans: Record<string, Set<string>> = {}
 	ids = ids.map(ResourceLocation.lengthen)
 	for (const id of ids) {
-		ctx.symbols.query(ctx.doc, category, id).forEachMember((state, stateQuery) => {
-			const values = Object.keys(stateQuery.visibleMembers)
+		ctx.symbols.query(ctx.doc, category, id).forEachMember((state, stateHandle) => {
+			const values = Object.keys(stateHandle.symbol?.members ?? {})
 			const set = (ans[state] ??= new Set())
-			const defaultValue = stateQuery.symbol?.relations?.['default']
+			const defaultValue = stateHandle.symbol?.relations?.['default']
 			if (defaultValue) {
 				set.add(defaultValue.path[defaultValue.path.length - 1])
 			}

@@ -8,7 +8,7 @@ export const entry = core.AsyncBinder.create<McfunctionNode>(async (node, ctx) =
 	)!.get('uris')!
 	const identifier = privateFunctions.get(ctx.doc.uri)
 	if (identifier) {
-		const symbol = core.GlobalSymbol.lookup(ctx.symbols, 'function', [identifier]).symbol
+		const symbol = ctx.symbols.lookup('function', [identifier]).symbol
 		const restored = symbol && core.SymbolUtil.allUsageContainers(symbol).some(owner => {
 			const isFileDefinition = (location: core.SymbolLocation) =>
 				location.uri === ctx.doc.uri && location.contributor === 'uri_binder'
@@ -18,15 +18,15 @@ export const entry = core.AsyncBinder.create<McfunctionNode>(async (node, ctx) =
 		})
 		if (!restored) {
 			ctx.symbols.contributeAs('uri_binder', () => {
-				ctx.symbols.query(ctx.doc.uri, 'function', identifier).enterFileDefinition({
+				ctx.symbols.query(ctx.doc.uri, 'function', identifier).enter({
 					usage: { type: 'definition' },
-				})
+				}, core.SymbolEnterType.File)
 			})
 		}
 		privateFunctions.delete(ctx.doc.uri)
 	}
 	if (node.parent?.type === 'file') {
-		core.LocalSymbol.initialize(node.parent)
+		node.parent.locals = core.LocalSymbol.createTable()
 	}
 	for (const child of node.children) {
 		if (DocNode.is(child)) {

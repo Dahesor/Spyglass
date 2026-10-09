@@ -18,8 +18,8 @@ import { file } from '../parser/index.js'
 import { traversePreOrder } from '../processor/index.js'
 import type { PosRangeLanguageError } from '../source/index.js'
 import { LanguageError, Range, Source } from '../source/index.js'
-import { GlobalSymbol } from '../symbol/GlobalSymbol.js'
-import { LocalSymbol, SymbolTable, SymbolUtil } from '../symbol/index.js'
+import { SymbolImport } from '../symbol/imported.js'
+import { LocalSymbol, SymbolService, SymbolStorage, SymbolTable } from '../symbol/index.js'
 import { CacheService } from './CacheService.js'
 import type { Config, PartialConfig } from './Config.js'
 import { ConfigService, LinterConfigValue } from './Config.js'
@@ -77,7 +77,6 @@ export interface ProjectOptions {
 	 * File URIs to the roots of this project.
 	 */
 	projectRoots: RootUriString[]
-	symbols?: SymbolUtil
 }
 
 export interface ProjectReadyOptions {
@@ -149,7 +148,7 @@ export type ProjectData = Pick<
 	| 'profilers'
 	| 'projectRoots'
 	| 'roots'
-	| 'symbols'
+	| 'symbolStorage'
 	| 'ctx'
 >
 
@@ -237,10 +236,10 @@ export class Project extends EventDispatcher<{
 	readonly meta = new MetaRegistry()
 	readonly profilers: ProfilerFactory
 	readonly projectRoots: RootUriString[]
-	symbols: SymbolUtil
+	symbolStorage: SymbolStorage
 
 	#dependencyRoots: Set<RootUriString> | undefined
-	readonly #dependencyImports = new Map<string, { checksum: string; symbols: SymbolUtil }>()
+	readonly #dependencyImports = new Map<string, { checksum: string; storage: SymbolStorage }>()
 	readonly #dependencyChecksums = new Map<string, string>()
 	readonly #ignoredDependencyRoots = new Set<string>()
 	#activeDependencyRoot: string | undefined
@@ -255,14 +254,14 @@ export class Project extends EventDispatcher<{
 		return false
 	}
 
-	private ignoreDependency(root: RootUriString): void {
+	private ignoreDependency(root: RootUriString, service: SymbolService): void {
 		this.#ignoredDependencyRoots.add(root)
 		this.#dependencyRoots?.delete(root)
 		for (const uri of this.#dependencyFiles ?? []) {
 			if (fileUtil.isSubUriOf(uri, root)) {
 				this.#dependencyFiles!.delete(uri)
 				this.#symbolUpToDateUris.delete(uri)
-				GlobalSymbol.clear(this.symbols, { uri })
+				service.clear({ uri })
 				delete this.cacheService.checksums.files[uri]
 				this.emit('documentErrored', { uri, errors: [] })
 			}
@@ -270,26 +269,29 @@ export class Project extends EventDispatcher<{
 	}
 
 	/** Select the appropriate symbol table for a given URI. */
-	private selectSymbolTable(uri: string): SymbolUtil {
+	private selectSymbolStorage(uri: string): SymbolStorage {
 		if (uri.endsWith('.mcdoc')) {
-			return this.symbols
+			return this.symbolStorage
 		}
 		for (const [root, entry] of this.#dependencyImports) {
 			if (fileUtil.isSubUriOf(uri, root)) {
 				for (const category of ['mcdoc', 'mcdoc/dispatcher']) {
-					entry.symbols.global[category] = this.symbols.global[category] ??= {}
+					entry.storage.global[category] = this.symbolStorage.global[category] ??= {}
 				}
-				return entry.symbols
+				return entry.storage
 			}
 		}
-		return this.symbols
+		return this.symbolStorage
 	}
 
-	private publishDependency(root: string): void {
+	private publishDependency(
+		root: string,
+		symbolService = new SymbolService(this.symbolStorage),
+	): void {
 		const entry = this.#dependencyImports.get(root)!
-		const exported = SymbolTable.getDependencyExports(entry.symbols.global, entry.checksum)
-		GlobalSymbol.removeDependencySymbols(this.symbols, entry.checksum, false)
-		GlobalSymbol.importDependencySymbols(this.symbols, exported)
+		const exported = SymbolTable.getDependencyExports(entry.storage.global, entry.checksum)
+		SymbolImport.removeDependencySymbols(symbolService, entry.checksum, false)
+		SymbolImport.importDependencySymbols(symbolService, exported)
 	}
 	#dependencyFiles: Set<string> | undefined
 
@@ -376,7 +378,7 @@ export class Project extends EventDispatcher<{
 
 		this.cacheService = new CacheService(cacheRoot, this)
 		this.#configService = new ConfigService(this, defaultConfig)
-		this.symbols = this.createSymbolUtil({})
+		this.symbolStorage = this.createSymbolStorage({})
 
 		this.#ctx = {}
 
@@ -425,7 +427,7 @@ export class Project extends EventDispatcher<{
 				this.updateRoots()
 			}
 			this.#symbolUpToDateUris.delete(uri)
-			GlobalSymbol.clear(this.symbols, { uri })
+			new SymbolService(this.symbolStorage).clear({ uri })
 			this.tryClearingCache(uri)
 		}).on('ready', () => {
 			this.#refreshLocalBindings = false
@@ -482,8 +484,7 @@ export class Project extends EventDispatcher<{
 		const __profiler = this.profilers.get('project#init')
 
 		const { symbols } = await this.cacheService.load()
-		this.symbols = this.createSymbolUtil(symbols)
-		GlobalSymbol.buildCache(this.symbols)
+		this.symbolStorage = this.createSymbolStorage(symbols)
 		__profiler.task('Load Cache')
 
 		this.config = await this.#configService.load()
@@ -600,13 +601,13 @@ export class Project extends EventDispatcher<{
 
 		this.updateRoots()
 		__profiler.task('List URIs')
-
+		const symbolService = new SymbolService(this.symbolStorage)
 		for (const [id, { checksum, registrar }] of this.meta.symbolRegistrars) {
 			const cacheChecksum = this.cacheService.checksums.symbolRegistrars[id]
 			if (cacheChecksum === undefined || checksum !== cacheChecksum) {
-				GlobalSymbol.clear(this.symbols, { contributor: `symbol_registrar/${id}` })
-				this.symbols.contributeAs(`symbol_registrar/${id}`, () => {
-					registrar(this.symbols, { logger: this.logger })
+				symbolService.clear({ contributor: `symbol_registrar/${id}` })
+				symbolService.contributeAs(`symbol_registrar/${id}`, () => {
+					registrar(symbolService, { logger: this.logger })
 				})
 				this.emit('symbolRegistrarExecuted', { id, checksum })
 			} else {
@@ -643,7 +644,7 @@ export class Project extends EventDispatcher<{
 		const importedChecksums = new Set<string>()
 		for (const { root, files, checksum } of packages) {
 			if (importedChecksums.has(checksum)) {
-				this.ignoreDependency(root)
+				this.ignoreDependency(root, symbolService)
 				continue
 			}
 			importedChecksums.add(checksum)
@@ -660,7 +661,7 @@ export class Project extends EventDispatcher<{
 				if (previous !== undefined) {
 					obsoleteProviders.add(previous)
 				}
-				this.#dependencyImports.set(root, { checksum, symbols: this.createSymbolUtil({}) })
+				this.#dependencyImports.set(root, { checksum, storage: this.createSymbolStorage({}) })
 			}
 		}
 		for (const checksum of previousImports.values()) {
@@ -672,13 +673,13 @@ export class Project extends EventDispatcher<{
 		this.updateRoots()
 		this.#refreshLocalBindings = obsoleteProviders.size > 0 || this.#dependencyImports.size > 0
 		for (const provider of obsoleteProviders) {
-			GlobalSymbol.removeDependencySymbols(this.symbols, provider)
+			SymbolImport.removeDependencySymbols(symbolService, provider)
 		}
 		const dependencyFilesToBind = [...this.#dependencyFiles].filter(uri =>
 			// It is semantically not very clear to randomly include mcdoc files here
 			// Consider refactor this later
 			uri.endsWith('.mcdoc')
-			|| this.selectSymbolTable(uri) !== this.symbols
+			|| this.selectSymbolStorage(uri) !== this.symbolStorage
 		)
 
 		for (
@@ -710,7 +711,7 @@ export class Project extends EventDispatcher<{
 			])
 		}
 		for (const root of this.#dependencyImports.keys()) {
-			this.publishDependency(root)
+			this.publishDependency(root, symbolService)
 		}
 		__profiler.task('Bind URIs')
 
@@ -752,7 +753,7 @@ export class Project extends EventDispatcher<{
 				await this.ensureBindingStarted(uri)
 				__bindProfiler.task(uri)
 			}
-			this.publishDependency(root)
+			this.publishDependency(root, symbolService)
 		}
 		this.#activeDependencyRoot = undefined
 		for (const uri of files.filter(uri => !this.#dependencyFiles!.has(uri))) {
@@ -761,7 +762,7 @@ export class Project extends EventDispatcher<{
 		}
 		__bindProfiler.finalize()
 		this.#dependencyImports.clear()
-		GlobalSymbol.trim(this.symbols)
+		symbolService.trim()
 		this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
 			uri,
 			checksum,
@@ -806,8 +807,7 @@ export class Project extends EventDispatcher<{
 
 		// Reset cache.
 		const { symbols } = this.cacheService.reset()
-		this.symbols = this.createSymbolUtil(symbols)
-		GlobalSymbol.buildCache(this.symbols)
+		this.symbolStorage = this.createSymbolStorage(symbols)
 
 		return this.restart()
 	}
@@ -936,15 +936,15 @@ export class Project extends EventDispatcher<{
 		if (node.binderErrors) {
 			return
 		}
-		const symbols = this.createSymbolUtil({
-			mcdoc: this.symbols.global.mcdoc ?? {},
-			'mcdoc/dispatcher': this.symbols.global['mcdoc/dispatcher'] ?? {},
-		})
-		await this.bindDocument(doc, node, symbols)
+		const storage = this.createSymbolStorage({})
+		// Borrow shared mcdoc categories without reindexing the entire schema for each viewed file.
+		storage.global.mcdoc = this.symbolStorage.global.mcdoc ?? {}
+		storage.global['mcdoc/dispatcher'] = this.symbolStorage.global['mcdoc/dispatcher'] ?? {}
+		await this.bindDocument(doc, node, storage)
+		const symbolService = new SymbolService(this.symbolStorage)
 		traversePreOrder(node, () => true, () => true, child => {
 			if (child.symbol && !LocalSymbol.is(child.symbol)) {
-				child.symbol = GlobalSymbol.lookup(
-					this.symbols,
+				child.symbol = symbolService.lookup(
 					child.symbol.category,
 					child.symbol.path,
 				).symbol ?? child.symbol
@@ -973,12 +973,13 @@ export class Project extends EventDispatcher<{
 		]))
 		const checksum = await getSha1(JSON.stringify(hashes))
 		const previous = this.#dependencyChecksums.get(root)!
+		const symbolService = new SymbolService(this.symbolStorage)
 		if (
 			[...this.#dependencyChecksums].some(([uri, value]) => uri !== root && value === checksum)
 		) {
-			GlobalSymbol.removeDependencySymbols(this.symbols, previous)
+			SymbolImport.removeDependencySymbols(symbolService, previous)
 			this.#dependencyChecksums.delete(root)
-			this.ignoreDependency(root as RootUriString)
+			this.ignoreDependency(root as RootUriString, symbolService)
 			this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
 				uri,
 				checksum,
@@ -986,8 +987,8 @@ export class Project extends EventDispatcher<{
 			this.updateRoots()
 			return
 		}
-		const symbols = this.createSymbolUtil({})
-		this.#dependencyImports.set(root, { checksum, symbols })
+		const storage = this.createSymbolStorage({})
+		this.#dependencyImports.set(root, { checksum, storage })
 		const activeRoot = this.#activeDependencyRoot
 		this.#activeDependencyRoot = root
 		try {
@@ -1002,14 +1003,14 @@ export class Project extends EventDispatcher<{
 				}
 			}
 			if (checksum !== previous) {
-				GlobalSymbol.removeDependencySymbols(this.symbols, previous, false)
-				this.publishDependency(root)
+				SymbolImport.removeDependencySymbols(symbolService, previous, false)
+				this.publishDependency(root, symbolService)
 				this.#dependencyChecksums.set(root, checksum)
 				this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
 					uri,
 					checksum,
 				}))
-				GlobalSymbol.trim(this.symbols)
+				symbolService.trim()
 			}
 		} finally {
 			this.#activeDependencyRoot = activeRoot
@@ -1020,22 +1021,22 @@ export class Project extends EventDispatcher<{
 	private async bindDocument(
 		doc: TextDocument,
 		node: FileNode<AstNode>,
-		viewSymbols?: SymbolUtil,
+		viewStorage?: SymbolStorage,
 	): Promise<void> {
 		if (node.binderErrors) {
 			return
 		}
 		try {
 			this.#bindingInProgressUris.add(doc.uri)
-			if (!viewSymbols) {
+			if (!viewStorage) {
 				this.bindUri(doc.uri)
 			}
 			const binder = this.meta.getBinder(node.type)
-			const ctx = {
-				...BinderContext.create(this, { doc }),
-				symbols: viewSymbols ?? this.selectSymbolTable(doc.uri),
-			}
-			GlobalSymbol.clear(ctx.symbols, { contributor: 'binder', uri: doc.uri })
+			const ctx = BinderContext.create(this, {
+				doc,
+				symbols: new SymbolService(viewStorage ?? this.selectSymbolStorage(doc.uri)),
+			})
+			ctx.symbols.clear({ contributor: 'binder', uri: doc.uri })
 			LocalSymbol.clear(ctx.symbols, node, { contributor: 'binder', uri: doc.uri })
 			await ctx.symbols.contributeAsAsync('binder', async () => {
 				const proxy = StateProxy.create(node)
@@ -1057,7 +1058,7 @@ export class Project extends EventDispatcher<{
 		try {
 			const checker = this.meta.getChecker(node.type)
 			const ctx = CheckerContext.create(this, { doc })
-			GlobalSymbol.clear(ctx.symbols, { contributor: 'checker', uri: doc.uri })
+			ctx.symbols.clear({ contributor: 'checker', uri: doc.uri })
 			LocalSymbol.clear(ctx.symbols, node, { contributor: 'checker', uri: doc.uri })
 			await ctx.symbols.contributeAsAsync('checker', async () => {
 				await checker(StateProxy.create(node), ctx)
@@ -1129,7 +1130,8 @@ export class Project extends EventDispatcher<{
 
 		const doc = await this.read(uri)
 		if (
-			!doc || (!this.#refreshLocalBindings && this.selectSymbolTable(uri) === this.symbols
+			!doc
+			|| (!this.#refreshLocalBindings && this.selectSymbolStorage(uri) === this.symbolStorage
 				&& !(await this.cacheService.hasFileChangedSinceCache(doc)))
 		) {
 			return
@@ -1149,20 +1151,21 @@ export class Project extends EventDispatcher<{
 	}
 
 	private bindUri(param: string | string[]): void {
-		const groups = new Map<SymbolUtil, string[]>()
+		const groups = new Map<SymbolStorage, string[]>()
 		for (const uri of Array.isArray(param) ? param : [param]) {
 			if (this.isIgnoredDependency(uri)) {
 				continue
 			}
-			const symbols = this.selectSymbolTable(uri)
-			const group = groups.get(symbols) ?? []
+			const storage = this.selectSymbolStorage(uri)
+			const group = groups.get(storage) ?? []
 			group.push(uri)
-			groups.set(symbols, group)
+			groups.set(storage, group)
 		}
-		for (const [symbols, uris] of groups) {
-			const ctx = { ...UriBinderContext.create(this), symbols }
+		for (const [storage, uris] of groups) {
+			const symbolService = new SymbolService(storage)
+			const ctx = UriBinderContext.create(this, symbolService)
 			if (typeof param === 'string') {
-				GlobalSymbol.clear(symbols, { contributor: 'uri_binder', uri: param })
+				symbolService.clear({ contributor: 'uri_binder', uri: param })
 			}
 			ctx.symbols.contributeAs('uri_binder', () => {
 				for (const binder of this.meta.uriBinders) {
@@ -1425,9 +1428,9 @@ export class Project extends EventDispatcher<{
 		await this.#configService.onEditorConfigurationUpdate(editorConfiguration)
 	}
 
-	private createSymbolUtil(table: SymbolTable): SymbolUtil {
+	private createSymbolStorage(table: SymbolTable): SymbolStorage {
 		let context: ContextBase | undefined
-		return new SymbolUtil(table, undefined, false, uri => {
+		return new SymbolStorage(table, uri => {
 			if (!context || context.roots !== this.roots || context.project !== this.ctx) {
 				context = ContextBase.create(this)
 			}

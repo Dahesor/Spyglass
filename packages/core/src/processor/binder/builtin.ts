@@ -5,6 +5,7 @@ import { ResourceLocationNode } from '../../node/index.js'
 import type { BinderContext, MetaRegistry } from '../../service/index.js'
 import { ErrorReporter } from '../../service/index.js'
 import { ErrorSeverity } from '../../source/index.js'
+import { SymbolEnterType } from '../../symbol/index.js'
 import { traversePreOrder } from '../util.js'
 import type { Binder } from './Binder.js'
 import { AsyncBinder, SyncBinder } from './Binder.js'
@@ -28,7 +29,7 @@ export function attempt<N extends AstNode>(
 	const tempCtx: BinderContext = {
 		...ctx,
 		err: new ErrorReporter(ctx.err.source),
-		symbols: ctx.symbols.clone(),
+		symbols: ctx.symbols.cloneDelayed(),
 	}
 
 	const processAfterBinder = () => {
@@ -149,15 +150,17 @@ export const resourceLocation = SyncBinder.create<ResourceLocationNode>((node, c
 			+ sanitizedRaw.substring(sepIndex + 1)
 	}
 	if (node.options.category) {
-		ctx.symbols.query(
-			{ doc: ctx.doc, node },
-			node.isTag ? `tag/${node.options.category}` : node.options.category,
-			sanitizedRaw,
-		)
-			.enterCommand(
+		ctx.symbols
+			.query(
+				{ doc: ctx.doc, node },
+				node.isTag ? `tag/${node.options.category}` : node.options.category,
+				sanitizedRaw,
+			)
+			.enter(
 				{
 					usage: { type: node.options.usageType, node, accessType: node.options.accessType },
 				},
+				SymbolEnterType.InFileSymbol,
 			)
 	}
 	if (node.options.pool && !node.options.allowUnknown) {
@@ -172,11 +175,12 @@ export const symbol = SyncBinder.create<SymbolBaseNode>((node, ctx) => {
 	if (node.value) {
 		const path = node.options.parentPath ? [...node.options.parentPath, node.value] : [node.value]
 		ctx.symbols.query({ doc: ctx.doc, node }, node.options.category, ...path)
-			.enterCommand(
+			.enter(
 				{
 					data: { subcategory: node.options.subcategory },
 					usage: { type: node.options.usageType, node, accessType: node.options.accessType },
 				},
+				SymbolEnterType.InFileSymbol,
 			)
 	}
 })

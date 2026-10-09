@@ -134,11 +134,11 @@ describe('mcdoc command completion', () => {
 				config: core.ConfigService.merge(core.VanillaConfig, { env: { enableMcdocCaching } }),
 			}
 			// No duplicate type data on the symbol base: Global is the authoritative storage.
-			core.SymbolUtil.forEachSymbol(project.symbols.global, symbol => {
+			core.SymbolUtil.forEachSymbol(project.symbolStorage.global, symbol => {
 				delete symbol.data
 			})
-			project.symbols = new core.SymbolUtil(
-				core.SymbolTable.deserialize(core.SymbolTable.serialize(project.symbols.global)),
+			project.symbolStorage = new core.SymbolStorage(
+				core.SymbolTable.deserialize(core.SymbolTable.serialize(project.symbolStorage.global)),
 			)
 			je.mcf.initialize(project, commands, '1.21.5')
 			for (

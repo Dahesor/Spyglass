@@ -12,7 +12,7 @@ import {
 describe('indexed document symbols', () => {
 	for (const hierarchical of [false, true]) {
 		it(`matches the full table outline (hierarchical=${hierarchical}) without reading unrelated symbols`, t => {
-			const util = new core.SymbolUtil({})
+			const util = new core.SymbolService(new core.SymbolStorage({}))
 			const doc = TextDocument.create('file:///current.mcfunction', 'mcfunction', 0, 'test')
 			util.contributeAs('binder', () => {
 				util.query(doc, 'function', 'current').enter({ usage: { type: 'definition' } })
@@ -26,17 +26,15 @@ describe('indexed document symbols', () => {
 					})
 				}
 			})
-			const expected = documentSymbolsFromTable(util.global, doc, hierarchical)
-			const unrelated = util.global.function!['other1999']
+			const expected = documentSymbolsFromTable(util.storage.global, doc, hierarchical)
+			const unrelated = util.storage.global.function!['other1999']
 			Object.defineProperty(unrelated, 'facets', {
 				get() {
 					throw new Error('Unrelated symbol visited')
 				},
 			})
 			const actual = documentSymbolsFromSymbols(
-				core.GlobalSymbol.getSymbolsInFile(util, doc.uri).filter(symbol =>
-					!symbol.parentSymbol
-				),
+				util.getSymbolsInFile(doc.uri).filter(symbol => !symbol.parentSymbol),
 				doc,
 				hierarchical,
 			)

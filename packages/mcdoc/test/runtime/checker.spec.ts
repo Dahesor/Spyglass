@@ -17,7 +17,7 @@ describe('mcdoc runtime checker', () => {
 	const suites: {
 		name: string
 		type: McdocType
-		init?: (symbols: core.SymbolUtil, meta: core.MetaRegistry) => void
+		init?: (symbols: core.SymbolService, meta: core.MetaRegistry) => void
 		values: JsValue[]
 	}[] = [{
 		name: 'struct { test: double }',
@@ -763,7 +763,7 @@ describe('mcdoc runtime checker', () => {
 				it(`with value ${JSON.stringify(value, (_, v) => typeof v === 'bigint' ? `${v}n` : v)}`, (t) => {
 					const errors: McdocRuntimeError<JsValue>[] = []
 					const project = mockProjectData()
-					init?.(project.symbols, project.meta)
+					init?.(new core.SymbolService(project.symbolStorage), project.meta)
 					const checkerCtx = core.CheckerContext.create(project, {
 						doc: TextDocument.create('', '', 0, ''),
 					})

@@ -40,10 +40,8 @@ describe('@input', () => {
 				'#>function demo:self\n# @writes ' + args + '\n#  Explanation',
 			)
 			t.assert.equal(ctx.err.errors.length, 0)
-			project.symbols.contributeAs(
-				'binder',
-				() => mcf.bindDoc(node, core.BinderContext.create(project, { doc })),
-			)
+			const binder = core.BinderContext.create(project, { doc })
+			binder.symbols.contributeAs('binder', () => mcf.bindDoc(node, binder))
 			t.assert.equal(node.description, 'writes: ' + args + '\nExplanation')
 			const command = node.docDirectives[0].argumentNode!.children![0] as mcf.CommandNode
 			const value = command.children.at(-1)!.children[0] as core.AstNode & {
@@ -112,7 +110,7 @@ describe('@input', () => {
 				'#>function demo:self\n#@input ' + args + '\n#  Description\n# Other',
 			)
 			const binder = core.BinderContext.create(project, { doc })
-			project.symbols.contributeAs('binder', () => mcf.bindDoc(node, binder))
+			binder.symbols.contributeAs('binder', () => mcf.bindDoc(node, binder))
 			t.assert.equal(ctx.err.errors.length, 0)
 			t.assert.equal(node.description, ' Other\n\ninput: ' + args + '\nDescription')
 			t.assert.equal(node.docDirectives[0].inputComment, 'Description')
@@ -140,9 +138,10 @@ describe('@input', () => {
 	) {
 		it('reuses symbol completion for ' + category, t => {
 			const { node, project, doc, offset } = parse('#>function demo:self\n#@input ' + args + '|')
-			project.symbols.query(doc.uri, category, identifier).enter({
-				usage: { type: 'definition' },
-			})
+			new core.SymbolService(project.symbolStorage).query(doc.uri, category, identifier)
+				.enter({
+					usage: { type: 'definition' },
+				})
 			const items = completeDoc(node, core.CompleterContext.create(project, { doc, offset }))
 			t.assert.deepEqual(
 				items.map(item => item.label),

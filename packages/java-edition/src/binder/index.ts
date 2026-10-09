@@ -6,6 +6,7 @@ import type {
 	MetaRegistry,
 	ResourceLocation,
 	RootUriString,
+	SymbolEnterType,
 	TaggableResourceLocationCategory,
 	UriBinder,
 	UriBinderContext,
@@ -333,9 +334,9 @@ export const uriBinder: UriBinder = (uris: readonly string[], ctx: UriBinderCont
 		const parts = dissectUri(uri, ctx)
 		if (parts) {
 			ctx.symbols.query(uri, parts.category, `${parts.namespace}:${parts.identifier}`)
-				.enterFileDefinition({
+				.enter({
 					usage: { type: 'definition' },
-				})
+				}, 'file' as SymbolEnterType)
 		}
 	}
 }

@@ -492,9 +492,9 @@ connection.onDocumentSymbol(async ({ textDocument: { uri } }) => {
 	const supportedKinds = capabilities.textDocument?.documentSymbol?.symbolKind?.valueSet
 	return [
 		...toLS.documentSymbolsFromSymbols(
-			core.GlobalSymbol.getSymbolsInFile(service.project.symbols, doc.uri).filter(symbol =>
-				!symbol.parentSymbol
-			),
+			new core.SymbolService(service.project.symbolStorage)
+				.getSymbolsInFile(doc.uri)
+				.filter(symbol => !symbol.parentSymbol),
 			doc,
 			hierarchicalSupport,
 			supportedKinds,
@@ -618,7 +618,7 @@ connection.onSignatureHelp(async ({ textDocument: { uri }, position }) => {
 
 connection.onWorkspaceSymbol(({ query }) => {
 	return toLS.symbolInformationArrayFromTable(
-		service.project.symbols.global,
+		service.project.symbolStorage.global,
 		query,
 		capabilities.textDocument?.documentSymbol?.symbolKind?.valueSet,
 	)

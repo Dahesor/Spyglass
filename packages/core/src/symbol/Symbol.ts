@@ -498,6 +498,14 @@ export interface SymbolGlobalData extends Partial<Record<SymbolUsageType, Symbol
 export const SymbolUsageTypes = Object.freeze(
 	['definition', 'declaration', 'implementation', 'reference', 'typeDefinition'] as const,
 )
+
+/** The usage type of a symbol
+ * - `declaration`: The statement of existence of a symbol.
+ * - `implementation`: The actual logic of the symbol.
+ * - `definition`: Being both a `declaration` and an `implementation`.
+ * - `reference`: A usage of the symbol by some other part.
+ * - `typeDefinition`: The type definition of the symbol.
+ */
 export type SymbolUsageType = (typeof SymbolUsageTypes)[number]
 export namespace SymbolUsageType {
 	export function is(value: unknown): value is SymbolUsageType {
@@ -569,6 +577,7 @@ export interface SymbolLocationMetadata {
 	importedFrom?: string
 	isotopeIdentifier?: string
 	fromDocDeclaration?: boolean
+	/** If this symbol is defined by the exsistence of a file. */
 	fromFile?: boolean
 	originalUsageType?: SymbolUsageType
 	/**

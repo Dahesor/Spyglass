@@ -6,12 +6,13 @@ import {
 	ConfigService,
 	EventDispatcher,
 	fileUtil,
-	GlobalSymbol,
 	literal,
 	Logger,
 	Project,
 	resourceLocation,
 	Service,
+	SymbolEnterType,
+	SymbolService,
 	SymbolTable,
 	SymbolUtil,
 	UriStore,
@@ -117,6 +118,38 @@ async function setup(
 }
 
 describe('Project', () => {
+	it('replaces binder and checker contributions on repeated edits', async () => {
+		const uri = `${ProjectRoot}edit.spyglasstest`
+		const { project } = await setup({ '/root/edit.spyglasstest': 'foo' }, [({ meta }) => {
+			meta.registerBinder<LiteralNode>('literal', async (node, ctx) => {
+				await Promise.resolve()
+				ctx.symbols.query(ctx.doc, 'test', 'bound').enter({
+					usage: { type: 'reference', node },
+				})
+			})
+			meta.registerChecker<LiteralNode>('literal', async (node, ctx) => {
+				await Promise.resolve()
+				ctx.symbols.query(ctx.doc, 'test', 'checked').enter({
+					usage: { type: 'reference', node },
+				})
+			})
+		}])
+		try {
+			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
+			for (let version = 1; version <= 3; version++) {
+				await project.onDidChange(uri, [{ text: 'foo' }], version)
+				await project.ensureClientManagedChecked(uri)
+				for (const [identifier, contributor] of [['bound', 'binder'], ['checked', 'checker']]) {
+					const usages = project.symbolStorage.global['test']![identifier].facets?.global
+						?.reference
+					assert.equal(usages?.length, 1)
+					assert.equal(usages?.[0].contributor, contributor)
+				}
+			}
+		} finally {
+			await project.close()
+		}
+	})
 	it('keeps archive dependencies separate and publishes once per binding phase', async t => {
 		const exports = t.mock.method(SymbolTable, 'getDependencyExports')
 		const bound: string[] = []
@@ -146,7 +179,7 @@ describe('Project', () => {
 				ctx.symbols.query(ctx.doc, 'function', ctx.doc.uri).enter({
 					usage: { type: 'definition' },
 				})
-				node.symbol = ctx.symbols.global.function![ctx.doc.uri]
+				node.symbol = ctx.symbols.storage.global.function![ctx.doc.uri]
 			})
 		}])
 		try {
@@ -157,7 +190,7 @@ describe('Project', () => {
 			])
 			assert.equal(exports.mock.callCount(), 4)
 			for (const { uri, checksum } of project.cacheService.imports) {
-				const symbol = project.symbols.global.function![`${uri}value.spyglasstest`]
+				const symbol = project.symbolStorage.global.function![`${uri}value.spyglasstest`]
 				assert.equal(symbol.facets?.global?.isotopes?.length, 1)
 				assert.equal(symbol.facets?.global?.isotopes?.[0].providerName, checksum)
 			}
@@ -172,7 +205,7 @@ describe('Project', () => {
 			)
 			const mappedUri = (await project.fs.mapToDisk(originalUri))!
 			assert.ok(mappedUri.includes('/virtual-uris/'))
-			const symbolsBefore = SymbolTable.serialize(project.symbols.global)
+			const symbolsBefore = SymbolTable.serialize(project.symbolStorage.global)
 			const importsBefore = JSON.stringify(project.cacheService.imports)
 			const service = Object.assign(Object.create(Service.prototype) as Service, {
 				project,
@@ -198,13 +231,14 @@ describe('Project', () => {
 				)
 				await project.onDidChange(mappedUri, [{ text: 'bar' }], i + 1)
 				assert.equal(project.getClientManaged(mappedUri)?.doc.getText(), 'foo')
-				assert.equal(SymbolTable.serialize(project.symbols.global), symbolsBefore)
+				assert.equal(SymbolTable.serialize(project.symbolStorage.global), symbolsBefore)
 				assert.equal(JSON.stringify(project.cacheService.imports), importsBefore)
 				project.onDidClose(mappedUri)
 				assert.equal(await project.ensureClientManagedChecked(mappedUri), undefined)
 			}
 			assert.equal(
-				project.symbols.global.function![`${ProjectRoot}local.spyglasstest`].facets?.global
+				project.symbolStorage.global.function![`${ProjectRoot}local.spyglasstest`].facets
+					?.global
 					?.isotopes[0].source,
 				3,
 			)
@@ -244,13 +278,16 @@ describe('Project', () => {
 				})
 				meta.registerUriBinder((uris, ctx) => {
 					for (const uri of uris) {
-						ctx.symbols.query(uri, 'function', fileUtil.basename(uri)!).enterFileDefinition({
-							usage: {},
-						})
+						ctx.symbols.query(uri, 'function', fileUtil.basename(uri)!)
+							.enter({ usage: {} }, SymbolEnterType.File)
 					}
 				})
 				meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
-					const query = ctx.symbols.query(ctx.doc, 'function', `${node.value}.spyglasstest`)
+					const query = ctx.symbols.query(
+						ctx.doc,
+						'function',
+						`${node.value}.spyglasstest`,
+					)
 					const usage = { type: 'declaration' as const, fromDocDeclaration: true }
 					if (node.value === 'private') {
 						query.enterIsotope('private', {
@@ -275,7 +312,7 @@ describe('Project', () => {
 			try {
 				await project.init()
 				await project.ready()
-				const symbols = project.symbols.global.function!
+				const symbols = project.symbolStorage.global.function!
 				assert.equal(symbols['internal.spyglasstest'], undefined)
 				assert.equal(symbols['private.spyglasstest'], undefined)
 				assert.equal(symbols['public.spyglasstest'].facets?.global?.isotopes[0].source, 1)
@@ -353,7 +390,7 @@ describe('Project', () => {
 			await reloaded.onDidOpen(`${other}value.spyglasstest`, 'spyglasstest', 0, 'foo')
 			assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [copy])
 			assert.equal(reloaded.shouldExclude(`${other}value.spyglasstest`), true)
-			const symbol = reloaded.symbols.global.function!['demo:duplicate']
+			const symbol = reloaded.symbolStorage.global.function!['demo:duplicate']
 			assert.equal(symbol.facets?.global?.isotopes?.length, 1)
 			assert.equal(
 				SymbolUtil.viewFromContext(symbol, ProjectRoot)?.definition?.[0].uri,
@@ -399,7 +436,7 @@ describe('Project', () => {
 			const current = reloaded.cacheService.imports[0]
 			assert.equal(current.uri, previous.uri)
 			assert.notEqual(current.checksum, previous.checksum)
-			const symbol = reloaded.symbols.global.function!['demo:cached']
+			const symbol = reloaded.symbolStorage.global.function!['demo:cached']
 			assert.equal(SymbolUtil.viewFromContext(symbol, ProjectRoot)?.desc, 'bar')
 			assert.deepEqual(symbol.facets?.global?.isotopes?.map(isotope => isotope.providerName), [
 				current.checksum,
@@ -433,7 +470,9 @@ describe('Project', () => {
 			meta.registerUriBinder((uris, ctx) => {
 				for (const uri of uris.filter(uri => uri.endsWith('.spyglasstest'))) {
 					const name = fileUtil.basename(uri).replace('.spyglasstest', '')
-					ctx.symbols.query(uri, 'function', `demo:${name}`).enterFileDefinition({ usage: {} })
+					ctx.symbols.query(uri, 'function', `demo:${name}`).enter({
+						usage: {},
+					}, SymbolEnterType.File)
 				}
 			})
 			meta.registerBinder<LiteralNode>('literal', async (node, ctx) => {
@@ -452,7 +491,7 @@ describe('Project', () => {
 					dependencyReads.push(
 						SymbolUtil.isDeclared(
 							SymbolUtil.viewFromContext(
-								ctx.symbols.query(ctx.doc, 'function', 'demo:external').symbol,
+								ctx.symbols.query(ctx.doc, 'function', 'demo:external').symbolView,
 								ctx.doc.uri,
 							),
 						),
@@ -520,7 +559,7 @@ describe('Project', () => {
 		}
 		const { project } = await setup(files, [initializer])
 		const assertExports = (project: Project) => {
-			const symbols = project.symbols.global.function!
+			const symbols = project.symbolStorage.global.function!
 			assert.equal(
 				SymbolUtil.viewFromContext(symbols['demo:public'], ProjectRoot)?.desc,
 				'public base',
@@ -547,7 +586,7 @@ describe('Project', () => {
 				const view = SymbolUtil.viewFromContext(
 					symbol,
 					`${ProjectRoot}data/demo/function/use.spyglasstest`,
-					project.symbols.resolveResourceLocation,
+					project.symbolStorage.resolveResourceLocation,
 				)
 				assert.equal(view?.desc, 'namespace documentation')
 				assert.equal(view?.implementation?.length, 1)
@@ -555,7 +594,7 @@ describe('Project', () => {
 					SymbolUtil.viewFromContext(
 						symbol,
 						`${ProjectRoot}data/other/function/use.spyglasstest`,
-						project.symbols.resolveResourceLocation,
+						project.symbolStorage.resolveResourceLocation,
 					),
 					undefined,
 				)
@@ -566,7 +605,7 @@ describe('Project', () => {
 			assert.deepEqual(dependencyReads, [false])
 			assert.equal(
 				SymbolUtil.isDeclared(SymbolUtil.viewFromContext(
-					project.symbols.global.function!['demo:external'],
+					project.symbolStorage.global.function!['demo:external'],
 					ProjectRoot,
 				)),
 				true,
@@ -600,15 +639,26 @@ describe('Project', () => {
 					bindCount.get('file:///hidden_dependency/data/demo/function/internal.spyglasstest'),
 					1,
 				)
+				// Opening a dependency borrows the schema, without indexing all shared mcdoc symbols.
+				const sharedMcdoc = reloaded.symbolStorage.global.mcdoc
+				let schemaScans = 0
+				reloaded.symbolStorage.global.mcdoc = new Proxy(sharedMcdoc ?? {}, {
+					ownKeys(target) {
+						schemaScans++
+						return Reflect.ownKeys(target)
+					},
+				})
 				await reloaded.onDidOpen(
 					'file:///dependency/data/demo/function/internal.spyglasstest',
 					'spyglasstest',
 					0,
 					'internal',
 				)
+				reloaded.symbolStorage.global.mcdoc = sharedMcdoc
+				assert.equal(schemaScans, 0)
 				assertExports(reloaded)
 				assert.deepEqual(dependencyReads, [false, false])
-				reloaded.symbols.query(
+				new SymbolService(reloaded.symbolStorage).query(
 					`${ProjectRoot}private/doc.mcfunction`,
 					'function',
 					'demo:public',
@@ -622,7 +672,7 @@ describe('Project', () => {
 						},
 						usage: { type: 'declaration', fromDocDeclaration: true },
 					})
-				const raw = reloaded.symbols.global.function!['demo:public']
+				const raw = reloaded.symbolStorage.global.function!['demo:public']
 				assert.equal(
 					SymbolUtil.viewFromContext(raw, `${ProjectRoot}outside.mcfunction`)?.desc,
 					'public base',
@@ -634,7 +684,7 @@ describe('Project', () => {
 				assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [
 					'file:///second_dependency/',
 				])
-				assert.equal(reloaded.symbols.global.function!['demo:public'], raw)
+				assert.equal(reloaded.symbolStorage.global.function!['demo:public'], raw)
 				assert.equal(
 					SymbolUtil.viewFromContext(raw, `${ProjectRoot}outside.mcfunction`),
 					undefined,
@@ -661,17 +711,18 @@ describe('Project', () => {
 				})
 				meta.registerUriBinder((uris, ctx) => {
 					if (uris.includes(source)) {
-						ctx.symbols.query(source, 'function', 'demo:example').enterFileDefinition({
+						ctx.symbols.query(source, 'function', 'demo:example').enter({
 							usage: {},
-						})
+						}, SymbolEnterType.File)
 					}
 				})
 			},
 		])
 		try {
 			project.config = ConfigService.merge(project.config, { lint: { noAccessToSymbol: false } })
-			project.symbols.contributeAs('binder', () => {
-				project.symbols.query(
+			const symbols = new SymbolService(project.symbolStorage)
+			symbols.contributeAs('binder', () => {
+				symbols.query(
 					`${ProjectRoot}private/doc.spyglasstest`,
 					'function',
 					'demo:example',
@@ -703,25 +754,28 @@ describe('Project', () => {
 		const { project } = await setup({ '/root/inner.spyglasstest': 'foo' }, [({ meta }) => {
 			meta.registerUriBinder((uris, ctx) => {
 				for (const fileUri of uris) {
-					ctx.symbols.query(fileUri, 'function', 'test:folder/inner').enterFileDefinition({
+					ctx.symbols.query(fileUri, 'function', 'test:folder/inner').enter({
 						usage: { type: 'definition' },
-					})
+					}, SymbolEnterType.File)
 				}
 			})
 		}])
 		try {
-			GlobalSymbol.clear(project.symbols, { uri, contributor: 'uri_binder' })
-			project.symbols.contributeAs('binder', () => {
-				project.symbols.query(
+			new SymbolService(project.symbolStorage).clear({
+				uri,
+				contributor: 'uri_binder',
+			})
+			new SymbolService(project.symbolStorage).contributeAs('binder', () => {
+				new SymbolService(project.symbolStorage).query(
 					`${ProjectRoot}other.spyglasstest`,
 					'function',
 					'test:folder/inner',
 				)
-					.enterCommand({ usage: { type: 'reference' } })
+					.enter({ usage: { type: 'reference' } }, SymbolEnterType.InFileSymbol)
 			})
 			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
 			await project.ensureClientManagedChecked(uri)
-			const symbol = project.symbols.global.function!['test:folder/inner']
+			const symbol = project.symbolStorage.global.function!['test:folder/inner']
 			assert.equal(symbol.facets?.global?.definition?.length, 1)
 			assert.equal(symbol.facets?.global?.definition?.[0].uri, uri)
 			assert.equal(symbol.facets?.global?.definition?.[0].fromFile, true)
