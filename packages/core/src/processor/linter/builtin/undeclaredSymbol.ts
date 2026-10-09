@@ -25,16 +25,16 @@ export const undeclaredSymbol: Linter<AstNode> = (node, ctx) => {
 	const action = getAction(ctx.ruleValue as Config, node.symbol, ctx)
 	if (Config.Action.isDeclare(action)) {
 		const visibility = getVisibility(action.declare)
-		const query = visibility === undefined
+		const handle = visibility === undefined
 			? ctx.symbols.query(ctx.doc, node.symbol.category, ...node.symbol.path)
-			: LocalSymbol.queryForScope(
+			: LocalSymbol.queryInsideScope(
 				ctx.symbols,
 				{ doc: ctx.doc, node },
 				visibility,
 				node.symbol.category,
 				...node.symbol.path,
 			)
-		query.enter({
+		handle.enter({
 			usage: { type: 'declaration', node },
 		})
 	}

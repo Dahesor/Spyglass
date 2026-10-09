@@ -1,4 +1,4 @@
-import { fileUtil, GlobalSymbol, SymbolUtil } from '@spyglassmc/core'
+import { fileUtil, SymbolService, SymbolUtil } from '@spyglassmc/core'
 import type { Logger } from '@spyglassmc/core'
 import { NodeJsExternals } from '@spyglassmc/core/lib/nodejs.js'
 import * as mcdoc from '@spyglassmc/mcdoc'
@@ -71,7 +71,7 @@ export async function localeCommand(args: Args) {
 		}
 	}
 
-	const symbols = GlobalSymbol.getVisibleSymbols(project.symbols, 'mcdoc')
+	const symbols = new SymbolService(project.symbolStorage).getVisibleSymbols('mcdoc')
 	for (const [name, raw] of Object.entries(symbols)) {
 		const symbol = SymbolUtil.viewFromContext(raw, undefined)
 		if (!symbol) {

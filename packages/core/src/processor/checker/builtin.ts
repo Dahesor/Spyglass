@@ -19,7 +19,7 @@ export function attempt<N extends AstNode>(
 	const tempCtx: CheckerContext = {
 		...ctx,
 		err: new ErrorReporter(ctx.err.source),
-		symbols: ctx.symbols.clone(),
+		symbols: ctx.symbols.cloneDelayed(),
 	}
 
 	// FIXME: await

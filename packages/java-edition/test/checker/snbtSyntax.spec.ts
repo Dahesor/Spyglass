@@ -28,9 +28,10 @@ function check(content: string, version: ReleaseVersion) {
 		checksum: data.checksum,
 		registrar: unicodeSymbolRegistrar(data),
 	})
+	const symbols = new core.SymbolService(project.symbolStorage)
 	for (const [id, { registrar }] of project.meta.symbolRegistrars) {
-		project.symbols.contributeAs(`symbol_registrar/${id}`, () => {
-			registrar(project.symbols, {})
+		symbols.contributeAs(`symbol_registrar/${id}`, () => {
+			registrar(symbols, {})
 			return undefined
 		})
 	}

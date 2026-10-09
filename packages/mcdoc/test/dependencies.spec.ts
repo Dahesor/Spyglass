@@ -1,9 +1,9 @@
 import {
 	ConfigService,
 	FileNode,
-	GlobalSymbol,
 	Logger,
 	Project,
+	SymbolUtil,
 	VanillaConfig,
 } from '@spyglassmc/core'
 import { getNodeJsExternals } from '@spyglassmc/core/lib/nodejs.js'
@@ -36,9 +36,10 @@ it('loads unreferenced dependency dispatchers on first startup and after cache r
 		try {
 			await project.init()
 			await project.ready()
-			const player = project.symbols.global['mcdoc/dispatcher']?.['minecraft:entity']?.members
+			const player = project.symbolStorage.global['mcdoc/dispatcher']?.['minecraft:entity']
+				?.members
 				?.['player']
-			const data = GlobalSymbol.getCanonicalData(player)
+			const data = SymbolUtil.getCanonicalData(player)
 			if (!TypeDefSymbolData.is(data) || data.typeDef.kind !== 'struct') {
 				throw new Error('Missing player dispatcher type')
 			}
@@ -92,15 +93,15 @@ it('resolves public mcdoc types across separate dependency packages', async t =>
 		)
 		t.assert.deepEqual(errors, [])
 		t.assert.equal(
-			project.symbols.global.mcdoc!['::a::Own']?.facets?.global?.definition?.length,
+			project.symbolStorage.global.mcdoc!['::a::Own']?.facets?.global?.definition?.length,
 			1,
 		)
 		t.assert.equal(
-			project.symbols.global.mcdoc!['::b::Value']?.facets?.global?.definition?.length,
+			project.symbolStorage.global.mcdoc!['::b::Value']?.facets?.global?.definition?.length,
 			1,
 		)
 		t.assert.equal(
-			project.symbols.global.mcdoc!['::a::Own']
+			project.symbolStorage.global.mcdoc!['::a::Own']
 				?.facets?.global?.reference?.some(location =>
 					location.uri === 'file:///root/main.mcdoc'
 				),
@@ -108,12 +109,12 @@ it('resolves public mcdoc types across separate dependency packages', async t =>
 		)
 		const assertBaseSymbols = () => {
 			for (const identifier of ['::a::Own', '::b::Value']) {
-				const symbol = project.symbols.global.mcdoc![identifier]
+				const symbol = project.symbolStorage.global.mcdoc![identifier]
 				t.assert.notEqual(symbol.data, undefined)
 				t.assert.equal(symbol.facets?.isotopes, undefined)
 			}
 			const member =
-				project.symbols.global['mcdoc/dispatcher']!['minecraft:item'].members!['example']
+				project.symbolStorage.global['mcdoc/dispatcher']!['minecraft:item'].members!['example']
 			t.assert.notEqual(member.data, undefined)
 			t.assert.equal(member.facets?.global?.definition?.length, 1)
 			t.assert.equal(member.facets?.isotopes, undefined)

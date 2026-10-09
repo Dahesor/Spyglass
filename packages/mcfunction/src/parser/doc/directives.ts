@@ -29,6 +29,7 @@ export function registerDocDirectives(meta: core.MetaRegistry): void {
 	registerDocDirective(meta, new SuccessDocDirective())
 	registerDocDirective(meta, new VoidDocDirective())
 	registerDocDirective(meta, new TypeDocDirective())
+	registerDocDirective(meta, new AuthorDocDirective())
 }
 
 // #region Abstract Directives (not exported)
@@ -149,6 +150,11 @@ export class InternalDocDirective extends AccessModifierDirective {
 	): DocAccess {
 		return { visibility: core.SymbolIsotopeScope.Project }
 	}
+}
+
+export class AuthorDocDirective extends GreedyStringDirective {
+	override readonly identifier = 'author'
+	// Not including author as part of the description, so do nothing here
 }
 
 export class DeprecatedDocDirective extends DefaultDocDirective {

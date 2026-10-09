@@ -235,7 +235,7 @@ describe('mcdoc runtime checker', () => {
 					throw new Error(`Failed to parse content: ${def}`)
 				}
 				const binderCtx = core.BinderContext.create(project, { doc })
-				project.symbols.query(doc, 'mcdoc', '::test').enter({
+				binderCtx.symbols.query(doc, 'mcdoc', '::test').enter({
 					data: { data: { nextAnonymousIndex: 0 } },
 					usage: { type: 'definition' },
 				})
@@ -297,7 +297,7 @@ describe('mcdoc runtime checker', () => {
 								typeAttachments.push({ node, definition, desc })
 							},
 						})
-						const symbol = project.symbols.query(doc, 'mcdoc', '::test::Test')
+						const symbol = checkerCtx.symbols.query(doc, 'mcdoc', '::test::Test')
 						const data = symbol.getData(TypeDefSymbolData.is)
 						if (!data?.typeDef) {
 							throw new Error(`Could not resolve typedef`)

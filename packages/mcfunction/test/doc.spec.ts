@@ -1,4 +1,3 @@
-import { GlobalSymbol } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
 import { mockProjectData, mockResourceLocation } from '@spyglassmc/core/test/utils.ts'
 import { localeQuote, localize } from '@spyglassmc/locales'
@@ -27,6 +26,7 @@ describe('function header completion', () => {
 		marked: string,
 		project = mockProjectData(),
 		uri = root + 'folder/self.mcfunction',
+		symbols = new core.SymbolService(project.symbolStorage),
 	) {
 		initialize(project)
 		class RequiredDirective extends DefaultDocDirective {
@@ -38,7 +38,7 @@ describe('function header completion', () => {
 		const text = marked.replace('|', '')
 		const doc = TextDocument.create(uri, 'mcfunction', 0, text)
 		const node = parseDoc(new core.Source(text), core.ParserContext.create(project, { doc }))
-		return completeDoc(node, core.CompleterContext.create(project, { doc, offset }))
+		return completeDoc(node, core.CompleterContext.create(project, { doc, offset, symbols }))
 	}
 	for (const marked of ['#>|', '#>   |', '#>@private |', '#>@private @chatonly |']) {
 		it('puts THIS and function before usable inline directives: ' + marked, t => {
@@ -82,15 +82,23 @@ describe('function header completion', () => {
 	it('does not visit unrelated functions in a large symbol table', t => {
 		const project = mockProjectData()
 		for (let i = 0; i < 2000; i++) {
-			project.symbols.query(root + `other${i}.mcfunction`, 'function', `demo:other${i}`).enter({
+			new core.SymbolService(project.symbolStorage).query(
+				root + `other${i}.mcfunction`,
+				'function',
+				`demo:other${i}`,
+			).enter({
 				usage: { type: 'definition', fromFile: true },
 			})
 		}
 		const currentUri = root + 'folder/self.mcfunction'
-		project.symbols.query(currentUri, 'function', 'demo:custom/self').enter({
+		new core.SymbolService(project.symbolStorage).query(
+			currentUri,
+			'function',
+			'demo:custom/self',
+		).enter({
 			usage: { type: 'definition', fromFile: true },
 		})
-		for (const symbol of Object.values(project.symbols.global.function!)) {
+		for (const symbol of Object.values(project.symbolStorage.global.function!)) {
 			if (symbol.identifier !== 'demo:custom/self') {
 				Object.defineProperty(symbol, 'facets', {
 					get() {
@@ -99,10 +107,11 @@ describe('function header completion', () => {
 				})
 			}
 		}
-		project.symbols.getScopedSymbols = () => {
+		const symbols = new core.SymbolService(project.symbolStorage)
+		symbols.getScopedSymbols = () => {
 			throw new Error('Global completion pool requested')
 		}
-		const items = complete('#>function |', project, currentUri)
+		const items = complete('#>function |', project, currentUri, symbols)
 		t.assert.deepEqual(items.map(item => item.label), ['THIS'])
 		t.assert.equal(items[0].insertText, 'demo:custom/self')
 	})
@@ -148,7 +157,7 @@ function setup() {
 		const parserCtx = core.ParserContext.create(project, { doc })
 		const node = parseDoc(src, parserCtx)
 		const ctx = core.BinderContext.create(project, { doc })
-		project.symbols.contributeAs('binder', () => bindDoc(node, ctx))
+		ctx.symbols.contributeAs('binder', () => bindDoc(node, ctx))
 		return { node, errors: [...parserCtx.err.errors, ...ctx.err.errors] }
 	}
 	function command(uri: string, type: 'definition' | 'reference' = 'definition') {
@@ -156,12 +165,12 @@ function setup() {
 		const node = core.SymbolNode.mock(0, { category: 'objective', usageType: type })
 		node.value = 'coins'
 		const ctx = core.BinderContext.create(project, { doc })
-		project.symbols.contributeAs('binder', () => core.binder.symbol(node, ctx))
+		ctx.symbols.contributeAs('binder', () => core.binder.symbol(node, ctx))
 		return node
 	}
-	const raw = () => project.symbols.global.objective!['coins']
+	const raw = () => project.symbolStorage.global.objective!['coins']
 	const view = (uri: string) =>
-		core.SymbolUtil.viewFromContext(raw(), uri, project.symbols.resolveResourceLocation)
+		core.SymbolUtil.viewFromContext(raw(), uri, project.symbolStorage.resolveResourceLocation)
 	return { project, declaration, command, raw, view }
 }
 
@@ -184,7 +193,10 @@ describe('doc access and command usages', () => {
 		t.assert.equal(env.view(root)?.desc, ' Override documentation')
 		t.assert.equal(env.view(root)?.declaration?.length, 2)
 		t.assert.equal(env.view(root)?.implementation?.length, 1)
-		GlobalSymbol.clear(env.project.symbols, { uri: second, contributor: 'binder' })
+		new core.SymbolService(env.project.symbolStorage).clear({
+			uri: second,
+			contributor: 'binder',
+		})
 		t.assert.equal(env.view(root)?.desc, ' 金币')
 		t.assert.equal(env.view(root)?.declaration?.length, 1)
 		t.assert.equal(env.view(root)?.implementation?.length, 1)
@@ -226,7 +238,7 @@ describe('doc access and command usages', () => {
 				reference()
 				declaration()
 			}
-			const raw = env.project.symbols.global.function!['demo:value']
+			const raw = env.project.symbolStorage.global.function!['demo:value']
 			t.assert.equal(core.SymbolUtil.viewFromContext(raw, doc.uri)?.reference?.length, 1)
 			t.assert.equal(core.SymbolUtil.viewFromContext(raw, root + 'outside.json'), undefined)
 		})
@@ -276,7 +288,7 @@ describe('doc access and command usages', () => {
 		t.assert.deepEqual(env.declaration(root + 'doc.mcfunction', '@protected').errors, [])
 		t.assert.deepEqual(env.raw().facets?.isotopes?.[0].visibleWithin, [{ namespace: 'demo' }])
 		const exported = core.SymbolTable.getDependencyExports(
-			env.project.symbols.global,
+			env.project.symbolStorage.global,
 			'dependency',
 		)
 		const symbol = exported.objective!['coins']
@@ -354,8 +366,7 @@ describe('doc access and command usages', () => {
 		t.assert.equal(env.view(root + 'private/sub/file.mcfunction')?.reference?.length, 1)
 		t.assert.equal(env.view(root + 'outside.mcfunction'), undefined)
 		t.assert.equal(
-			GlobalSymbol.getVisibleSymbols(
-				env.project.symbols,
+			new core.SymbolService(env.project.symbolStorage).getVisibleSymbols(
 				'objective',
 				root + 'outside.mcfunction',
 			)['coins'],
@@ -368,7 +379,10 @@ describe('doc access and command usages', () => {
 		env.declaration(source)
 		env.command(root + 'private/command.mcfunction')
 		env.command(root + 'private/ref.mcfunction', 'reference')
-		GlobalSymbol.clear(env.project.symbols, { uri: source, contributor: 'binder' })
+		new core.SymbolService(env.project.symbolStorage).clear({
+			uri: source,
+			contributor: 'binder',
+		})
 		t.assert.equal(env.raw().facets?.isotopes?.length ?? 0, 0)
 		t.assert.equal(env.view(root)?.definition?.length, 1)
 		t.assert.equal(env.view(root)?.reference?.length, 1)
@@ -377,24 +391,28 @@ describe('doc access and command usages', () => {
 	it('private function headers declare the name and hide the file definition outside', t => {
 		const env = setup()
 		const uri = root + 'private/doc.mcfunction'
-		env.project.symbols.contributeAs('uri_binder', () => {
-			env.project.symbols.query(uri, 'function', 'demo:private/doc').enterFileDefinition({
+		const symbols = new core.SymbolService(env.project.symbolStorage)
+		symbols.contributeAs('uri_binder', () => {
+			symbols.query(uri, 'function', 'demo:private/doc').enter({
 				usage: { type: 'definition' },
-			})
+			}, core.SymbolEnterType.File)
 		})
 		t.assert.deepEqual(
 			env.declaration(uri, '@private', '#> @private function demo:private/doc description')
 				.errors,
 			[],
 		)
-		const symbol = env.project.symbols.global.function!['demo:private/doc']
+		const symbol = env.project.symbolStorage.global.function!['demo:private/doc']
 		t.assert.equal(core.SymbolUtil.viewFromContext(symbol, uri)?.declaration?.length, 1)
 		t.assert.equal(core.SymbolUtil.viewFromContext(symbol, uri)?.implementation?.length, 1)
 		t.assert.equal(
 			core.SymbolUtil.viewFromContext(symbol, root + 'outside.mcfunction'),
 			undefined,
 		)
-		GlobalSymbol.clear(env.project.symbols, { uri, contributor: 'binder' })
+		new core.SymbolService(env.project.symbolStorage).clear({
+			uri,
+			contributor: 'binder',
+		})
 		t.assert.equal(symbol.facets?.global?.definition?.length, 1)
 		t.assert.equal(symbol.facets?.isotopes?.length ?? 0, 0)
 	})
@@ -404,7 +422,10 @@ describe('doc access and command usages', () => {
 		const uri = root + 'doc.mcfunction'
 		env.declaration(uri, '@internal')
 		env.command(root + 'command.mcfunction')
-		GlobalSymbol.clear(env.project.symbols, { uri, contributor: 'binder' })
+		new core.SymbolService(env.project.symbolStorage).clear({
+			uri,
+			contributor: 'binder',
+		})
 		t.assert.equal(env.view(root)?.definition?.length, 1)
 		t.assert.equal(env.view(root)?.implementation?.length ?? 0, 0)
 		t.assert.equal(env.raw().facets?.internal?.isotopes.length, 0)
@@ -460,7 +481,7 @@ describe('doc access and command usages', () => {
 			throw new Error('Expected parsed mcfunction')
 		}
 		const ctx = core.BinderContext.create(env.project, { doc })
-		await env.project.symbols.contributeAsAsync(
+		await ctx.symbols.contributeAsAsync(
 			'binder',
 			async () => env.project.meta.getBinder(node.type)(node, ctx),
 		)
@@ -708,7 +729,7 @@ describe('directive controlled input', () => {
 		const parserCtx = core.ParserContext.create(project, { doc })
 		const node = parseDoc(new core.Source(text).skip(text.startsWith('\r\n') ? 2 : 1), parserCtx)
 		const ctx = core.BinderContext.create(project, { doc })
-		const bind = () => project.symbols.contributeAs('binder', () => bindDoc(node, ctx))
+		const bind = () => ctx.symbols.contributeAs('binder', () => bindDoc(node, ctx))
 		bind()
 		return { project, node, ctx, bind, errors: [...parserCtx.err.errors, ...ctx.err.errors] }
 	}
@@ -872,7 +893,7 @@ describe('directive controlled input', () => {
 				const expected =
 					' Intro\n Continued\n\nreturns: score sometparam\n\n- result: other param\n- success: some   param'
 				t.assert.equal(env.node.description, expected)
-				const raw = env.project.symbols.global.function!['demo:test']
+				const raw = env.project.symbolStorage.global.function!['demo:test']
 				t.assert.equal(core.SymbolUtil.viewFromContext(raw, root)?.desc, expected)
 				env.bind()
 				t.assert.equal(env.node.description, expected)

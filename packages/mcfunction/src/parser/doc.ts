@@ -179,12 +179,16 @@ export function declareDocSymbol(
 	category: string,
 	identifier: string,
 	ctx: core.BinderContext,
-): core.SymbolQuery {
-	const usage = { type: 'declaration' as const, node: field, fromDocDeclaration: true }
+): core.SymbolHandle {
+	const usage: core.SymbolAdditionUsage = {
+		type: 'declaration',
+		node: field,
+		fromDocDeclaration: true,
+	}
 	const access = node.access
 	const local = access?.visibility === core.SymbolIsotopeScope.Local
-	const query = local
-		? core.LocalSymbol.queryForScope(
+	const handle = local
+		? core.LocalSymbol.queryInsideScope(
 			ctx.symbols,
 			{ doc: ctx.doc, node: field },
 			core.LocalSymbolVisibility.File,
@@ -193,9 +197,9 @@ export function declareDocSymbol(
 		)
 		: ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
 	if (local) {
-		return query.enter({ data: { desc: node.description ?? '' }, usage })
+		return handle.enter({ data: { desc: node.description ?? '' }, usage })
 	}
-	return query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
+	return handle.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 		data: {
 			scope: access?.visibility ?? core.SymbolIsotopeScope.Global,
 			...(
@@ -375,7 +379,7 @@ export function getCurrentFunctionIdentifier(ctx: core.ProcessorContext): string
 	if (privateIdentifier) {
 		return privateIdentifier
 	}
-	for (const symbol of core.GlobalSymbol.getSymbolsInFile(ctx.symbols, ctx.doc.uri)) {
+	for (const symbol of ctx.symbols.getSymbolsInFile(ctx.doc.uri)) {
 		if (symbol.category !== 'function') {
 			continue
 		}
