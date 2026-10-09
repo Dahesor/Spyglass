@@ -43,7 +43,7 @@ describe('mcdoc binder', () => {
 					snapshotWithUri(t, {
 						uri,
 						value: {
-							symbols: SymbolTable.unlink(binderCtx.symbols.global),
+							symbols: SymbolTable.unlink(binderCtx.symbols.storage.global),
 							errors: binderCtx.err.errors,
 						},
 					})

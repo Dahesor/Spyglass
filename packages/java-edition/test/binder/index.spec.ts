@@ -1,4 +1,4 @@
-import { UriBinderContext, VanillaConfig } from '@spyglassmc/core'
+import { SymbolService, UriBinderContext, VanillaConfig } from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
@@ -133,7 +133,7 @@ describe('resource visibility resolver', () => {
 			second.meta.resolveResourceLocation!(uri, UriBinderContext.create(second)),
 			undefined,
 		)
-		const clone = first.symbols.clone()
-		t.assert.deepEqual(clone.resolveResourceLocation!(uri), resolved)
+		const clone = new SymbolService(first.symbolStorage).cloneDelayed()
+		t.assert.deepEqual(clone.storage.resolveResourceLocation!(uri), resolved)
 	})
 })

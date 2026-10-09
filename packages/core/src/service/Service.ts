@@ -13,8 +13,9 @@ import type {
 import { ColorPresentation, completer, traversePreOrder } from '../processor/index.js'
 import { Range } from '../source/index.js'
 import type { Symbol, SymbolLocation, SymbolUsageType } from '../symbol/index.js'
-import { GlobalSymbol, SymbolUsageTypes } from '../symbol/index.js'
-import { SymbolUtil } from '../symbol/SymbolUtil.js'
+import { SymbolImport, SymbolUsageTypes } from '../symbol/index.js'
+import { SymbolService } from '../symbol/Service.js'
+import { SymbolUtil } from '../symbol/util.js'
 import {
 	CodeActionProviderContext,
 	ColorizerContext,
@@ -185,10 +186,11 @@ export class Service {
 	getHover(file: FileNode<AstNode>, doc: TextDocument, offset: number): Hover | undefined {
 		try {
 			this.debug(`Getting hover for ${doc.uri} # ${doc.version} @ ${offset}`)
+			const symbolService = new SymbolService(this.project.symbolStorage)
 			let node = AstNode.findDeepestChild({ node: file, needle: offset })
 			while (node) {
-				const symbol = this.project.symbols.viewFromContext(
-					this.project.symbols.resolveAlias(node.symbol),
+				const symbol = symbolService.viewFromContext(
+					symbolService.resolveAlias(node.symbol),
 					doc.uri,
 				)
 				if (symbol) {
@@ -291,16 +293,17 @@ export class Service {
 		currentFileOnly = false,
 	): Promise<SymbolLocations | undefined> {
 		try {
+			const symbolService = new SymbolService(this.project.symbolStorage)
 			let node = AstNode.findDeepestChild({ node: file, needle: offset })
 			while (node) {
-				const raw = this.project.symbols.resolveAlias(node.symbol)
-				const symbol = this.project.symbols.viewFromContext(
+				const raw = symbolService.resolveAlias(node.symbol)
+				const symbol = symbolService.viewFromContext(
 					raw,
 					doc.uri,
 				)
 				if (raw && symbol) {
-					const importedUsages = GlobalSymbol.getImportedUsageContainer(
-						this.project.symbols,
+					const importedUsages = SymbolImport.getImportedUsageContainer(
+						symbolService,
 						raw,
 						doc.uri,
 					)

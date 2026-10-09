@@ -1,4 +1,3 @@
-import { GlobalSymbol } from '@spyglassmc/core'
 import * as core from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type { DocNode } from '../../node/index.js'
@@ -183,7 +182,7 @@ class FunctionDocTarget extends RegistryDocTarget {
 				return
 			}
 			if (node.access?.visibility === core.SymbolIsotopeScope.Local) {
-				GlobalSymbol.clear(ctx.symbols, {
+				ctx.symbols.clear({
 					uri: ctx.doc.uri,
 					contributor: 'uri_binder',
 					predicate: event =>

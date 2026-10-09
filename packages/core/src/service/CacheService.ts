@@ -259,7 +259,7 @@ export class CacheService {
 				projectRoots: this.project.projectRoots,
 				checksums: this.checksums,
 				imports: this.imports,
-				symbols: SymbolTable.unlink(this.project.symbols.global),
+				symbols: SymbolTable.unlink(this.project.symbolStorage.global),
 				errors: Object.fromEntries(
 					Object.entries(this.errors).filter(([, errors]) => errors.length),
 				),

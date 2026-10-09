@@ -1,5 +1,7 @@
 import { TextDocument } from 'vscode-languageserver-textdocument'
-import type { ResourceLocation } from '../common/index.js'
+import type { ResourceLocation } from '../../common/index.js'
+import type { SymbolAddition, SymbolAdditionUsage } from '../Handle.js'
+import type { SymbolService } from '../Service.js'
 import type {
 	GlobalSymbolIsotope,
 	IsotopeScope,
@@ -9,9 +11,8 @@ import type {
 	SymbolLocation,
 	SymbolUsageType,
 	SymbolView,
-} from './Symbol.js'
-import { SymbolIsotopeProvider, SymbolIsotopeScope, SymbolUsageTypes } from './Symbol.js'
-import type { SymbolAddition, SymbolAdditionUsage, SymbolUtil } from './SymbolUtil.js'
+} from '../Symbol.js'
+import { SymbolIsotopeProvider, SymbolIsotopeScope, SymbolUsageTypes } from '../Symbol.js'
 import { matchesVisibility, type ResourceLocationResolver } from './visibility.js'
 
 export interface SymbolIsotopeAddition {
@@ -49,7 +50,7 @@ export namespace Isotope {
 	 * @param contributor The contributor responsible for the amendment.
 	 */
 	export function amendSymbol(
-		util: SymbolUtil,
+		service: SymbolService,
 		symbol: Symbol,
 		addition: SymbolAddition,
 		doc: TextDocument,
@@ -61,8 +62,8 @@ export namespace Isotope {
 				|| 'source' in addition.data
 				|| 'overrideLevel' in addition.data)
 		const isReference = (addition.usage?.type ?? 'reference') === 'reference' && !hasMetadata
-		const existing = selectIsotope(symbol, doc.uri, util.resolveResourceLocation)
-			?? (isReference ? allIsotopes(symbol)[0] : undefined)
+		const existing = selectIsotope(symbol, doc.uri, service.storage.resolveResourceLocation)
+			?? (isReference ? allIsotopesOf(symbol)[0] : undefined)
 		const source = addition.data?.source
 			?? (addition.usage?.fromDocDeclaration
 				? SymbolIsotopeProvider.DocBlock
@@ -75,7 +76,7 @@ export namespace Isotope {
 			? existing.identifier
 			: JSON.stringify([source, doc.uri, contributor])
 		writeIsotope(
-			util,
+			service,
 			symbol,
 			identifier,
 			{
@@ -98,9 +99,9 @@ export namespace Isotope {
 		)
 	}
 
-	/** Create or update metadata; Global/Project locations belong to the shared facet. */
+	/** Create or update metadata */
 	export function writeIsotope(
-		util: SymbolUtil,
+		service: SymbolService,
 		symbol: Symbol,
 		identifier: string,
 		addition: SymbolIsotopeAddition,
@@ -175,7 +176,7 @@ export namespace Isotope {
 			Object.assign(isotope, addition.data)
 			isotopeContainer = isotope as SymbolIsotope
 		}
-		util.amendSymbolUsage(
+		service.appendSymbolUsage(
 			symbol,
 			addition.usage && { ...addition.usage, isotopeIdentifier: identifier },
 			doc,
@@ -185,25 +186,25 @@ export namespace Isotope {
 		if (addition.usage?.node) {
 			addition.usage.node.symbol = symbol
 		}
-		util.emit('symbolAmended', { symbol })
+		service.storage.emit('symbolAmended', { symbol })
 		if (addition.usage?.fromDocDeclaration) {
-			reconcileDocUsages(util, symbol)
+			reconcileDocUsages(service, symbol)
 		}
 		return isotope
 	}
 
 	/** Reassign usages after declarations are added, removed or change access policy.
 	 * Since the existence of a doc declaration would turn definitions to implmentations
-	 * @param util The symbol utility instance.
+	 * @param service The symbol service instance.
 	 * @param symbol The symbol to process.
 	 */
-	export function reconcileDocUsages(util: SymbolUtil, symbol: Symbol): void {
+	export function reconcileDocUsages(service: SymbolService, symbol: Symbol): void {
 		// Petentially heavy process so we do some optimizations here.
 		const usageContainers = allUsageContainers(symbol)
 		const declarations = collectDocDeclarations(symbol, usageContainers)
 		const pending = collectDocUsages(symbol, usageContainers)
-		removeImplicitFileMetadata(util, symbol, declarations, pending)
-		reassignDocUsages(util, symbol, declarations, pending)
+		removeImplicitFileMetadata(service, symbol, declarations, pending)
+		reassignDocUsages(service, symbol, declarations, pending)
 	}
 
 	// #region  reconcileDocUsage process functions
@@ -233,14 +234,14 @@ export namespace Isotope {
 				|| declared.get(isotope)?.has(isotope.identifier)
 			)
 		}
-		return allIsotopes(symbol).filter(isotope =>
+		return allIsotopesOf(symbol).filter(isotope =>
 			isotope.source === SymbolIsotopeProvider.DocBlock
 		)
 	}
 
 	function collectDocUsages(symbol: Symbol, usageContainers: UsageOwner[]): PendingDocUsage[] {
 		const metadataById = new Map<string, GlobalSymbolIsotope>()
-		for (const isotope of allIsotopes(symbol)) {
+		for (const isotope of allIsotopesOf(symbol)) {
 			if (!metadataById.has(isotope.identifier)) {
 				metadataById.set(isotope.identifier, isotope)
 			}
@@ -274,7 +275,7 @@ export namespace Isotope {
 	}
 
 	function removeImplicitFileMetadata(
-		util: SymbolUtil,
+		service: SymbolService,
 		symbol: Symbol,
 		declarations: GlobalSymbolIsotope[],
 		pending: PendingDocUsage[],
@@ -296,7 +297,7 @@ export namespace Isotope {
 					if (!selectedByUri.has(location.uri)) {
 						selectedByUri.set(
 							location.uri,
-							selectIsotope(symbol, location.uri, util.resolveResourceLocation),
+							selectIsotope(symbol, location.uri, service.storage.resolveResourceLocation),
 						)
 					}
 					if (selectedByUri.get(location.uri)?.source !== SymbolIsotopeProvider.DocBlock) {
@@ -312,7 +313,7 @@ export namespace Isotope {
 	}
 
 	function reassignDocUsages(
-		util: SymbolUtil,
+		service: SymbolService,
 		symbol: Symbol,
 		declarations: GlobalSymbolIsotope[],
 		pending: PendingDocUsage[],
@@ -347,7 +348,7 @@ export namespace Isotope {
 				if (!selectedByUri.has(location.uri)) {
 					selectedByUri.set(
 						location.uri,
-						selectIsotope(symbol, location.uri, util.resolveResourceLocation),
+						selectIsotope(symbol, location.uri, service.storage.resolveResourceLocation),
 					)
 				}
 				let selected = selectedByUri.get(location.uri)
@@ -358,7 +359,7 @@ export namespace Isotope {
 					}
 					if (!selected) {
 						selected = writeIsotope(
-							util,
+							service,
 							symbol,
 							JSON.stringify([
 								SymbolIsotopeProvider.Regular,
@@ -431,31 +432,23 @@ export namespace Isotope {
 		}
 		for (const { type, location } of pending) {
 			if (!retained.has(location)) {
-				util.emit('symbolLocationRemoved', { symbol, type, location })
+				service.storage.emit('symbolLocationRemoved', { symbol, type, location })
 			}
 		}
 		for (const { type, location } of created) {
-			util.emit('symbolLocationCreated', { symbol, type, location })
+			service.storage.emit('symbolLocationCreated', { symbol, type, location })
 		}
 	}
 
 	// #endregion
 
 	/** @returns List of all isotopes of the given symbol */
-	export function allIsotopes(symbol: Symbol): (GlobalSymbolIsotope | SymbolIsotope)[] {
+	export function allIsotopesOf(symbol: Symbol): (GlobalSymbolIsotope | SymbolIsotope)[] {
 		symbol = contextualSymbols.get(symbol) ?? symbol
 		return [
 			...(symbol.facets?.isotopes ?? []),
 			...(symbol.facets?.internal?.isotopes ?? []),
 			...(symbol.facets?.global?.isotopes ?? []),
-		]
-	}
-
-	/** @returns List of all isotopes that does not have a global scope */
-	export function allRestrictedIsotopes(symbol: Symbol): SymbolIsotope[] {
-		symbol = contextualSymbols.get(symbol) ?? symbol
-		return [
-			...(symbol.facets?.isotopes ?? []),
 		]
 	}
 
@@ -538,14 +531,11 @@ export namespace Isotope {
 	}
 
 	/** @returns a view of the symbol from the context of the given URI. */
-	export function viewFromContext(
-		symbol: Symbol | undefined,
+	export function resolveFromContext(
+		symbol: Symbol,
 		uri: string | undefined,
 		resolve?: ResourceLocationResolver,
 	): SymbolView | undefined {
-		if (!symbol) {
-			return undefined
-		}
 		symbol = contextualSymbols.get(symbol) ?? symbol
 		const isotope = selectIsotope(symbol, uri, resolve)
 		if (!isotope) {
@@ -560,41 +550,56 @@ export namespace Isotope {
 		return view
 	}
 
-	/** @returns `true` if the symbol is visible from the context of the given URI. */
+	/** @returns `true` if the symbol has any visible isotope from the the given URI. */
 	export function isVisible(
 		symbol: Symbol,
 		uri: string | undefined,
 		resolve?: ResourceLocationResolver,
 	): boolean {
-		return !!selectIsotope(symbol, uri, resolve)
+		symbol = contextualSymbols.get(symbol) ?? symbol
+		const facets = symbol.facets
+		if (symbol.category === 'mcdoc' || symbol.category === 'mcdoc/dispatcher') {
+			return !!facets?.global?.isotopes.length
+		}
+		if (facets?.internal?.isotopes.length || facets?.global?.isotopes.length) {
+			return true
+		}
+		const restricted = facets?.isotopes
+		if (!uri || !restricted?.length) {
+			return false
+		}
+		return hasVisibleRestrictedIsotope(restricted, uri, resolve)
 	}
 
-	/** @returns `true` if the symbol is contributed by a file itself instead of its content. */
-	export function isFromFile(symbol: Symbol | undefined): boolean {
-		return !!symbol
-			&& allUsageContainers(symbol).some(owner =>
-				owner.definition?.some(location => location.fromFile)
-				|| owner.implementation?.some(location => location.fromFile)
-			)
-	}
-
-	/**
-	 * @param symbol The symbol to check access for.
-	 * @param uri The URI of the file from which access is being checked.
-	 * @returns `true` if a file symbol is defined but cannot be accessed here
-	 */
-	export function hasNoAccessToFileSymbol(
-		symbol: Symbol | undefined,
+	function hasVisibleRestrictedIsotope(
+		restricted: readonly SymbolIsotope[],
 		uri: string,
-		resolve?: ResourceLocationResolver,
+		resolve: ResourceLocationResolver | undefined,
 	): boolean {
-		// Visible symbols cannot violate access, regardless of how many usages they have.
-		return !!symbol && !isVisible(symbol, uri, resolve) && isFromFile(symbol)
+		let location: ResourceLocation | undefined
+		let resolved = false
+		for (const isotope of restricted) {
+			const visibility = isotope.visibleWithin
+			if (!visibility?.length) {
+				continue
+			}
+			if (
+				!resolved
+				&& visibility.some(rule => rule.namespace !== undefined || rule.path !== undefined)
+			) {
+				location = resolve?.(uri)
+				resolved = true
+			}
+			if (matchesVisibility(visibility, uri, location)) {
+				return true
+			}
+		}
+		return false
 	}
 
 	/** Prune metadata affected by removed locations and reconcile remaining doc usages. */
 	export function cleanupAfterLocationRemoval(
-		util: SymbolUtil,
+		service: SymbolService,
 		symbol: Symbol,
 		removedIds: ReadonlySet<string>,
 		needsReconciliation = true,
@@ -637,31 +642,33 @@ export namespace Isotope {
 			needsReconciliation ||= previousCount !== symbol.facets.isotopes.length
 		}
 		if (needsReconciliation) {
-			reconcileDocUsages(util, symbol)
+			reconcileDocUsages(service, symbol)
 		}
 	}
 
-	/** Route command usages into the selected isotope
+	/** Route in file usages into the selected isotope
 	 * @return usages that needs a new symbol for.
 	 */
-	export function enterCommand(
-		util: SymbolUtil,
+	export function enterInFileUsage(
+		service: SymbolService,
 		raw: Symbol | undefined,
 		addition: SymbolAddition,
 		doc: TextDocument,
 		contributor: string | undefined,
 	): SymbolAdditionUsage | undefined {
-		const isotope = raw && Isotope.selectIsotope(raw, doc.uri, util.resolveResourceLocation)
+		const isotope = raw
+			? selectIsotope(raw, doc.uri, service.storage.resolveResourceLocation)
+			: undefined
 		const originalType = addition.usage?.type ?? 'reference'
 		const usage: SymbolAdditionUsage = { ...addition.usage, originalUsageType: originalType }
 		if (raw && isotope) {
 			if (addition.data) {
-				util.amendSymbol(raw, { data: addition.data }, doc, contributor)
+				service.amendSymbol(raw, { data: addition.data }, doc, contributor)
 			}
 			const owner = Isotope.ownerOf(raw, isotope)
 			const docDeclared = owner.declaration?.some(location => location.fromDocDeclaration)
-			Isotope.writeIsotope(
-				util,
+			writeIsotope(
+				service,
 				raw,
 				isotope.identifier,
 				{
@@ -676,12 +683,11 @@ export namespace Isotope {
 				contributor,
 			)
 		} else {
-			// An inaccessible symbol retains the reference without acquiring a public facet.
 			if (raw && originalType === 'reference') {
-				const owner = Isotope.allIsotopes(raw)[0]
+				const owner = allIsotopesOf(raw)[0]
 				if (owner) {
-					Isotope.writeIsotope(
-						util,
+					writeIsotope(
+						service,
 						raw,
 						owner.identifier,
 						{ usage },

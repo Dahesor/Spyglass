@@ -123,21 +123,26 @@ export async function register(bench: BenchContext) {
 		if (mcdocNode === core.Failure) {
 			throw new Error('Failed to parse mcdoc')
 		}
-		project.symbols.query(mcdocDoc, 'mcdoc', '::bench').ifKnown(() => {}).elseEnter({
+		new core.SymbolService(project.symbolStorage).query(mcdocDoc, 'mcdoc', '::bench').ifKnown(
+			() => {},
+		).elseEnter({
 			data: { subcategory: 'module' },
 			usage: { type: 'definition' },
 		})
 		const bindCtx = core.BinderContext.create(project, { doc: mcdocDoc })
 		await mcdoc.binder.fileModule(mcdocNode, bindCtx)
 
-		const rootSymbol = project.symbols.query(jsonDoc, 'mcdoc', '::bench::Root').symbol
+		const rootSymbol =
+			new core.SymbolService(project.symbolStorage).query(jsonDoc, 'mcdoc', '::bench::Root')
+				.symbol
+		const symbolData = core.SymbolUtil.getCanonicalData(rootSymbol)
 		if (rootSymbol === undefined) {
 			throw new Error('Failed to find root symbol')
 		}
-		if (!mcdoc.binder.TypeDefSymbolData.is(rootSymbol.data)) {
+		if (!mcdoc.binder.TypeDefSymbolData.is(symbolData)) {
 			throw new Error('Root symbol does not have a type definition')
 		}
-		const type = rootSymbol.data.typeDef
+		const type = symbolData.typeDef
 
 		const checkCtx = core.CheckerContext.create(project, { doc: jsonDoc })
 		bench.add(`mcdoc ${suite.name}`, () => {

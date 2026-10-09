@@ -1,5 +1,4 @@
-import { GlobalSymbol } from '@spyglassmc/core'
-/* eslint-disable no-restricted-syntax -- Null is a documented way to disable linter rules. */
+/* eslint-disable no-restricted-syntax */
 import * as core from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import * as mcf from '@spyglassmc/mcfunction'
@@ -23,10 +22,8 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 	registerUriBuilders(project.meta)
 	const fileUri = root + `data/demo/${category}/example${extension}`
 	if (withFile) {
-		project.symbols.contributeAs(
-			'uri_binder',
-			() => uriBinder([fileUri], core.UriBinderContext.create(project)),
-		)
+		const ctx = core.UriBinderContext.create(project)
+		ctx.symbols.contributeAs('uri_binder', () => uriBinder([fileUri], ctx))
 	}
 	const declare = (uri = privateDoc, modifier = '@private') => {
 		const text = `\n#> ${modifier} ${category} demo:example Documentation`
@@ -36,7 +33,7 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 		const parserCtx = core.ParserContext.create(project, { doc })
 		const node = parseDoc(source, parserCtx)
 		const binderCtx = core.BinderContext.create(project, { doc })
-		project.symbols.contributeAs('binder', () => bindDoc(node, binderCtx))
+		binderCtx.symbols.contributeAs('binder', () => bindDoc(node, binderCtx))
 		if (parserCtx.err.errors.length || binderCtx.err.errors.length) {
 			throw new Error('Unexpected doc declaration errors')
 		}
@@ -51,9 +48,11 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 		node.namespace = name.split(':')[0]
 		node.path = name.split(':')[1].split('/')
 		// The test category may be another file resource, with the same binding and linting path.
-		const query = project.symbols.query({ doc, node }, category, name)
-		project.symbols.contributeAs('binder', () => {
-			query.enterCommand({ usage: { type: 'reference', node } })
+		const symbols = new core.SymbolService(project.symbolStorage)
+		symbols.contributeAs('binder', () => {
+			symbols.query({ doc, node }, category, name).enter({
+				usage: { type: 'reference', node },
+			}, core.SymbolEnterType.InFileSymbol)
 		})
 		const errors: core.LanguageError[] = []
 		for (const ruleName of ['undeclaredSymbol', 'noAccessToSymbol'] as const) {
@@ -76,7 +75,7 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 				ruleValue: value.ruleValue,
 				err: new core.LinterErrorReporter(ruleName, value.ruleSeverity),
 			})
-			project.symbols.contributeAs(
+			ctx.symbols.contributeAs(
 				'checker',
 				() => registration.linter(core.StateProxy.create(node), ctx),
 			)
@@ -84,7 +83,12 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 		}
 		return errors
 	}
-	return { project, declare, lint, raw: () => project.symbols.global[category]!['demo:example'] }
+	return {
+		project,
+		declare,
+		lint,
+		raw: () => project.symbolStorage.global[category]!['demo:example'],
+	}
 }
 
 describe('noAccessToSymbol', () => {
@@ -118,9 +122,10 @@ describe('noAccessToSymbol', () => {
 	})
 	it('resolves aliases before checking access', t => {
 		const env = setup()
-		env.project.symbols.query(outside, 'function', 'demo:alias').enter({
-			data: { relations: { aliasOf: { category: 'function', path: ['demo:example'] } } },
-		})
+		new core.SymbolService(env.project.symbolStorage).query(outside, 'function', 'demo:alias')
+			.enter({
+				data: { relations: { aliasOf: { category: 'function', path: ['demo:example'] } } },
+			})
 		const errors = env.lint(outside, 'demo:alias')
 		t.assert.equal(errors.length, 1)
 		assert.ok(errors[0].message.includes('noAccessToSymbol'))
@@ -163,16 +168,19 @@ describe('noAccessToSymbol', () => {
 	it('restores access after the private doc is removed', t => {
 		const env = setup()
 		t.assert.equal(env.lint().length, 1)
-		GlobalSymbol.clear(env.project.symbols, { uri: privateDoc, contributor: 'binder' })
+		new core.SymbolService(env.project.symbolStorage).clear({
+			uri: privateDoc,
+			contributor: 'binder',
+		})
 		t.assert.deepEqual(env.lint(), [])
 		t.assert.equal(env.raw().facets?.global?.definition?.length, 1)
 	})
 	it('recognizes inaccessible file symbols after a symbol cache reload', t => {
 		const env = setup()
-		env.project.symbols = new core.SymbolUtil(core.SymbolTable.deserialize(
-			core.SymbolTable.serialize(env.project.symbols.global),
+		env.project.symbolStorage = new core.SymbolStorage(core.SymbolTable.deserialize(
+			core.SymbolTable.serialize(env.project.symbolStorage.global),
 		))
-		GlobalSymbol.buildCache(env.project.symbols)
+		env.project.symbolStorage.rebuildIndex()
 		const errors = env.lint()
 		t.assert.equal(errors.length, 1)
 		assert.ok(errors[0].message.includes('noAccessToSymbol'))

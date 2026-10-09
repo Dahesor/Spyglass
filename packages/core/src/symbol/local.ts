@@ -1,10 +1,11 @@
 import type { TextDocument } from 'vscode-languageserver-textdocument'
 import { StateProxy } from '../common/StateProxy.js'
 import type { AstNode } from '../node/index.js'
+import type { SymbolAddition, SymbolHandle as SymbolHandle } from './Handle.js'
+import type { SymbolClearOptions, SymbolService } from './Service.js'
 import type { Symbol, SymbolMap, SymbolTable, SymbolView } from './Symbol.js'
 import { SymbolUsageTypes } from './Symbol.js'
-import type { LookupResult, SymbolAddition, SymbolClearOptions, SymbolQuery } from './SymbolUtil.js'
-import { SymbolFormatter, SymbolUtil } from './SymbolUtil.js'
+import { SymbolUtil } from './util.js'
 
 export interface LocalSymbolContext {
 	doc: TextDocument
@@ -24,7 +25,7 @@ export const enum LocalSymbolVisibility {
 	File,
 }
 
-/** File and block symbol tables, and their lookup order relative to global symbols. */
+/** File and block symbol tables. */
 export namespace LocalSymbol {
 	export function is(symbol: Symbol | undefined): symbol is LocalSymbol {
 		return symbol?.isLocal === true
@@ -48,7 +49,7 @@ export namespace LocalSymbol {
 		return !!map && localMaps.has(StateProxy.dereference(map))
 	}
 	export function amendSymbol(
-		util: SymbolUtil,
+		service: SymbolService,
 		symbol: LocalSymbol,
 		addition: SymbolAddition,
 		doc: TextDocument,
@@ -64,43 +65,33 @@ export namespace LocalSymbol {
 		if (usage) {
 			delete usage.isotopeIdentifier
 		}
-		util.amendSymbolUsage(symbol, usage, doc, contributor, symbol)
+		service.appendSymbolUsage(symbol, usage, doc, contributor, symbol)
 	}
 	export function isTrimmable(symbol: LocalSymbol): boolean {
 		return !Object.keys(symbol.members ?? {}).length
 			&& !SymbolUsageTypes.some(type => symbol[type]?.length)
 	}
-	/** Create a new local symbol table. */
+
+	/** Create a new local symbol table.
+	 * @returns the table created.
+	 */
 	export function createTable(): SymbolTable {
 		const table: SymbolTable = Object.create(null)
 		registerTable(table)
 		return table
 	}
 
-	export function stringifySymbolStack(stack: SymbolStack): string {
-		return stack.map(table => SymbolFormatter.stringifySymbolTable(table)).join(
-			'\n------------\n',
-		)
-	}
-
-	/** Initialize the local symbol table for a given AST node.
-	 * @param node The AST node to initialize
-	 */
-	export function initialize(node: AstNode): SymbolTable {
-		return node.locals = createTable()
-	}
-
 	/** Clear local contributions from the local symbol table of a given AST node. */
 	export function clear(
-		util: SymbolUtil,
+		service: SymbolService,
 		node: AstNode,
 		options: SymbolClearOptions,
 	): void {
-		util.runOrDefer(() => clearImmediately(util, node, options))
+		service.runOrDefer(() => clearImmediately(service, node, options))
 	}
 
 	function clearImmediately(
-		util: SymbolUtil,
+		service: SymbolService,
 		node: AstNode,
 		{ uri, contributor, predicate = () => true }: SymbolClearOptions,
 	): void {
@@ -108,7 +99,7 @@ export namespace LocalSymbol {
 			SymbolUtil.forEachSymbol(
 				table,
 				symbol =>
-					util.removeLocationsFromSymbol(
+					service.removeLocationsFromSymbol(
 						symbol,
 						(event) =>
 							(!uri || event.location.uri === uri)
@@ -116,12 +107,12 @@ export namespace LocalSymbol {
 							&& predicate(event),
 					),
 			)
-			trim(util, table)
+			trim(service, table)
 		}
 	}
 
 	/** Remove trimmable symbols from the given local symbol table. */
-	export function trim(util: SymbolUtil, table: SymbolTable): void {
+	export function trim(service: SymbolService, table: SymbolTable): void {
 		const trimMap = (map: SymbolMap) => {
 			for (const symbol of Object.values(map)) {
 				if (symbol.members) {
@@ -129,7 +120,7 @@ export namespace LocalSymbol {
 				}
 				if (SymbolUtil.isTrimmable(symbol)) {
 					delete map[symbol.identifier]
-					util.emit('symbolRemoved', { symbol })
+					service.emitEvent('symbolRemoved', { symbol })
 				}
 			}
 		}
@@ -162,8 +153,8 @@ export namespace LocalSymbol {
 	}
 
 	/**
-	 * Find the symbol table accroding to the node and visibility
-	 * @throws Error if no suitable symbol table is found.
+	 * Find the symbol table to use accroding to the node and visibility
+	 * @throws if no suitable symbol table is found.
 	 * @param node The AST node
 	 * @param visibility
 	 * @returns The table that this node should writs to
@@ -183,39 +174,16 @@ export namespace LocalSymbol {
 		return current.locals
 	}
 
-	/**
-	 * Look up a symbol starting from the given node and traversing up.
-	 * @param node The AST node to start the lookup from.
-	 * @param category The category of the symbol.
-	 * @param path
-	 * @returns The lookup result if found; undefined otherwise.
-	 */
-	export function lookup(
-		node: AstNode,
-		category: string,
-		path: readonly string[],
-	): LookupResult | undefined {
-		for (const table of getLocalsToRoot(node)) {
-			const result = SymbolUtil.lookupTable(table, category, path)
-			if (result.symbol) {
-				return result
-			}
-		}
-		return undefined
-	}
-
-	/** Return a query for the symbol. Does not fall back to the global table. */
-	export function queryForScope(
-		util: SymbolUtil,
+	/** Return a {@link SymbolHandle} for the symbol.*/
+	export function queryInsideScope(
+		service: SymbolService,
 		doc: LocalSymbolContext,
-		visibility: LocalSymbolVisibility,
+		scope: LocalSymbolVisibility,
 		category: string,
 		...path: string[]
-	): SymbolQuery {
-		const table = findTable(doc.node, visibility)
+	): SymbolHandle {
+		const table = findTable(doc.node, scope)
 		registerTable(table)
-		return util.queryInTable(table, doc.doc, category, ...path)
+		return service.queryInTable(table, doc.doc, category, ...path)
 	}
 }
-
-export type SymbolStack = [SymbolTable, ...SymbolTable[]]

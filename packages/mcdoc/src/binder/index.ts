@@ -3,7 +3,6 @@ import {
 	Dev,
 	ErrorSeverity,
 	FloatNode,
-	GlobalSymbol,
 	IntegerNode,
 	LocalSymbol,
 	LocalSymbolVisibility,
@@ -22,7 +21,7 @@ import type {
 	MetaRegistry,
 	RangeLike,
 	Symbol,
-	SymbolQuery,
+	SymbolHandle,
 } from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type {
@@ -249,7 +248,7 @@ function hoist(node: ModuleNode, ctx: McdocBinderContext): void {
 		// they will go to the definition in the imported file.
 
 		const target = resolvePath(path, ctx)
-		LocalSymbol.queryForScope(
+		LocalSymbol.queryInsideScope(
 			ctx.symbols,
 			{ doc: ctx.doc, node },
 			LocalSymbolVisibility.File,
@@ -290,7 +289,7 @@ function hoist(node: ModuleNode, ctx: McdocBinderContext): void {
 	}
 
 	function nextAnonymousIndex(node: AstNode, ctx: McdocBinderContext): number {
-		const data = GlobalSymbol.getCanonicalData(
+		const data = SymbolUtil.getCanonicalData(
 			ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ctx.moduleIdentifier)
 				.heyGimmeDaSymbol(),
 		)
@@ -317,7 +316,7 @@ function bindTypeParamBlock(
 ): void {
 	// Type parameters are added as local symbols on the type alias AST node.
 	// Thus we create a new local scope on the type alias statement node first.
-	LocalSymbol.initialize(node)
+	node.locals = LocalSymbol.createTable()
 
 	// They are also added to the type definition.
 	data.typeDef = { kind: 'template', child: data.typeDef, typeParams: [] }
@@ -331,7 +330,7 @@ function bindTypeParamBlock(
 			ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', paramPath)
 				.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, paramIdentifier))
 				.else(() => {
-					LocalSymbol.queryForScope(
+					LocalSymbol.queryInsideScope(
 						ctx.symbols,
 						{ doc: ctx.doc, node },
 						LocalSymbolVisibility.Block,
@@ -478,7 +477,11 @@ async function bindPath(node: PathNode, ctx: McdocBinderContext): Promise<void> 
 			await ctx.ensureBindingStarted(referencedModuleUri)
 		}
 
-		ctx.symbols.query({ doc: ctx.doc, node: identNode }, 'mcdoc', pathArrayToString(identifiers))
+		ctx.symbols.query(
+			{ doc: ctx.doc, node: identNode },
+			'mcdoc',
+			pathArrayToString(identifiers),
+		)
 			.ifDeclared((_, query) =>
 				query.enter({
 					usage: {
@@ -511,21 +514,21 @@ function bindEnum(node: EnumNode, ctx: McdocBinderContext): void {
 		return
 	}
 
-	const query = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
-	Dev.assertDefined(query.symbol)
-	bindEnumBlock(block, ctx, query)
+	const handle = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
+	Dev.assertDefined(handle.symbol)
+	bindEnumBlock(block, ctx, handle)
 }
 
 function bindEnumBlock(
 	node: EnumBlockNode,
 	ctx: McdocBinderContext,
-	query: SymbolQuery,
+	handle: SymbolHandle,
 	options: { extendsTypeDefData?: boolean } = {},
 ): void {
 	const { fields } = EnumBlockNode.destruct(node)
 	for (const field of fields) {
 		const { identifier } = EnumFieldNode.destruct(field)
-		query.member(
+		handle.member(
 			identifier.value,
 			(fieldQuery) =>
 				fieldQuery.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, identifier))
@@ -550,15 +553,15 @@ async function bindStruct(node: StructNode, ctx: McdocBinderContext): Promise<vo
 		return
 	}
 
-	const query = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
-	Dev.assertDefined(query.symbol)
-	await bindStructBlock(block, ctx, query)
+	const handle = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
+	Dev.assertDefined(handle.symbol)
+	await bindStructBlock(block, ctx, handle)
 }
 
 async function bindStructBlock(
 	node: StructBlockNode,
 	ctx: McdocBinderContext,
-	query: SymbolQuery,
+	handle: SymbolHandle,
 	options: { extendsTypeDefData?: boolean } = {},
 ): Promise<void> {
 	const { fields } = StructBlockNode.destruct(node)
@@ -566,10 +569,10 @@ async function bindStructBlock(
 		if (StructPairFieldNode.is(field)) {
 			const { key, type } = StructPairFieldNode.destruct(field)
 			if (!StructMapKeyNode.is(key)) {
-				query.member(
+				handle.member(
 					key.value,
-					(fieldQuery) =>
-						fieldQuery.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, key))
+					(fieldHandle) =>
+						fieldHandle.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, key))
 							.elseEnter({ usage: { type: 'definition', node: key, fullRange: field } }),
 				)
 			}
@@ -692,11 +695,11 @@ function resolvePath(
 }
 
 function identifierToUri(module: string, ctx: McdocBinderContext): string | undefined {
-	return ctx.symbols.global.mcdoc?.[module]?.facets?.global?.definition?.[0]?.uri
+	return ctx.symbols.storage.global.mcdoc?.[module]?.facets?.global?.definition?.[0]?.uri
 }
 
 function uriToIdentifier(uri: string, ctx: CheckerContext): string | undefined {
-	return Object.values(ctx.symbols.global.mcdoc ?? {}).find((symbol) => {
+	return Object.values(ctx.symbols.storage.global.mcdoc ?? {}).find((symbol) => {
 		return (symbol.subcategory === 'module'
 			&& symbol.facets?.global?.definition?.some((loc) => loc.uri === uri))
 	})?.identifier
@@ -874,7 +877,7 @@ function convertEnum(node: EnumNode, ctx: McdocBinderContext): McdocType {
 	}
 
 	// Shortcut if the typeDef has been added to the enum symbol.
-	const data = GlobalSymbol.getCanonicalData(identifier?.symbol ?? node.symbol)
+	const data = SymbolUtil.getCanonicalData(identifier?.symbol ?? node.symbol)
 	if (TypeDefSymbolData.is(data) && data.typeDef.kind === 'enum') {
 		return data.typeDef
 	}
@@ -1055,7 +1058,7 @@ function convertStruct(node: StructNode, ctx: McdocBinderContext): McdocType {
 	}
 
 	// Shortcut if the typeDef has been added to the struct symbol.
-	const data = GlobalSymbol.getCanonicalData(identifier?.symbol ?? node.symbol)
+	const data = SymbolUtil.getCanonicalData(identifier?.symbol ?? node.symbol)
 	if (TypeDefSymbolData.is(data) && data.typeDef.kind === 'struct') {
 		return data.typeDef
 	}

@@ -1,18 +1,20 @@
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
-import type { FileNode, Symbol, SymbolLocation, SymbolUsageType } from '../../lib/index.js'
 import {
 	AstNode,
-	GlobalSymbol,
 	Logger,
 	Range,
 	Service,
+	SymbolEnterType,
+	SymbolImport,
 	SymbolIsotopeProvider,
 	SymbolIsotopeScope,
 	SymbolNode,
+	SymbolService,
+	SymbolStorage,
 	SymbolTable,
-	SymbolUtil,
 } from '../../lib/index.js'
+import type { FileNode, Symbol, SymbolLocation, SymbolUsageType } from '../../lib/index.js'
 import { mockProjectData, mockResourceLocation } from '../utils.ts'
 
 const uri = 'file:///pack/private/use.mcfunction'
@@ -29,8 +31,10 @@ function setup(t: { after: (fn: () => Promise<unknown>) => void }) {
 		},
 	})
 	t.after(() => service.project.close())
-	service.project.symbols.query(doc, 'function', 'demo:name').enter({ data: {} })
-	const symbol = service.project.symbols.global.function!['demo:name']
+	new SymbolService(service.project.symbolStorage).query(doc, 'function', 'demo:name').enter({
+		data: {},
+	})
+	const symbol = service.project.symbolStorage.global.function!['demo:name']
 	return { service, symbol }
 }
 
@@ -63,7 +67,7 @@ describe('Service.getDefinitionLocations()', () => {
 				0,
 				'name',
 			)
-			const dependency = new SymbolUtil({}, undefined, false, mockResourceLocation)
+			const dependency = new SymbolService(new SymbolStorage({}, mockResourceLocation))
 			dependency.query(declarationDoc, 'objective', 'aaaaaa').enterIsotope('doc', {
 				data: {
 					scope,
@@ -75,13 +79,13 @@ describe('Service.getDefinitionLocations()', () => {
 				},
 				usage: { type: 'declaration', fromDocDeclaration: true, range: Range.create(0, 4) },
 			})
-			dependency.query(declarationDoc, 'objective', 'aaaaaa').enterCommand({
+			dependency.query(declarationDoc, 'objective', 'aaaaaa').enter({
 				usage: { type: 'reference', range: Range.create(1, 2) },
-			})
-			const source = dependency.global.objective!['aaaaaa']
-			GlobalSymbol.importDependencySymbols(
-				service.project.symbols,
-				SymbolTable.getDependencyExports(dependency.global, 'package'),
+			}, SymbolEnterType.InFileSymbol)
+			const source = dependency.storage.global.objective!['aaaaaa']
+			SymbolImport.importDependencySymbols(
+				new SymbolService(service.project.symbolStorage),
+				SymbolTable.getDependencyExports(dependency.storage.global, 'package'),
 			)
 			const consumerDoc = TextDocument.create(
 				'file:///pack/data/demo/function/use.mcfunction',
@@ -89,12 +93,22 @@ describe('Service.getDefinitionLocations()', () => {
 				0,
 				'name',
 			)
-			service.project.symbols.query(consumerDoc, 'objective', 'aaaaaa').enterCommand({
-				usage: { type: 'reference', range: Range.create(0, 4) },
-			})
-			service.project.symbols.query(consumerDoc, 'objective', 'aaaaaa').enterCommand({
-				usage: { type: 'definition', range: Range.create(0, 4) },
-			})
+			new SymbolService(service.project.symbolStorage).query(
+				consumerDoc,
+				'objective',
+				'aaaaaa',
+			)
+				.enter({
+					usage: { type: 'reference', range: Range.create(0, 4) },
+				}, SymbolEnterType.InFileSymbol)
+			new SymbolService(service.project.symbolStorage).query(
+				consumerDoc,
+				'objective',
+				'aaaaaa',
+			)
+				.enter({
+					usage: { type: 'definition', range: Range.create(0, 4) },
+				}, SymbolEnterType.InFileSymbol)
 			const references = await service.getSymbolLocations(file(source), declarationDoc, 1, [
 				'reference',
 			])
@@ -115,7 +129,7 @@ describe('Service.getDefinitionLocations()', () => {
 	it('does not associate same-named dependency isotopes with a different package', async t => {
 		const { service } = setup(t)
 		const makeDependency = (uri: string) => {
-			const symbols = new SymbolUtil({})
+			const symbols = new SymbolService(new SymbolStorage({}))
 			symbols.query(uri, 'objective', 'aaaaaa').enterIsotope('doc', {
 				data: {
 					scope: SymbolIsotopeScope.Global,
@@ -128,15 +142,16 @@ describe('Service.getDefinitionLocations()', () => {
 		}
 		const first = makeDependency('file:///dependency/first.mcfunction')
 		const second = makeDependency('file:///dependency/second.mcfunction')
-		GlobalSymbol.importDependencySymbols(
-			service.project.symbols,
-			SymbolTable.getDependencyExports(second.global, 'second'),
+		SymbolImport.importDependencySymbols(
+			new SymbolService(service.project.symbolStorage),
+			SymbolTable.getDependencyExports(second.storage.global, 'second'),
 		)
-		service.project.symbols.query(doc, 'objective', 'aaaaaa').enterCommand({
-			usage: { type: 'reference' },
-		})
+		new SymbolService(service.project.symbolStorage).query(doc, 'objective', 'aaaaaa')
+			.enter({
+				usage: { type: 'reference' },
+			}, SymbolEnterType.InFileSymbol)
 		const result = await service.getSymbolLocations(
-			file(first.global.objective!['aaaaaa']),
+			file(first.storage.global.objective!['aaaaaa']),
 			TextDocument.create('file:///dependency/first.mcfunction', 'mcfunction', 0, 'name'),
 			1,
 			['reference'],
@@ -146,7 +161,7 @@ describe('Service.getDefinitionLocations()', () => {
 	for (const scope of [SymbolIsotopeScope.Private, SymbolIsotopeScope.Project]) {
 		it(`does not expose consumer usages after a dependency declaration becomes restricted (scope: ${scope})`, async t => {
 			const { service } = setup(t)
-			const dependency = new SymbolUtil({})
+			const dependency = new SymbolService(new SymbolStorage({}))
 			dependency.query(doc, 'objective', 'aaaaaa').enterIsotope('doc', {
 				data: {
 					scope: SymbolIsotopeScope.Global,
@@ -155,14 +170,15 @@ describe('Service.getDefinitionLocations()', () => {
 				},
 				usage: { type: 'declaration', fromDocDeclaration: true },
 			})
-			const source = dependency.global.objective!['aaaaaa']
-			GlobalSymbol.importDependencySymbols(
-				service.project.symbols,
-				SymbolTable.getDependencyExports(dependency.global, 'package'),
+			const source = dependency.storage.global.objective!['aaaaaa']
+			SymbolImport.importDependencySymbols(
+				new SymbolService(service.project.symbolStorage),
+				SymbolTable.getDependencyExports(dependency.storage.global, 'package'),
 			)
-			service.project.symbols.query(doc, 'objective', 'aaaaaa').enterCommand({
-				usage: { type: 'reference' },
-			})
+			new SymbolService(service.project.symbolStorage).query(doc, 'objective', 'aaaaaa')
+				.enter({
+					usage: { type: 'reference' },
+				}, SymbolEnterType.InFileSymbol)
 			const facet = source.facets!.global!
 			delete source.facets!.global
 			if (scope === SymbolIsotopeScope.Project) {
@@ -254,10 +270,11 @@ describe('Service.getDefinitionLocations()', () => {
 		const { service, symbol } = setup(t)
 		symbol.facets!.global!.declaration = [location('declaration')]
 		symbol.facets!.global!.implementation = [location('implementation', true)]
-		service.project.symbols.query(doc, 'function', 'demo:alias').enter({
-			data: { relations: { aliasOf: { category: 'function', path: ['demo:name'] } } },
-		})
-		const alias = service.project.symbols.global.function!['demo:alias']
+		new SymbolService(service.project.symbolStorage).query(doc, 'function', 'demo:alias')
+			.enter({
+				data: { relations: { aliasOf: { category: 'function', path: ['demo:name'] } } },
+			})
+		const alias = service.project.symbolStorage.global.function!['demo:alias']
 		t.assert.equal(
 			(await service.getDefinitionLocations(file(alias), doc, 1))?.locations?.[0].uri,
 			location('implementation').uri,

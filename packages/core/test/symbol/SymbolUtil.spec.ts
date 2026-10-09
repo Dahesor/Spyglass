@@ -1,6 +1,5 @@
-import { GlobalSymbol } from '@spyglassmc/core'
+import { SymbolFormatter, SymbolService, SymbolStorage } from '@spyglassmc/core'
 import type { SymbolTable } from '@spyglassmc/core'
-import { SymbolFormatter, SymbolUtil } from '@spyglassmc/core'
 import { describe, it } from 'node:test'
 
 describe('SymbolUtil', () => {
@@ -8,22 +7,24 @@ describe('SymbolUtil', () => {
 	const anotherFileUri = 'spyglassmc://another_test_file'
 	describe('contributeAs', () => {
 		it('Should execute correctly', (t) => {
-			const symbols = new SymbolUtil({})
+			const symbols = new SymbolService(new SymbolStorage({}))
 			symbols.contributeAs('uri_binder', () => {
 				symbols.query(fileUri, 'test', 'Bound').enter({
 					data: { desc: 'This symbol is URI bound.' },
 					usage: {},
 				})
 			})
-			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
+			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.storage.global))
 		})
 	})
 	describe('clear()', () => {
 		it('Should clear all', (t) => {
 			// Set up the symbol table.
 			const global: SymbolTable = {}
-			const symbols = new SymbolUtil(global)
-			symbols.query(fileUri, 'mcdoc', 'ShouldBeKept1').enter({ usage: { type: 'definition' } })
+			const symbols = new SymbolService(new SymbolStorage(global))
+			symbols.query(fileUri, 'mcdoc', 'ShouldBeKept1').enter({
+				usage: { type: 'definition' },
+			})
 				.member('ShouldBeRemoved1', (memberQuery) => {
 					memberQuery.enter({ usage: { type: 'definition' } })
 				}).member('ShouldBeKept2', (memberQuery) => {
@@ -47,23 +48,24 @@ describe('SymbolUtil', () => {
 			).member('ShouldBeKept5', (memberQuery) => {
 				memberQuery.enter({ usage: { type: 'definition' } })
 			})
-			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
+			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.storage.global))
 
-			GlobalSymbol.clear(symbols, { uri: fileUri })
-			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
+			symbols.clear({ uri: fileUri })
+			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.storage.global))
 		})
 	})
 	describe('lookup()', () => {
 		// Set up the symbol table.
-		const symbols = new SymbolUtil({})
-		symbols.query(fileUri, 'advancement', 'Foo').enter({ usage: { type: 'definition' } }).member(
-			'Bar',
-			(member) =>
-				member.enter({ usage: { type: 'definition' } }).member(
-					'Qux',
-					(member) => member.enter({ usage: { type: 'definition' } }),
-				),
-		)
+		const symbols = new SymbolService(new SymbolStorage({}))
+		symbols.query(fileUri, 'advancement', 'Foo').enter({ usage: { type: 'definition' } })
+			.member(
+				'Bar',
+				(member) =>
+					member.enter({ usage: { type: 'definition' } }).member(
+						'Qux',
+						(member) => member.enter({ usage: { type: 'definition' } }),
+					),
+			)
 		// const stackSymbols = new SymbolUtil({})
 		// stackSymbols
 		// 	.query(fileUri, 'advancement', 'Foo')
@@ -93,13 +95,13 @@ describe('SymbolUtil', () => {
 		]
 		for (const path of paths) {
 			it(`Should return correctly for “${path.join('.')}”`, (t) => {
-				const actual = GlobalSymbol.lookup(symbols, 'advancement', path)
+				const actual = symbols.lookup('advancement', path)
 
 				t.assert.snapshot(SymbolFormatter.stringifyLookupResult(actual))
 			})
 		}
 		it('Should return correctly when URI is not specified', (t) => {
-			const actual = GlobalSymbol.lookup(symbols, 'advancement', ['Foo'])
+			const actual = symbols.lookup('advancement', ['Foo'])
 
 			t.assert.snapshot(SymbolFormatter.stringifyLookupResult(actual))
 		})
@@ -118,8 +120,10 @@ describe('SymbolUtil', () => {
 		]
 		for (const path of paths) {
 			it(`Should return correctly for “${path.join('.')}”`, (t) => {
-				const symbols = new SymbolUtil({})
-				symbols.query(fileUri, 'advancement', 'Foo').enter({ usage: { type: 'definition' } })
+				const symbols = new SymbolService(new SymbolStorage({}))
+				symbols.query(fileUri, 'advancement', 'Foo').enter({
+					usage: { type: 'definition' },
+				})
 					.member(
 						'Bar',
 						(member) =>
@@ -131,7 +135,7 @@ describe('SymbolUtil', () => {
 
 				const query = symbols.query(fileUri, 'advancement', ...path)
 
-				t.assert.snapshot(SymbolFormatter.stringifySymbol(query.symbol))
+				t.assert.snapshot(SymbolFormatter.stringifySymbol(query.symbolView))
 
 				try {
 					query.enter({ data: { desc: 'Entered.' } })
@@ -139,8 +143,8 @@ describe('SymbolUtil', () => {
 					t.assert.snapshot(`${e}`)
 				}
 
-				t.assert.snapshot(SymbolFormatter.stringifySymbol(query.symbol))
-				t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
+				t.assert.snapshot(SymbolFormatter.stringifySymbol(query.symbolView))
+				t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.storage.global))
 			})
 		}
 	})

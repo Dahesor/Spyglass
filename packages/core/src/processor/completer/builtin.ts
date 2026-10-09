@@ -25,7 +25,6 @@ import type { CompleterContext, MetaRegistry } from '../../service/index.js'
 import { LinterConfigValue } from '../../service/index.js'
 import type { RangeLike } from '../../source/index.js'
 import { Range } from '../../source/index.js'
-import { GlobalSymbol } from '../../symbol/GlobalSymbol.js'
 import type { SymbolView } from '../../symbol/index.js'
 import { SymbolUtil } from '../../symbol/index.js'
 import type { ColorTokenType } from '../colorizer/index.js'
@@ -358,7 +357,7 @@ function tryGetUnicodeNameCompletion(
 	}
 	const partial = match[1]!
 	const replaceRange = Range.create(ctx.offset - partial.length, ctx.offset)
-	const map = GlobalSymbol.getVisibleSymbols(ctx.symbols, 'unicode-name')
+	const map = ctx.symbols.getVisibleSymbols('unicode-name')
 	const items: CompletionItem[] = []
 	for (const [identifier, symbol] of Object.entries(map)) {
 		if (!SymbolUtil.isDeclared(symbol)) {

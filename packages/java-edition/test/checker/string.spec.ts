@@ -1,12 +1,3 @@
-import { GlobalSymbol } from '@spyglassmc/core'
-import type {
-	LanguageError,
-	MetaRegistry,
-	ProjectData,
-	StringNode,
-	StringOptions,
-	SymbolUtil,
-} from '@spyglassmc/core'
 import {
 	CheckerContext,
 	completer as builtinCompleter,
@@ -15,9 +6,18 @@ import {
 	ReadonlySource,
 	Source,
 	string as stringParser,
-	SymbolUtil as SymbolUtilCtor,
+	SymbolService as SymbolServiceCtor,
+	SymbolStorage,
 	UnicodeEscapeNode,
 	VanillaConfig,
+} from '@spyglassmc/core'
+import type {
+	LanguageError,
+	MetaRegistry,
+	ProjectData,
+	StringNode,
+	StringOptions,
+	SymbolService,
 } from '@spyglassmc/core'
 import { mockProjectData } from '@spyglassmc/core/test/utils.ts'
 import * as assert from 'node:assert/strict'
@@ -39,7 +39,7 @@ const LatestRelease: ReleaseVersion = '1.21.5'
  * result. Only the symbols and the meta registry are reused - every project
  * gets its own config.
  */
-let unicodeBoot: { symbols: SymbolUtil; meta: MetaRegistry } | undefined
+let unicodeBoot: { storage: SymbolStorage; meta: MetaRegistry } | undefined
 
 /**
  * Mirrors the production symbol-table boot: `je.initialize` registers the
@@ -48,25 +48,26 @@ let unicodeBoot: { symbols: SymbolUtil; meta: MetaRegistry } | undefined
  */
 export function initializedProject(release: ReleaseVersion = LatestRelease): ProjectData {
 	if (!unicodeBoot) {
-		const boot = mockProjectData({ symbols: new SymbolUtilCtor({}) })
+		const boot = mockProjectData()
+		const symbols = new SymbolServiceCtor(boot.symbolStorage)
 		const data = getUnicodeData()
 		boot.meta.registerSymbolRegistrar('unicode-data', {
 			checksum: data.checksum,
 			registrar: unicodeSymbolRegistrar(data),
 		})
 		for (const [id, { registrar }] of boot.meta.symbolRegistrars) {
-			boot.symbols.contributeAs(`symbol_registrar/${id}`, () => {
-				registrar(boot.symbols, {})
+			symbols.contributeAs(`symbol_registrar/${id}`, () => {
+				registrar(symbols, {})
 				return undefined
 			})
 		}
-		unicodeBoot = { symbols: boot.symbols, meta: boot.meta }
+		unicodeBoot = { storage: boot.symbolStorage, meta: boot.meta }
 	}
 	return mockProjectData({
 		config: structuredClone(VanillaConfig),
 		ctx: { loadedVersion: release },
 		meta: unicodeBoot.meta,
-		symbols: unicodeBoot.symbols,
+		symbolStorage: unicodeBoot.storage,
 	})
 }
 
@@ -414,7 +415,10 @@ describe('string checker', () => {
 			// The completer reads `getVisibleSymbols(UnicodeNameCategory)` and
 			// shows each symbol's identifier. We register names with Title
 			// Case identifiers so they display naturally.
-			const visible = GlobalSymbol.getVisibleSymbols(initializedProject().symbols, 'unicode-name')
+			const visible = new SymbolServiceCtor(initializedProject().symbolStorage)
+				.getVisibleSymbols(
+					'unicode-name',
+				)
 			assert.ok(visible['Snowman'])
 			assert.ok(visible['Latin Small Letter A'])
 			assert.ok(visible['Bell'])
@@ -425,7 +429,7 @@ describe('string checker', () => {
 })
 
 describe('\\N{…} completion', () => {
-	const seedSymbols = (symbols: SymbolUtil) => {
+	const seedSymbols = (symbols: SymbolService) => {
 		symbols.contributeAs('test/unicode', () => {
 			for (
 				const [name, codepoint] of [
@@ -451,9 +455,9 @@ describe('\\N{…} completion', () => {
 	}
 
 	const setupCtx = (source: string, cursorOffset: number) => {
-		const symbols = new SymbolUtilCtor({})
+		const symbols = new SymbolServiceCtor(new SymbolStorage({}))
 		seedSymbols(symbols)
-		const projectData = mockProjectData({ symbols })
+		const projectData = mockProjectData({ symbolStorage: symbols.storage })
 		const doc = TextDocument.create('', '', 0, source)
 		const ctx = CompleterContext.create(projectData, {
 			doc,

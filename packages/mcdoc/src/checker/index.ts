@@ -1,4 +1,4 @@
-import { GlobalSymbol } from '@spyglassmc/core'
+import { SymbolUtil } from '@spyglassmc/core'
 import type { MetaRegistry, SyncChecker } from '@spyglassmc/core'
 import { localize } from '@spyglassmc/locales'
 import { TypeDefSymbolData } from '../binder/index.js'
@@ -11,7 +11,7 @@ const reference: SyncChecker<ReferenceTypeNode> = (node, ctx) => {
 	const symbol = children.findLast((c) =>
 		c.symbol && c.symbol.category === 'mcdoc' && c.symbol.subcategory !== 'module'
 	)?.symbol
-	const data = symbol?.isLocal ? symbol.data : GlobalSymbol.getCanonicalData(symbol)
+	const data = symbol?.isLocal ? symbol.data : SymbolUtil.getCanonicalData(symbol)
 	if (!symbol || !TypeDefSymbolData.is(data)) {
 		return
 	}

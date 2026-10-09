@@ -1,4 +1,4 @@
-import { Logger, SymbolFormatter, SymbolUtil } from '@spyglassmc/core'
+import { Logger, SymbolFormatter, SymbolService, SymbolStorage } from '@spyglassmc/core'
 import * as fs from 'fs'
 import { describe, it } from 'node:test'
 import * as path from 'path'
@@ -69,13 +69,14 @@ describe('mcmeta', () => {
 				fluids: Fluids,
 				registries: Fixtures.Registries,
 			}, '1.18.2')
-			const symbols = new SymbolUtil({})
+			const symbols = new SymbolService(new SymbolStorage({}))
 			symbols.contributeAs('symbol_registrar/mcmeta', () => registrar(symbols, {}))
 			t.assert.equal(
-				symbols.global.block!['minecraft:acacia_button'].facets?.global?.isotopes[0].source,
+				symbols.storage.global.block!['minecraft:acacia_button'].facets?.global?.isotopes[0]
+					.source,
 				2,
 			)
-			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.global))
+			t.assert.snapshot(SymbolFormatter.stringifySymbolTable(symbols.storage.global))
 		})
 	})
 })

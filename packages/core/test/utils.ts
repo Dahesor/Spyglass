@@ -13,7 +13,6 @@ import {
 	Failure,
 	file,
 	FileService,
-	GlobalSymbol,
 	Logger,
 	MetaRegistry,
 	ParserContext,
@@ -21,8 +20,8 @@ import {
 	Source,
 	StateProxy,
 	SymbolPath,
+	SymbolStorage,
 	SymbolTable,
-	SymbolUtil,
 	UriBinderContext,
 	VanillaConfig,
 } from '../lib/index.js'
@@ -56,11 +55,9 @@ export function mockProjectData(data: Partial<ProjectData> = {}): ProjectData {
 		profilers: data.profilers ?? ProfilerFactory.noop(),
 		projectRoots: data.projectRoots ?? ['file:///'],
 		roots: data.roots ?? [],
-		symbols: data.symbols
-			?? new SymbolUtil(
+		symbolStorage: data.symbolStorage
+			?? new SymbolStorage(
 				{},
-				undefined,
-				false,
 				uri => project.meta.resolveResourceLocation?.(uri, ContextBase.create(project)),
 			),
 	}
@@ -206,7 +203,7 @@ export class SimpleProject {
 	readonly #global: SymbolTable = Object.create(null)
 	#nodes: Record<string, FileNode<AstNode>> = Object.create(null)
 
-	readonly #symbols = new SymbolUtil(this.#global)
+	readonly #symbolStorage = new SymbolStorage(this.#global)
 
 	readonly #meta: MetaRegistry
 	readonly #files: readonly { uri: string; content: string }[]
@@ -219,7 +216,7 @@ export class SimpleProject {
 			ensureBindingStarted: async (uri) => this.bindSingleFile(uri),
 			meta: this.#meta,
 			roots: ['file:///'],
-			symbols: this.#symbols,
+			symbolStorage: this.#symbolStorage,
 		})
 	}
 
@@ -283,7 +280,7 @@ export class SimpleProject {
 			const ctx = BinderContext.create(this.projectData, {
 				doc: TextDocument.create(uri, '', 0, content),
 			})
-			GlobalSymbol.clear(ctx.symbols, { contributor: 'binder', uri })
+			ctx.symbols.clear({ contributor: 'binder', uri })
 			await ctx.symbols.contributeAsAsync('binder', async () => {
 				const proxy = StateProxy.create(node)
 				await binder(proxy, ctx)

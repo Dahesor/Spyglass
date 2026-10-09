@@ -1,6 +1,8 @@
 import picomatch from 'picomatch'
-import { ResourceLocation } from '../common/index.js'
-import type { IsotopeVisibility } from './Symbol.js'
+import { ResourceLocation } from '../../common/index.js'
+import type { IsotopeVisibility } from '../Symbol.js'
+
+export type ResourceLocationResolver = (uri: string) => ResourceLocation | undefined
 
 // It should be quite common for multiple symbols/isotopes to share the same scope
 // So caching should help here
@@ -15,9 +17,7 @@ const byRules = new WeakMap<IsotopeVisibility[], CachedVisibility>()
 const sharedScopes = new Map<string, CachedVisibility>()
 const MaxSharedScopes = 2048
 
-export type ResourceLocationResolver = (uri: string) => ResourceLocation | undefined
-
-/** Check if the given URI matches the specified visibility rules. */
+/** @returns `true` if the given URI matches the specified visibility rules. */
 export function matchesVisibility(
 	rules: IsotopeVisibility[],
 	uri: string,
@@ -46,7 +46,7 @@ export function matchesVisibility(
 	return getVisibilityScope(rules).matches(uri, location)
 }
 
-export function getVisibilityScope(rules: IsotopeVisibility[]): VisibilityPredicate {
+function getVisibilityScope(rules: IsotopeVisibility[]): VisibilityPredicate {
 	const existing = byRules.get(rules)
 	if (existing && validateCache(rules, existing.rules)) {
 		return existing.cache
