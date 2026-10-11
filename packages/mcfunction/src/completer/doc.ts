@@ -1,7 +1,11 @@
 import * as core from '@spyglassmc/core'
 import type { DocDirectiveNode, DocNode } from '../node/index.js'
 import type { DocDirective, DocDirectiveSuggestCtx, DocTargets } from '../parser/doc.js'
-import { getCurrentFunctionIdentifier, getDirectiveDescription } from '../parser/doc.js'
+import {
+	getCurrentFunctionIdentifier,
+	getDirectiveDescription,
+	getDocDirective,
+} from '../parser/doc.js'
 
 type DirectiveNode = core.DeepReadonly<DocDirectiveNode>
 type DocumentationNode = core.DeepReadonly<DocNode>
@@ -19,10 +23,8 @@ export const completeDoc: core.Completer<DocNode> = (node, ctx) => {
 	const position = findDirectivePosition(node.docDirectives, ctx.offset)
 	if (position) {
 		if (ctx.offset > position.occurrence.identifierRange.end) {
-			const argument = position.occurrence.argumentNode
-			return argument && core.Range.contains(argument.range, ctx.offset, true)
-				? core.completer.dispatch(argument, ctx)
-				: []
+			return getDocDirective(ctx.meta, docTarget(node, ctx), position.occurrence.identifier)
+				?.completer?.(position.occurrence, ctx) ?? []
 		}
 		return position.occurrence.isInline
 			? completeInlineDocDirectives(
@@ -65,7 +67,6 @@ function findNodeAtOffset<N extends core.DeepReadonly<core.AstNode>>(
 	return node && core.Range.contains(node.range, offset, true) ? node : undefined
 }
 
-/** Inspect only the containing directive branch. */
 function findDirectivePosition(
 	directives: readonly DirectiveNode[],
 	offset: number,
@@ -155,15 +156,30 @@ function completeInlineDocDirectives(
 	occurrence?: DirectiveNode,
 ): core.CompletionItem[] {
 	const target = docTarget(node, ctx)
-	return completeDirectives(
+	const items = completeDirectives(
 		ctx,
 		target,
 		range,
 		{ node, occurrence, possibleCallers: [] },
 		node.docDirectives,
-		directive => !directive.hasMandatoryArgument && (!target || accepts(directive, target)),
+		directive => directive.isCommon && !directive.hasMandatoryArgument,
 		occurrence ? undefined : '2',
 	)
+	if (
+		node.isFunctionHeader && node.isImplicitFunction
+		&& node.fields[0]?.range.start === node.fields[0]?.range.end
+		&& !node.docDirectives.some(directive =>
+			directive.isInline && directive.identifierRange.start > ctx.offset
+		)
+	) {
+		const identifier = getCurrentFunctionIdentifier(ctx)
+		if (identifier) {
+			for (const item of items) {
+				item.insertText = core.CompletionItem.escape(`${item.label} ${identifier}`)
+			}
+		}
+	}
+	return items
 }
 
 interface DirectiveSlot {

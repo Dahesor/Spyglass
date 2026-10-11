@@ -1,3 +1,4 @@
+import type { DeepReadonly } from '../../common/index.js'
 import type {
 	AstNode,
 	BooleanNode,
@@ -16,8 +17,9 @@ import type {
 	SymbolNode,
 	UnicodeEscapeNode,
 } from '../../node/index.js'
-import type { MetaRegistry } from '../../service/index.js'
+import type { ColorizerContext, MetaRegistry } from '../../service/index.js'
 import { Range } from '../../source/index.js'
+import { Isotope, LocalSymbol, type Symbol } from '../../symbol/index.js'
 import { traversePreOrder } from '../util.js'
 import type { Colorizer, ColorTokenType } from './Colorizer.js'
 import { ColorToken } from './Colorizer.js'
@@ -63,7 +65,32 @@ export const number: Colorizer = (node) => {
 	return [ColorToken.create(node, 'number')]
 }
 
-export const resourceLocation: Colorizer<ResourceLocationBaseNode> = (node, _ctx) => {
+function isDeprecated(node: DeepReadonly<AstNode>, ctx: ColorizerContext): boolean {
+	const symbol = node.symbol as Symbol | undefined
+	if (!symbol) {
+		return false
+	}
+	if (LocalSymbol.is(symbol)) {
+		return symbol.deprecated === true
+	}
+	if (!symbol.facets?.isotopes?.length) {
+		return Isotope.selectIsotope(symbol, ctx.doc.uri, ctx.symbols.storage.resolveResourceLocation)
+			?.deprecated === true
+	}
+	const cached = ctx.symbolDeprecations?.get(symbol)
+	if (cached !== undefined) {
+		return cached
+	}
+	const deprecated = Isotope.selectIsotope(
+		symbol,
+		ctx.doc.uri,
+		ctx.symbols.storage.resolveResourceLocation,
+	)?.deprecated === true
+	;(ctx.symbolDeprecations ??= new WeakMap()).set(symbol, deprecated)
+	return deprecated
+}
+
+export const resourceLocation: Colorizer<ResourceLocationBaseNode> = (node, ctx) => {
 	let type: ColorTokenType
 	switch (node.options.category) {
 		case 'function':
@@ -74,7 +101,8 @@ export const resourceLocation: Colorizer<ResourceLocationBaseNode> = (node, _ctx
 			type = 'resourceLocation'
 			break
 	}
-	return [ColorToken.create(node, type)]
+	const deprecated = isDeprecated(node, ctx)
+	return [ColorToken.create(node, type, deprecated ? ['deprecated'] : undefined)]
 }
 
 export const string: Colorizer<StringBaseNode> = (node, ctx) => {
@@ -98,9 +126,9 @@ export const string: Colorizer<StringBaseNode> = (node, ctx) => {
 	return [ColorToken.create(node, node.options.colorTokenType ?? 'string')]
 }
 
-export const symbol: Colorizer<SymbolBaseNode> = (node) => {
-	// TODO: Set the modifiers according to `node.symbol`.
-	return [ColorToken.create(node, 'variable')]
+export const symbol: Colorizer<SymbolBaseNode> = (node, ctx) => {
+	const deprecated = isDeprecated(node, ctx)
+	return [ColorToken.create(node, 'variable', deprecated ? ['deprecated'] : undefined)]
 }
 
 export const unicodeEscape: Colorizer<UnicodeEscapeNode> = (node) => {

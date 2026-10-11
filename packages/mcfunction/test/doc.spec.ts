@@ -1,8 +1,10 @@
 import * as core from '@spyglassmc/core'
 import { mockProjectData, mockResourceLocation } from '@spyglassmc/core/test/utils.ts'
 import { localeQuote, localize } from '@spyglassmc/locales'
-import { describe, it } from 'node:test'
+import { describe, it, type TestContext } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
+import { matchesVisibility } from '../../core/lib/symbol/util/visibility.js'
+import { docDirective as colorDirective } from '../lib/colorizer/doc.js'
 import { completeDoc } from '../lib/completer/doc.js'
 import { entry, initialize } from '../lib/index.js'
 import type { DocDirectiveNode, DocNode } from '../lib/node/doc.js'
@@ -21,7 +23,175 @@ import { ReturnsDocDirective } from '../lib/parser/doc/directives.js'
 
 const root = 'file:///pack/data/demo/function/'
 
+describe('within visibility parameters', () => {
+	for (const modifier of ['private', 'protected']) {
+		for (
+			const [scope, allowed, denied] of [
+				[
+					'other',
+					'file:///pack/data/other/function/any.mcfunction',
+					root + 'outside.mcfunction',
+				],
+				['demo:bar', root + 'bar.mcfunction', root + 'barley.mcfunction'],
+				[
+					'demo:bar/path',
+					root + 'bar/path/child.mcfunction',
+					root + 'bar/paths/child.mcfunction',
+				],
+				['"**/allowed/**"', root + 'allowed/child.mcfunction', root + 'outside.mcfunction'],
+				['%parent', root + 'folder/child.mcfunction', root + 'outside.mcfunction'],
+				[
+					'%parent/%parent',
+					root + 'outside.mcfunction',
+					'file:///pack/data/other/function/a.mcfunction',
+				],
+				[
+					'%parent/sub',
+					root + 'folder/sub/child.mcfunction',
+					root + 'folder/submarine.mcfunction',
+				],
+			]
+		) {
+			it(`${modifier} within ${scope} replaces the default scope and retains self`, (t: TestContext) => {
+				const env = setup()
+				env.project.meta.resolveResourceLocation = uri =>
+					mockResourceLocation(uri.replace(/\.mcfunction$/, ''))
+				const self = root + 'folder/self.mcfunction'
+				const { errors } = env.declaration(
+					self,
+					'',
+					`\n#> objective coins\n#@${modifier} within ${scope}`,
+				)
+				t.assert.deepEqual(errors, [])
+				t.assert.ok(env.view(self))
+				t.assert.ok(env.view(allowed))
+				t.assert.equal(env.view(denied), undefined)
+			})
+		}
+		for (
+			const scope of [
+				'foo:bar/%parent',
+				'%parent/foo/%parent',
+				'"unterminated',
+				'foo bar',
+				'**/foo/**',
+				'',
+			]
+		) {
+			it(`${modifier} rejects ${JSON.stringify(scope)}`, (t: TestContext) => {
+				const env = setup()
+				const self = root + 'folder/self.mcfunction'
+				const { errors } = env.declaration(
+					self,
+					'',
+					`\n#> objective coins\n#@${modifier} within ${scope}`,
+				)
+				t.assert.ok(errors.length)
+				t.assert.ok(env.view(self))
+				t.assert.equal(env.view(root + 'folder/other.mcfunction'), undefined)
+			})
+		}
+		for (const newline of ['\n', '\r\n']) {
+			it(`${modifier} completes and colors scopes with ${JSON.stringify(newline)}`, (t: TestContext) => {
+				const project = mockProjectData()
+				initialize(project)
+				project.meta.resolveResourceLocation = mockResourceLocation
+				const inspect = (argument: string) => {
+					const text = `#>function demo:folder/self${newline}#@${modifier} ${argument}`
+					const doc = TextDocument.create(
+						root + 'folder/self.mcfunction',
+						'mcfunction',
+						0,
+						text,
+					)
+					const node = parseDoc(
+						new core.Source(text),
+						core.ParserContext.create(project, { doc }),
+					)
+					return {
+						items: completeDoc(
+							node,
+							core.CompleterContext.create(project, { doc, offset: text.length }),
+						),
+						tokens: colorDirective(
+							node.docDirectives[0],
+							core.ColorizerContext.create(project, { doc }),
+						).map(token => [text.slice(token.range.start, token.range.end), token.type]),
+					}
+				}
+				t.assert.deepEqual(inspect('').items.map(item => item.label), ['within'])
+				const items = inspect('within ').items
+				t.assert.deepEqual(items.map(item => item.label), ['""', '%parent', 'THIS NAMESPACE'])
+				t.assert.equal(items[2].insertText, 'demo:')
+				project.meta.resolveResourceLocation = undefined
+				t.assert.equal(inspect('within ').items[2].insertText, 'minecraft:')
+				t.assert.ok(
+					inspect('within %parent/%parent').tokens.some(([text, type]) =>
+						text === '%parent' && type === 'literal'
+					),
+				)
+				t.assert.ok(
+					inspect('within "**/foo/**"').tokens.some(([text, type]) =>
+						text === '"**/foo/**"' && type === 'string'
+					),
+				)
+				project.meta.resolveResourceLocation = mockResourceLocation
+				new core.SymbolService(project.symbolStorage).query(
+					root + 'x.mcfunction',
+					'function',
+					'demo:folder/child',
+				).enter({ usage: { type: 'definition' } })
+				t.assert.deepEqual(inspect('within demo:').items.map(item => item.label), ['""'])
+				t.assert.deepEqual(inspect('within %parent/').items.map(item => item.label), [
+					'""',
+					'%parent/%parent',
+				])
+			})
+		}
+	}
+	for (
+		const rules of [[{ namespace: 'demo', path: 'bar' }], [{ namespace: 'demo', path: 'bar' }, {
+			glob: 'never',
+		}]]
+	) {
+		it('includes the exact resource path and children in both visibility matcher paths', t => {
+			for (const path of ['bar', 'bar/child', 'barley']) {
+				t.assert.equal(
+					matchesVisibility(rules, root + path + '.mcfunction', {
+						namespace: 'demo',
+						path: path.split('/'),
+					}),
+					path !== 'barley',
+				)
+			}
+		})
+	}
+})
+
 describe('function header completion', () => {
+	for (const modifier of ['private', 'protected']) {
+		it(`matches parent fragments in ${modifier} scopes`, (t: TestContext) => {
+			const project = mockProjectData()
+			initialize(project)
+			const labels = (value: string) => {
+				const text = `#>function demo:folder/self\n#@${modifier} within ${value}`
+				const doc = TextDocument.create(root + 'folder/self.mcfunction', 'mcfunction', 0, text)
+				const node = parseDoc(new core.Source(text), core.ParserContext.create(project, { doc }))
+				return completeDoc(
+					node,
+					core.CompleterContext.create(project, { doc, offset: text.length }),
+				).map(item => item.label)
+			}
+			for (const fragment of ['p', 'a', 'r', 'e', 'n', 't', 'ar', 'rent', '%pa']) {
+				for (const prefix of ['', '%parent/']) {
+					t.assert.ok(labels(prefix + fragment).includes(prefix + '%parent'))
+				}
+			}
+			for (const value of ['foo/a', 'demo:a', '%parent/foo/a', 'xyz', '"a"']) {
+				t.assert.equal(labels(value).some(label => label.includes('%parent')), false)
+			}
+		})
+	}
 	function complete(
 		marked: string,
 		project = mockProjectData(),
@@ -50,7 +220,7 @@ describe('function header completion', () => {
 			t.assert.equal(items.some(item => item.label === '@private'), !marked.includes('@private'))
 			t.assert.equal(
 				items.some(item => item.label === '@chatonly'),
-				!marked.includes('@chatonly'),
+				false,
 			)
 			t.assert.equal(items.some(item => item.label === '@required'), false)
 			t.assert.equal(items.some(item => item.label === '@result'), false)
@@ -75,8 +245,31 @@ describe('function header completion', () => {
 		it('offers directives immediately after @: ' + marked, t => {
 			const labels = complete(marked).map(item => item.label)
 			t.assert.equal(labels.includes('@protected'), true)
-			t.assert.equal(labels.includes('@chatonly'), true)
+			t.assert.equal(labels.includes('@chatonly'), false)
 			t.assert.equal(labels.includes('@private'), !marked.includes('@private'))
+		})
+	}
+	for (const marked of ['#>|', '#>@|', '#>@pr|ivate', '#>@private @|']) {
+		it('fills the implicit function header: ' + marked, t => {
+			const item = complete(marked).find(item => item.label === '@protected')!
+			const text = marked.replace('|', '')
+			t.assert.equal(
+				text.slice(0, item.range.start) + item.insertText + text.slice(item.range.end),
+				(marked.includes('@private @') ? '#>@private ' : '#>')
+					+ '@protected demo:folder/self',
+			)
+		})
+	}
+	for (
+		const marked of [
+			'#>@pr|ivate demo:folder/self',
+			'#>@pr|ivate function demo:folder/self',
+			'#>@pr|ivate @public',
+		]
+	) {
+		it('preserves existing header content: ' + marked, t => {
+			const item = complete(marked).find(item => item.label === '@protected')!
+			t.assert.equal(item.insertText ?? item.label, '@protected')
 		})
 	}
 	it('does not visit unrelated functions in a large symbol table', t => {
@@ -674,7 +867,7 @@ describe('multiple inline doc directives', () => {
 			)
 			const offset = text.includes('@ch') ? text.indexOf('@ch') + 3 : text.length
 			const items = completeDoc(node, core.CompleterContext.create(env.project, { doc, offset }))
-			t.assert.equal(items.some(item => item.label === '@chatonly'), true)
+			t.assert.equal(items.some(item => item.label === '@chatonly'), false)
 			t.assert.equal(items.some(item => item.label === '@override'), true)
 			if (!text.includes('@ch')) {
 				t.assert.equal(items.some(item => item.label === 'function'), true)
@@ -891,7 +1084,9 @@ describe('directive controlled input', () => {
 					'other param',
 				]])
 				const expected =
-					' Intro\n Continued\n\nreturns: score sometparam\n\n- result: other param\n- success: some   param'
+					' Intro\n Continued\n\n*@returns* — score sometparam\\\n'
+					+ '\u00a0\u00a0\u00a0\u00a0**result** — other param\\\n'
+					+ '\u00a0\u00a0\u00a0\u00a0**success** — some   param'
 				t.assert.equal(env.node.description, expected)
 				const raw = env.project.symbolStorage.global.function!['demo:test']
 				t.assert.equal(core.SymbolUtil.viewFromContext(raw, root)?.desc, expected)
@@ -930,10 +1125,33 @@ describe('directive controlled input', () => {
 			' Intro\n Continued\n\nFirst line\nSecond line\n\nLast block',
 		)
 	})
+	for (const [children, expected] of [
+		['', '*@returns*'],
+		['\n#  @void', '*@returns* **void**'],
+		['\n#  @void no value', '*@returns* **void** — no value'],
+		['\n#  @result value', '*@returns*\\\n\u00a0\u00a0\u00a0\u00a0**result** — value'],
+		['\n#  @success yes', '*@returns*\\\n\u00a0\u00a0\u00a0\u00a0**success** — yes'],
+		[
+			'\n#  @result value\n#  @void otherwise',
+			'*@returns*\\\n\u00a0\u00a0\u00a0\u00a0**result** — value\\\n'
+				+ '\u00a0\u00a0\u00a0\u00a0**void** — otherwise',
+		],
+	]) {
+		it('renders returns without losing child information: ' + JSON.stringify(children), t => {
+			const env = parseAndBind('\n#> function demo:test\n# @returns' + children)
+			t.assert.deepEqual(env.errors, [])
+			t.assert.equal(env.node.description, expected)
+			env.bind()
+			t.assert.equal(env.node.description, expected)
+		})
+	}
 	it('preserves actual trailing comment blank lines before directive documentation', t => {
 		const env = parseAndBind('\n#> function demo:test Intro\n#\n# @returns\n#  @result value')
 		t.assert.equal(env.node.commentDescription, ' Intro\n')
-		t.assert.equal(env.node.description, ' Intro\n\n\nreturns:\n\n- result: value')
+		t.assert.equal(
+			env.node.description,
+			' Intro\n\n\n*@returns*\\\n\u00a0\u00a0\u00a0\u00a0**result** — value',
+		)
 	})
 	it('leaves a rejected indented directive for the outer parser', t => {
 		let calls = 0
@@ -956,7 +1174,10 @@ describe('directive controlled input', () => {
 			'returnsdoesnottakeme',
 		])
 		t.assert.equal(calls, 1)
-		t.assert.equal(env.node.description, 'returns:\n\n- result: hello\n\nSeparate docs')
+		t.assert.equal(
+			env.node.description,
+			'*@returns*\\\n\u00a0\u00a0\u00a0\u00a0**result** — hello\n\nSeparate docs',
+		)
 	})
 	it('warns and skips duplicate child execution', t => {
 		const env = parseAndBind(
@@ -964,7 +1185,7 @@ describe('directive controlled input', () => {
 		)
 		t.assert.equal(env.errors.length, 1)
 		t.assert.equal(env.errors[0]?.severity, core.ErrorSeverity.Warning)
-		t.assert.equal(env.node.description?.includes('- result: first'), true)
+		t.assert.equal(env.node.description?.includes('**result** — first'), true)
 		t.assert.equal(env.node.description?.includes('second'), false)
 	})
 	for (const identifier of ['result', 'success']) {
@@ -1036,7 +1257,7 @@ describe('directive controlled input', () => {
 		)
 		t.assert.deepEqual(env.errors, [])
 		t.assert.deepEqual(calls, ['more', 'success'])
-		t.assert.equal(env.node.description?.includes('- success: some param / some param'), true)
+		t.assert.equal(env.node.description?.includes('**success** — some param / some param'), true)
 	})
 	it('does not execute parsed children automatically', t => {
 		let childCalls = 0
@@ -1094,6 +1315,21 @@ describe('directive controlled input', () => {
 })
 
 describe('directive suggestion policy', () => {
+	it('dispatches argument completion to the directive instance', t => {
+		const { labels } = complete('\n#> function demo:test\n#@custom |', project => {
+			class CustomDirective extends DefaultDocDirective {
+				override readonly identifier = 'custom'
+				override completer(
+					_node: core.DeepReadonly<DocDirectiveNode>,
+					ctx: core.CompleterContext,
+				) {
+					return [core.CompletionItem.create(this.identifier + '-argument', ctx.offset)]
+				}
+			}
+			registerDocDirective(project.meta, new CustomDirective())
+		})
+		t.assert.deepEqual(labels, ['custom-argument'])
+	})
 	function complete(
 		marked: string,
 		configure?: (project: ReturnType<typeof mockProjectData>) => void,
