@@ -173,7 +173,7 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 	const includeEmptyNamespace = !node.options.requireCanonical && node.namespace === ''
 	const includeDefaultNamespace = node.options.requireCanonical || config?.ruleValue !== true
 	const excludeDefaultNamespace = !node.options.requireCanonical && config?.ruleValue !== false
-	const descriptions = new Map<string, string | undefined>()
+	const metadata = new Map<string, SymbolView>()
 	let thisKey: string | undefined
 	let scannedCategory = false
 	const findThis = (key: string, symbol: SymbolView | undefined) => {
@@ -203,7 +203,7 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 			if (symbol && SymbolUtil.isDeclared(symbol)) {
 				declarations.push(key)
 				for (const label of optimizePool([key])) {
-					descriptions.set(`${category}\0${label}`, symbol.desc)
+					metadata.set(`${category}\0${label}`, symbol)
 				}
 			}
 		}
@@ -267,10 +267,15 @@ export const resourceLocation: Completer<ResourceLocationNode> = (node, ctx) => 
 		const isTag = v.startsWith(ResourceLocation.TagPrefix)
 		const category = isTag ? `tag/${node.options.category}` : node.options.category
 		const label = isTag ? v.slice(ResourceLocation.TagPrefix.length) : v
-		return CompletionItem.create(v, node, {
+		const symbol = metadata.get(`${category}\0${label}`)
+		const item = CompletionItem.create(v, node, {
 			kind: CompletionKind.Function,
-			documentation: descriptions.get(`${category}\0${label}`),
+			documentation: symbol?.desc,
 		})
+		if (symbol?.deprecated) {
+			item.deprecated = true
+		}
+		return item
 	})
 
 	if (node.options.category && !scannedCategory) {
@@ -398,9 +403,16 @@ export const symbol: Completer<SymbolBaseNode> = (node, ctx) => {
 		.filter((entry): entry is readonly [string, SymbolView] =>
 			!!entry[1] && SymbolUtil.isDeclared(entry[1])
 		)
-		.map(([k, v]) =>
-			CompletionItem.create(k, node, { kind: CompletionKind.Variable, documentation: v.desc })
-		)
+		.map(([k, v]) => {
+			const item = CompletionItem.create(k, node, {
+				kind: CompletionKind.Variable,
+				documentation: v.desc,
+			})
+			if (v.deprecated) {
+				item.deprecated = true
+			}
+			return item
+		})
 }
 
 export function registerCompleters(meta: MetaRegistry) {

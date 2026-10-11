@@ -30,7 +30,29 @@ export function registerDocArguments(
 ): void {
 	const { tree } = definition
 	const id = `impdoc:${definition.identifier}_arguments`
-	const parse = mcf.command(tree, definition.argumentParser ?? parser.argument)
+	const argumentParser = definition.argumentParser ?? parser.argument
+	// Always perfer literal matches over other types
+	// Instead of perfering the longer one
+	const parse = mcf.command(tree, (argument, previous) => {
+		const parseArgument = argumentParser(argument, previous)
+		if (!parseArgument) {
+			return undefined
+		}
+		const path = previous.at(-1)?.path ?? []
+		const parent = path.length ? mcf.redirect(tree, path) : tree
+		const { treeNode } = mcf.resolveParentTreeNode(parent, tree, path)
+		const literals = new Set(
+			Object.entries(treeNode?.children ?? {})
+				.filter(([, child]) => child.type === 'literal')
+				.map(([name]) => name),
+		)
+		return (src, ctx) => {
+			if (literals.has(src.peekUntil(' ', '\r', '\n'))) {
+				return core.Failure
+			}
+			return parseArgument(src, ctx)
+		}
+	})
 	const complete = mcf.completer.entry(tree, definition.mockNodes ?? completer.getMockNodes)
 	meta.registerParser(id, (src, ctx) => {
 		const command = parse(src, ctx)

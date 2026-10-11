@@ -40,8 +40,8 @@ export function matchesVisibility(
 			return true
 		}
 		const identifier = resourcePath(location)
-		return identifier.startsWith(path)
-			&& (path === '' || path.endsWith('/') || identifier[path.length] === '/')
+		return identifier === path || identifier.startsWith(path)
+				&& (path === '' || path.endsWith('/') || identifier[path.length] === '/')
 	}
 	return getVisibilityScope(rules).matches(uri, location)
 }
@@ -71,7 +71,8 @@ function getVisibilityScope(rules: IsotopeVisibility[]): VisibilityPredicate {
 						|| (rule.namespace !== undefined
 							&& rule.namespace
 								!== (location.namespace ?? ResourceLocation.DefaultNamespace))
-						|| (path !== undefined && !resourcePath(location).startsWith(path))
+						|| (path !== undefined && resourcePath(location) !== rule.path
+							&& !resourcePath(location).startsWith(path))
 					) {
 						return false
 					}

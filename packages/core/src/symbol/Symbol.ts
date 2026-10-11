@@ -458,7 +458,7 @@ export interface IsotopeVisibility {
 	glob?: string
 	/** Exact resource namespace. */
 	namespace?: string
-	/** path prefix, excluding namespace (e.g. "path/subdir/"). */
+	/** Resource path and its descendants, excluding namespace. A trailing slash matches descendants only. */
 	path?: string
 }
 
@@ -486,6 +486,8 @@ export interface GlobalSymbolIsotope {
 	 * The documentation for this Isotope.
 	 */
 	desc?: string
+	/** Whether this isotope marks the symbol as deprecated. */
+	deprecated?: boolean
 	/** Custom information about this isotope. */
 	data?: unknown
 }
@@ -545,8 +547,9 @@ export interface Symbol extends SymbolMetadata {
 	}
 }
 
-/** A read-only contextual projection; descriptions and locations are never stored on the base. */
+/** A read-only contextual projection of the symbol */
 export interface SymbolView extends Symbol, Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+	deprecated?: boolean
 	desc?: string
 }
 

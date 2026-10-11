@@ -83,6 +83,42 @@ const entity_target: NodeComponent = {
 	},
 }
 
+const message_target: NodeComponent = {
+	message: {
+		type: 'argument',
+		parser: 'minecraft:message',
+		executable: true,
+	},
+}
+
+const contextArgTree: mcf.RootTreeNode = {
+	type: 'root',
+	children: {
+		'@player': {
+			type: 'literal',
+			executable: true,
+			children: {
+				...message_target,
+			},
+		},
+		'@any': {
+			type: 'literal',
+			executable: true,
+			children: {
+				...message_target,
+			},
+		},
+		'@root': {
+			type: 'literal',
+			executable: true,
+			children: {
+				...message_target,
+			},
+		},
+		...message_target,
+	},
+}
+
 const inputArgTree: mcf.RootTreeNode = {
 	type: 'root',
 	children: {
@@ -104,6 +140,7 @@ const readwriteArgTree: mcf.RootTreeNode = {
 export function registerDocInput(meta: core.MetaRegistry): void {
 	registerDocArguments(meta, { identifier: 'input', tree: inputArgTree })
 	registerDocArguments(meta, { identifier: 'read_write', tree: readwriteArgTree })
+	registerDocArguments(meta, { identifier: 'context', tree: contextArgTree })
 }
 
 type DocArgumentStep = readonly [

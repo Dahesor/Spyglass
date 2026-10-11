@@ -5,7 +5,7 @@ import type { Logger } from '../common/index.js'
 import { formatterContextIndentation } from '../processor/index.js'
 import type { Range } from '../source/index.js'
 import { ReadonlySource } from '../source/index.js'
-import { SymbolService } from '../symbol/index.js'
+import { type Symbol, SymbolService } from '../symbol/index.js'
 import type { Config } from './Config.js'
 import { ErrorReporter } from './ErrorReporter.js'
 import type { FileService } from './FileService.js'
@@ -204,7 +204,9 @@ export namespace CodeActionProviderContext {
 	}
 }
 
-export interface ColorizerContext extends ProcessorWithRangeContext {}
+export interface ColorizerContext extends ProcessorWithRangeContext {
+	symbolDeprecations?: WeakMap<Symbol, boolean>
+}
 export interface ColorizerContextOptions extends ProcessorWithRangeContextOptions {}
 export namespace ColorizerContext {
 	export function create(project: ProjectData, opts: ColorizerContextOptions): ColorizerContext {
