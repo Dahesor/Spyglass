@@ -61,6 +61,9 @@ export namespace LocalSymbol {
 		if (addition.data && 'desc' in addition.data) {
 			symbol.desc = addition.data.desc
 		}
+		if (addition.data && 'deprecated' in addition.data) {
+			symbol.deprecated = addition.data.deprecated
+		}
 		const usage = addition.usage && { ...addition.usage }
 		if (usage) {
 			delete usage.isotopeIdentifier

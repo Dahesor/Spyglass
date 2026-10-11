@@ -28,6 +28,7 @@ export interface DocNode extends core.AstNode {
 	directive: core.LiteralNode
 	commentDescription?: string
 	description?: string
+	deprecated?: boolean
 	isFunctionHeader?: boolean
 	isImplicitFunction?: boolean
 	valid: boolean

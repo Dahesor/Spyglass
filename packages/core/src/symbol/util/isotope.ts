@@ -59,7 +59,7 @@ export namespace Isotope {
 		const scope = addition.data?.scope ?? SymbolIsotopeScope.Global
 		const hasMetadata = addition.data
 			&& ('desc' in addition.data || 'data' in addition.data || 'scope' in addition.data
-				|| 'source' in addition.data
+				|| 'source' in addition.data || 'deprecated' in addition.data
 				|| 'overrideLevel' in addition.data)
 		const isReference = (addition.usage?.type ?? 'reference') === 'reference' && !hasMetadata
 		const existing = selectIsotope(symbol, doc.uri, service.storage.resolveResourceLocation)
@@ -87,6 +87,9 @@ export namespace Isotope {
 						source,
 						origin: { uri: doc.uri, contributor },
 						...(addition.data && 'desc' in addition.data ? { desc: addition.data.desc } : {}),
+						...(addition.data && 'deprecated' in addition.data
+							? { deprecated: addition.data.deprecated }
+							: {}),
 						...(addition.data && 'data' in addition.data ? { data: addition.data.data } : {}),
 						...(addition.data && 'overrideLevel' in addition.data
 							? { overrideLevel: addition.data.overrideLevel }
@@ -541,7 +544,12 @@ export namespace Isotope {
 		if (!isotope) {
 			return undefined
 		}
-		const view: SymbolView = { ...symbol, desc: isotope.desc, data: isotope.data }
+		const view: SymbolView = {
+			...symbol,
+			desc: isotope.desc,
+			data: isotope.data,
+			deprecated: isotope.deprecated,
+		}
 		const owner = ownerOf(symbol, isotope)
 		for (const usage of SymbolUsageTypes) {
 			view[usage] = owner[usage]

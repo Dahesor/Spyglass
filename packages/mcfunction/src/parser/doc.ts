@@ -7,7 +7,7 @@ export type DocDirectiveOverride = ReadonlyMap<
 	Partial<
 		Pick<
 			DocDirective,
-			'modifyAccess' | 'handleDirective' | 'parseArguments' | 'includeInSuggestion'
+			'modifyAccess' | 'handleDirective' | 'parseArguments' | 'includeInSuggestion' | 'completer'
 		>
 	>
 >
@@ -19,6 +19,8 @@ export type DocDirectiveReturn = {
 	desc?: string[]
 	/** Additional data produced by the directive handler. */
 	data?: Record<string, unknown>
+	/** Mark the documented symbol as deprecated. False or absence does not undo another handler's mark. */
+	mark_deprecated?: boolean
 }
 
 export interface DocCommentInput {
@@ -86,6 +88,10 @@ export interface DocDirective {
 	readonly allowDuplicates: boolean
 	/** Its description. Should be a list of localize key */
 	readonly description?: string[]
+	completer?(
+		directive: core.DeepReadonly<DocDirectiveNode>,
+		ctx: core.CompleterContext,
+	): core.CompletionItem[]
 	parseArguments?(
 		src: core.Source,
 		directive: DocDirectiveNode,
@@ -110,7 +116,7 @@ export interface DocDirective {
 }
 
 export class DefaultDocTarget implements DocTargets {
-	readonly identifier: string = 'default'
+	readonly identifier: string = ''
 	readonly acceptedDirectives: string[] = []
 	readonly directiveOverrides: DocDirectiveOverride = new Map()
 	parser(_src: core.Source, _ctx: core.ParserContext, _node: DocNode): boolean {
@@ -126,7 +132,7 @@ export class DefaultDocTarget implements DocTargets {
 }
 
 export class DefaultDocDirective implements DocDirective {
-	readonly identifier: string = 'thisshuoldnotshowupsoreportifyouseeme'
+	readonly identifier: string = ''
 	readonly isCommon: boolean = true
 	readonly allowDuplicates: boolean = false
 	readonly isAccessModifier: boolean = false
@@ -162,13 +168,28 @@ export class DefaultDocDirective implements DocDirective {
 	includeInSuggestion(_ctx: core.CompleterContext, input: DocDirectiveSuggestCtx): boolean {
 		return input.possibleCallers.length === 0
 	}
+	completer(
+		directive: core.DeepReadonly<DocDirectiveNode>,
+		ctx: core.CompleterContext,
+	): core.CompletionItem[] {
+		const argument = directive.argumentNode
+		return argument && core.Range.contains(argument.range, ctx.offset, true)
+			? core.completer.dispatch(argument, ctx)
+			: []
+	}
 }
 
 export function registerDocTarget(meta: core.MetaRegistry, target: DocTargets): void {
+	if (target.identifier === '') {
+		throw new Error('Doc target must have a non-empty identifier')
+	}
 	meta.registerCustom<DocTargets>('impdoc:target', target.identifier, target)
 }
 
 export function registerDocDirective(meta: core.MetaRegistry, directive: DocDirective): void {
+	if (directive.identifier === '') {
+		throw new Error('Doc directive must have a non-empty identifier')
+	}
 	meta.registerCustom<DocDirective>('impdoc:directive', directive.identifier, directive)
 }
 
@@ -197,7 +218,10 @@ export function declareDocSymbol(
 		)
 		: ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
 	if (local) {
-		return handle.enter({ data: { desc: node.description ?? '' }, usage })
+		return handle.enter({
+			data: { desc: node.description ?? '', deprecated: node.deprecated },
+			usage,
+		})
 	}
 	return handle.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 		data: {
@@ -214,6 +238,7 @@ export function declareDocSymbol(
 			),
 			origin: { uri: ctx.doc.uri, contributor: 'binder' },
 			desc: node.description ?? '',
+			deprecated: node.deprecated,
 		},
 		usage,
 	})
@@ -336,6 +361,7 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	}
 	// Resolve the access policy before binding the target.
 	node.access = undefined
+	node.deprecated = undefined
 	const accessModifierSeen = new Set<string>()
 	for (const occurrence of node.docDirectives) {
 		const docDirective = getDocDirective(ctx.meta, docTarget, occurrence.identifier)
@@ -402,7 +428,7 @@ export function getDirectiveDescription(directive: DocDirective): string | undef
 		: undefined
 }
 
-function getDocDirective(
+export function getDocDirective(
 	meta: core.MetaRegistry,
 	target: DocTargets | undefined,
 	identifier: string,
@@ -421,6 +447,9 @@ function getDocDirective(
 		allowDuplicates: directive.allowDuplicates,
 		description: directive.description ?? undefined,
 		parseArguments: parseArguments?.bind(directive),
+		completer:
+			(overrides?.completer ?? directive.completer ?? DefaultDocDirective.prototype.completer)
+				.bind(directive),
 		includeInSuggestion: (completionCtx, input) =>
 			(overrides?.includeInSuggestion ?? directive.includeInSuggestion).call(
 				directive,
@@ -481,7 +510,7 @@ function handleDocDirective(
 	const seenChildren = new Set<string>()
 	const children = new Set(occurrence.docDirectives)
 	const handled = new Set<core.DeepReadonly<DocDirectiveNode>>()
-	return directive.handleDirective(occurrence, node, ctx, {
+	const result = directive.handleDirective(occurrence, node, ctx, {
 		caller,
 		handleDirective: child => {
 			if (!children.has(child) || !child.valid || handled.has(child)) {
@@ -491,6 +520,10 @@ function handleDocDirective(
 			return handleDocDirective(child, target, node, ctx, seenChildren, occurrence)
 		},
 	})
+	if (result.mark_deprecated) {
+		node.deprecated = true
+	}
+	return result
 }
 
 function peekIndentedDocLine(src: core.Source, indent: number) {
@@ -647,7 +680,7 @@ function validateDirective(
 	if (!node.isInline && docDirective.hasMandatoryArgument && !node.arguments.length) {
 		ctx.err.report(
 			localize('mcfunction.doc.directive.diagnostic.argument', localeQuote(node.identifier)),
-			node,
+			node.identifierRange,
 		)
 		return false
 	}

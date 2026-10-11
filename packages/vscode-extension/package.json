@@ -363,6 +363,9 @@
       },
       "editor.semanticTokenColorCustomizations": {
         "rules": {
+          "*.deprecated:mcfunction": {
+            "strikethrough": true
+          },
           "*.documentation:mcfunction": {
             "bold": false
           },

@@ -682,12 +682,7 @@ export class Project extends EventDispatcher<{
 			|| this.selectSymbolStorage(uri) !== this.symbolStorage
 		)
 
-		for (
-			const uri of new Set([...this.getTrackedFiles(), ...Object.keys(this.cacheService.errors)])
-		) {
-			this.emit('documentErrored', { errors: this.cacheService.getErrors(uri), uri })
-		}
-		__profiler.task('Pop Errors')
+		const cachedErrorUris = Object.keys(this.cacheService.errors)
 
 		const { addedFiles, changedFiles, removedFiles } = await this.cacheService.validate(
 			dependencyHashes,
@@ -769,12 +764,43 @@ export class Project extends EventDispatcher<{
 		}))
 		__profiler.task('Bind Files')
 
+		await this.refreshCachedErrors(cachedErrorUris)
+		for (const uri of new Set([...this.getTrackedFiles(), ...cachedErrorUris])) {
+			this.emit('documentErrored', { errors: this.cacheService.getErrors(uri), uri })
+		}
+		if (cachedErrorUris.length) {
+			await this.cacheService.save()
+		}
+		__profiler.task('Refresh Errors')
+
 		__profiler.finalize()
 		this.emit('ready', {})
 
 		this.#isReady = true
 
 		return this
+	}
+
+	/** Recheck cached project diagnostics against the fully bound symbol table. */
+	private async refreshCachedErrors(uris: readonly string[]): Promise<void> {
+		for (const uri of uris) {
+			if (!this.projectRoots.some(root => fileUtil.isSubUriOf(uri, root))) {
+				continue
+			}
+			try {
+				const doc = this.shouldExclude(uri) ? undefined : await this.read(uri)
+				if (doc) {
+					const node = this.parse(doc)
+					await this.bind(doc, node)
+					await this.check(doc, node)
+					this.emit('documentUpdated', { doc, node })
+				} else {
+					this.emit('documentErrored', { uri, errors: [] })
+				}
+			} catch (e) {
+				this.logger.error(`[Project#refreshCachedErrors] ${uri}`, e)
+			}
+		}
 	}
 
 	/**

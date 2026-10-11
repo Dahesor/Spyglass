@@ -24,6 +24,7 @@ export enum SymbolEnterType {
 export interface SymbolAddition {
 	data?: SymbolMetadata & {
 		desc?: string
+		deprecated?: boolean
 		scope?: IsotopeScope
 		source?: SymbolIsotopeProvider
 		overrideLevel?: number
