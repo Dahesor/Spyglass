@@ -241,6 +241,8 @@ export class Project extends EventDispatcher<{
 	#dependencyRoots: Set<RootUriString> | undefined
 	readonly #dependencyImports = new Map<string, { checksum: string; storage: SymbolStorage }>()
 	readonly #dependencyChecksums = new Map<string, string>()
+	readonly #dependencyFileHashes = new Map<string, string>()
+	readonly #dependencyEdits = new Map<string, Promise<void>>()
 	readonly #ignoredDependencyRoots = new Set<string>()
 	#activeDependencyRoot: string | undefined
 	#refreshLocalBindings = false
@@ -260,6 +262,7 @@ export class Project extends EventDispatcher<{
 		for (const uri of this.#dependencyFiles ?? []) {
 			if (fileUtil.isSubUriOf(uri, root)) {
 				this.#dependencyFiles!.delete(uri)
+				this.#dependencyFileHashes.delete(uri)
 				this.#symbolUpToDateUris.delete(uri)
 				service.clear({ uri })
 				delete this.cacheService.checksums.files[uri]
@@ -418,6 +421,7 @@ export class Project extends EventDispatcher<{
 			this.bindUri(uri)
 			return this.ensureBindingStarted(uri)
 		}).on('fileModified', async ({ uri }) => {
+			this.removeCachedTextDocument(uri)
 			this.#symbolUpToDateUris.delete(uri)
 			if (this.isOnlyWatched(uri)) {
 				await this.ensureBindingStarted(uri)
@@ -623,7 +627,8 @@ export class Project extends EventDispatcher<{
 		this.#dependencyImports.clear()
 		this.#dependencyChecksums.clear()
 		// Reuse these hashes during cache validation.
-		const dependencyHashes = new Map<string, string>()
+		const dependencyHashes = this.#dependencyFileHashes
+		dependencyHashes.clear()
 		const packages = await Promise.all([...this.#dependencyRoots].map(async root => {
 			const files = [...this.#dependencyFiles!].filter(uri => fileUtil.isSubUriOf(uri, root))
 				.sort()
@@ -940,6 +945,9 @@ export class Project extends EventDispatcher<{
 
 	@SingletonPromise()
 	private async bind(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
+		if (node.binderErrors) {
+			return
+		}
 		const root = [...this.#dependencyChecksums.keys()].find(root =>
 			fileUtil.isSubUriOf(doc.uri, root)
 		)
@@ -978,8 +986,7 @@ export class Project extends EventDispatcher<{
 		})
 	}
 
-	/** Editing a dependency must never bind its definitions into the local base. */
-	private async rebindDependency(
+	private async rebindDependencyFile(
 		root: string,
 		doc: TextDocument,
 		node: FileNode<AstNode>,
@@ -989,13 +996,12 @@ export class Project extends EventDispatcher<{
 		}
 		const files = [...this.#dependencyFiles ?? []].filter(uri => fileUtil.isSubUriOf(uri, root))
 			.sort()
+		const editedHash = await getSha1(doc.getText())
 		const hashes = await Promise.all(files.map(async uri => [
 			uri.slice(root.length),
 			uri === doc.uri
-				? await getSha1(doc.getText())
-				: this.#clientManagedDocAndNodes.has(uri)
-				? await getSha1(this.#clientManagedDocAndNodes.get(uri)!.doc.getText())
-				: await this.fs.hash(uri),
+				? editedHash
+				: this.#dependencyFileHashes.get(uri) ?? await this.fs.hash(uri),
 		]))
 		const checksum = await getSha1(JSON.stringify(hashes))
 		const previous = this.#dependencyChecksums.get(root)!
@@ -1013,34 +1019,50 @@ export class Project extends EventDispatcher<{
 			this.updateRoots()
 			return
 		}
+		// Bind only this file in a short-lived view
 		const storage = this.createSymbolStorage({})
-		this.#dependencyImports.set(root, { checksum, storage })
-		const activeRoot = this.#activeDependencyRoot
-		this.#activeDependencyRoot = root
-		try {
-			for (const uri of files) {
+		storage.global.mcdoc = this.symbolStorage.global.mcdoc ?? {}
+		storage.global['mcdoc/dispatcher'] = this.symbolStorage.global['mcdoc/dispatcher'] ?? {}
+		this.bindUri(doc.uri, storage)
+		await this.bindDocument(doc, node, storage)
+		const exported = SymbolTable.getDependencyExports(storage.global, checksum)
+		SymbolImport.replaceDependencyFile(symbolService, previous, checksum, doc.uri, exported)
+		this.#dependencyChecksums.set(root, checksum)
+		this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
+			uri,
+			checksum,
+		}))
+		this.#dependencyFileHashes.set(doc.uri, editedHash)
+		for (const [uri, { node: consumer }] of this.#clientManagedDocAndNodes) {
+			if (!fileUtil.isSubUriOf(uri, root)) {
+				consumer.binderErrors = undefined
+				consumer.checkerErrors = undefined
+				consumer.linterErrors = undefined
 				this.#symbolUpToDateUris.delete(uri)
 			}
-			this.bindUri(files)
-			await this.bindDocument(doc, node)
-			for (const uri of files) {
-				if (uri !== doc.uri) {
-					await this.ensureBindingStarted(uri)
-				}
+		}
+	}
+
+	private async rebindDependency(
+		root: string,
+		doc: TextDocument,
+		node: FileNode<AstNode>,
+	): Promise<void> {
+		const previous = this.#dependencyEdits.get(root) ?? Promise.resolve()
+		const pending = previous.catch(() => {}).then(async () => {
+			if (this.#dependencyFileHashes.get(doc.uri) === await getSha1(doc.getText())) {
+				await this.bindDependencyView(doc, node)
+			} else {
+				await this.rebindDependencyFile(root, doc, node)
 			}
-			if (checksum !== previous) {
-				SymbolImport.removeDependencySymbols(symbolService, previous, false)
-				this.publishDependency(root, symbolService)
-				this.#dependencyChecksums.set(root, checksum)
-				this.cacheService.imports = [...this.#dependencyChecksums].map(([uri, checksum]) => ({
-					uri,
-					checksum,
-				}))
-				symbolService.trim()
-			}
+		})
+		this.#dependencyEdits.set(root, pending)
+		try {
+			return await pending
 		} finally {
-			this.#activeDependencyRoot = activeRoot
-			this.#dependencyImports.delete(root)
+			if (this.#dependencyEdits.get(root) === pending) {
+				this.#dependencyEdits.delete(root)
+			}
 		}
 	}
 
@@ -1089,19 +1111,29 @@ export class Project extends EventDispatcher<{
 			await ctx.symbols.contributeAsAsync('checker', async () => {
 				await checker(StateProxy.create(node), ctx)
 				node.checkerErrors = ctx.err.dump()
-				this.lint(doc, node)
+				this.lint(doc, node, ctx.symbols)
 			})
 		} catch (e) {
 			this.logger.error(`[Project] [check] Failed for ${doc.uri} # ${doc.version}`, e)
 		}
 	}
 
-	private lint(doc: TextDocument, node: FileNode<AstNode>): void {
+	private isFromDependency(uri: string): boolean {
+		for (const root of this.#dependencyChecksums.keys()) {
+			if (fileUtil.isSubUriOf(uri, root)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	private lint(doc: TextDocument, node: FileNode<AstNode>, symbols: SymbolService): void {
 		if (node.linterErrors) {
 			return
 		}
 
 		node.linterErrors = []
+		const isDependency = this.isFromDependency(doc.uri)
 		try {
 			// Temporary. make sure 'noAccessToSymbol' rule is always on
 			const rules = [
@@ -1124,6 +1156,8 @@ export class Project extends EventDispatcher<{
 
 				const ctx = LinterContext.create(this, {
 					doc,
+					symbols,
+					isDependency,
 					err: new LinterErrorReporter(ruleName, ruleSeverity, this.ctx['errorSource']),
 					ruleName,
 					ruleValue,
@@ -1176,13 +1210,13 @@ export class Project extends EventDispatcher<{
 		this.emit('documentUpdated', { doc, node })
 	}
 
-	private bindUri(param: string | string[]): void {
+	private bindUri(param: string | string[], viewStorage?: SymbolStorage): void {
 		const groups = new Map<SymbolStorage, string[]>()
 		for (const uri of Array.isArray(param) ? param : [param]) {
 			if (this.isIgnoredDependency(uri)) {
 				continue
 			}
-			const storage = this.selectSymbolStorage(uri)
+			const storage = viewStorage ?? this.selectSymbolStorage(uri)
 			const group = groups.get(storage) ?? []
 			group.push(uri)
 			groups.set(storage, group)
@@ -1324,15 +1358,19 @@ export class Project extends EventDispatcher<{
 			return // We do not accept `archive:` scheme for client-managed URIs.
 		}
 		this.#symbolUpToDateUris.delete(uri)
-		const doc = this.#clientManagedDocAndNodes.get(uri)?.doc
-		if (!doc || this.shouldExclude(uri, doc.languageId)) {
+		const previous = this.#clientManagedDocAndNodes.get(uri)?.doc
+		if (!previous || this.shouldExclude(uri, previous.languageId)) {
 			// If doc is undefined, it means the document was previously excluded by onDidOpen()
 			// based on the language ID supplied by the client, in which case we should return early.
 			// Otherwise, we perform the shouldExclude() check with the URI and the saved language ID
 			// as usual.
 			return
 		}
-		TextDocument.update(doc, changes, version)
+		const doc = TextDocument.update(
+			TextDocument.create(uri, previous.languageId, previous.version, previous.getText()),
+			changes,
+			version,
+		)
 		const node = this.parse(doc)
 		this.#clientManagedDocAndNodes.set(uri, { doc, node })
 		if (this.#isReady) {

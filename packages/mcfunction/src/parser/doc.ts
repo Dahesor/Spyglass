@@ -479,10 +479,7 @@ function handleDocDirective(
 	const range = occurrence.range
 	const directive = getDocDirective(ctx.meta, target, identifier)
 	if (!directive) {
-		ctx.err.report(
-			localize('mcfunction.doc.directive.diagnostic.unknown', localeQuote(identifier)),
-			range,
-		)
+		// Unknown directives are parsed for compatibility but have no binding behavior.
 		return undefined
 	}
 	if (
@@ -655,11 +652,8 @@ function validateDirective(
 ): boolean {
 	const docDirective = ctx.meta.getCustom<DocDirective>('impdoc:directive')?.get(node.identifier)
 	if (!docDirective) {
-		ctx.err.report(
-			localize('mcfunction.doc.directive.diagnostic.unknown', localeQuote(node.identifier)),
-			node,
-		)
-		return false
+		// Do not report an error for unknown directives for compatibility
+		return true
 	}
 	node.hover = getDirectiveDescription(docDirective)
 	if (target && !docDirective.isCommon && !target.acceptedDirectives.includes(node.identifier)) {

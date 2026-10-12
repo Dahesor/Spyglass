@@ -235,7 +235,7 @@ export function completionItem(
 		detail: completion.detail,
 		documentation: completion.documentation ? markupContent(completion.documentation) : undefined,
 		filterText: completion.filterText,
-		sortText: completion.sortText,
+		sortText: `${completion.deprecated ? '1' : '0'}${completion.sortText ?? completion.label}`,
 		textEdit,
 		insertTextFormat: InsertTextFormat.Snippet,
 		insertTextMode: ls.InsertTextMode.adjustIndentation,

@@ -6,6 +6,79 @@ import { SymbolUtil } from './util.js'
 import { Isotope } from './util/isotope.js'
 
 export namespace SymbolImport {
+	export function replaceDependencyFile(
+		service: SymbolService,
+		previous: string,
+		checksum: string,
+		uri: string,
+		exported: SymbolTable,
+	): void {
+		for (const [category, map] of Object.entries(service.storage.global)) {
+			if (!map || category === 'mcdoc' || category === 'mcdoc/dispatcher') {
+				continue
+			}
+			SymbolUtil.forEachSymbolInMap(map, symbol => {
+				const imported = Isotope.allIsotopesOf(symbol).filter(isotope =>
+					isotope.source === SymbolIsotopeProvider.Imported
+					&& isotope.providerName === previous
+				)
+				if (!imported.length) {
+					return
+				}
+				const removed = new Set(imported.filter(isotope => isotope.origin?.uri === uri))
+				const identifiers = new Map(imported.map(isotope => {
+					const identity = JSON.parse(isotope.identifier) as [string, string, string]
+					identity[0] = checksum
+					return [isotope.identifier, JSON.stringify(identity)]
+				}))
+				for (const container of Isotope.allUsageContainers(symbol)) {
+					for (const type of SymbolUsageTypes) {
+						container[type] = container[type]?.filter(location => {
+							if (location.uri === uri && location.importedFrom === previous) {
+								service.storage.emit('symbolLocationRemoved', { symbol, type, location })
+								return false
+							}
+							if (location.importedFrom === previous) {
+								location.importedFrom = checksum
+							}
+							if (
+								location.isotopeIdentifier && identifiers.has(location.isotopeIdentifier)
+							) {
+								location.isotopeIdentifier = identifiers.get(location.isotopeIdentifier)
+							}
+							return true
+						})
+					}
+				}
+				for (const facet of [symbol.facets?.global, symbol.facets?.internal]) {
+					if (facet) {
+						facet.isotopes = facet.isotopes.filter(isotope => !removed.has(isotope))
+					}
+				}
+				if (symbol.facets?.isotopes) {
+					symbol.facets.isotopes = symbol.facets.isotopes.filter(isotope => {
+						if (!removed.has(isotope)) {
+							return true
+						}
+						for (const type of SymbolUsageTypes) {
+							for (const location of isotope[type] ?? []) {
+								service.storage.emit('symbolLocationRemoved', { symbol, type, location })
+							}
+						}
+						return false
+					})
+				}
+				for (const isotope of imported) {
+					isotope.identifier = identifiers.get(isotope.identifier)!
+					isotope.providerName = checksum
+				}
+				service.storage.markForTrim(symbol)
+			})
+		}
+		importDependencySymbols(service, exported, true)
+		service.trim()
+	}
+
 	/** Find consumer usages of the selected exported dependency isotope. */
 	export function getImportedUsageContainer(
 		service: SymbolService,
@@ -40,7 +113,11 @@ export namespace SymbolImport {
 	}
 
 	/** Merge filtered imports, keeping their metadata identities and shared usages. */
-	export function importDependencySymbols(service: SymbolService, table: SymbolTable): void {
+	export function importDependencySymbols(
+		service: SymbolService,
+		table: SymbolTable,
+		preserveExistingLocations = false,
+	): void {
 		const merge = (source: SymbolMap, target: SymbolMap, parent?: Symbol): void => {
 			for (const entry of Object.values(source)) {
 				let symbol = target[entry.identifier]
@@ -70,7 +147,11 @@ export namespace SymbolImport {
 					const ids = new Set(entry.facets.global.isotopes.map(isotope => isotope.identifier))
 					for (const type of SymbolUsageTypes) {
 						facet[type] = facet[type]?.filter(location => {
-							if (!location.isotopeIdentifier || !ids.has(location.isotopeIdentifier)) {
+							if (
+								preserveExistingLocations || !location.importedFrom
+								|| !location.isotopeIdentifier
+								|| !ids.has(location.isotopeIdentifier)
+							) {
 								return true
 							}
 							service.storage.emit('symbolLocationRemoved', { symbol, type, location })

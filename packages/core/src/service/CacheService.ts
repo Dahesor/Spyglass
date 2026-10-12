@@ -116,6 +116,7 @@ export class CacheService {
 			}
 		})
 		this.project.on('documentErrored', ({ uri, errors }) => {
+			errors = errors.filter(error => !error.info?.transient)
 			if (errors.length) {
 				this.errors[uri] = errors
 			} else {
@@ -157,7 +158,9 @@ export class CacheService {
 			if (cache.version === LatestCacheVersion) {
 				const symbols = SymbolTable.link(cache.symbols)
 				const errors = Object.fromEntries(
-					Object.entries(cache.errors ?? {}).filter(([, errors]) => errors.length),
+					Object.entries(cache.errors ?? {}).map(([uri, errors]) =>
+						[uri, errors.filter(error => !error.info?.transient)] as const
+					).filter(([, errors]) => errors.length),
 				)
 				this.checksums = cache.checksums
 				this.imports = cache.imports
@@ -261,7 +264,9 @@ export class CacheService {
 				imports: this.imports,
 				symbols: SymbolTable.unlink(this.project.symbolStorage.global),
 				errors: Object.fromEntries(
-					Object.entries(this.errors).filter(([, errors]) => errors.length),
+					Object.entries(this.errors).map(([uri, errors]) =>
+						[uri, errors.filter(error => !error.info?.transient)] as const
+					).filter(([, errors]) => errors.length),
 				),
 			}
 			__profiler.task('Unlink Symbols')

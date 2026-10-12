@@ -60,6 +60,7 @@ export enum ErrorSeverity {
 }
 
 export interface LanguageErrorInfo {
+	transient?: boolean
 	codeAction?: LanguageErrorAction
 	deprecated?: boolean
 	unnecessary?: boolean
