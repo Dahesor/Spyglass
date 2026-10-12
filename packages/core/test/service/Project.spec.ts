@@ -446,6 +446,68 @@ describe('Project', () => {
 			await reloaded?.close()
 		}
 	})
+	it('opens unchanged local dependencies without scanning siblings and republishes edits and undo', async t => {
+		const uri = 'file:///dependency/value.spyglasstest'
+		const bound: string[] = []
+		const files: Record<string, string> = {
+			'/root/spyglass.json': JSON.stringify({ env: { dependencies: ['file:///dependency/'] } }),
+			'/dependency/value.spyglasstest': 'foo',
+		}
+		for (let i = 0; i < 100; i++) {
+			files[`/dependency/sibling${i}.spyglasstest`] = 'foo'
+		}
+		const { project } = await setup(files, [({ meta }) => {
+			meta.registerLanguage('spyglasstest', {
+				extensions: ['.spyglasstest'],
+				parser: literal('foo', 'bar'),
+			})
+			meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
+				bound.push(ctx.doc.uri)
+				ctx.symbols.query(ctx.doc, 'test', fileUtil.basename(ctx.doc.uri)).enter({
+					data: { scope: 3, desc: node.value },
+					usage: { type: 'declaration', node },
+				})
+			})
+		}])
+		const description = () =>
+			SymbolUtil.viewFromContext(
+				project.symbolStorage.global['test']!['value.spyglasstest'],
+				ProjectRoot,
+			)?.desc
+		try {
+			assert.equal(bound.length, 101)
+			assert.equal(description(), 'foo')
+			bound.length = 0
+			const hashes = t.mock.method(project.fs, 'hash')
+			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
+			await project.ensureClientManagedChecked(uri)
+			assert.deepEqual(bound, [uri])
+			assert.equal(hashes.mock.callCount(), 0)
+			assert.equal(description(), 'foo')
+			const originalImport = project.cacheService.imports[0].checksum
+			bound.length = 0
+			await project.onDidChange(uri, [{ text: 'bar' }], 1)
+			assert.deepEqual(bound, [uri])
+			assert.equal(hashes.mock.callCount(), 0)
+			assert.equal(description(), 'bar')
+			assert.notEqual(project.cacheService.imports[0].checksum, originalImport)
+			// Undo before the diagnostic cache advances must still restore the exports.
+			bound.length = 0
+			await project.onDidChange(uri, [{ text: 'foo' }], 2)
+			assert.deepEqual(bound, [uri])
+			assert.equal(hashes.mock.callCount(), 0)
+			assert.equal(description(), 'foo')
+			assert.equal(project.cacheService.imports[0].checksum, originalImport)
+			project.onDidClose(uri)
+			bound.length = 0
+			hashes.mock.resetCalls()
+			await project.onDidOpen(uri, 'spyglasstest', 3, 'foo')
+			assert.deepEqual(bound, [uri])
+			assert.equal(hashes.mock.callCount(), 0)
+		} finally {
+			await project.close()
+		}
+	})
 	it('imports only dependency exports through spyglass.json and preserves them after cache reload', async () => {
 		const names = [
 			'public',
@@ -657,7 +719,11 @@ describe('Project', () => {
 				reloaded.symbolStorage.global.mcdoc = sharedMcdoc
 				assert.equal(schemaScans, 0)
 				assertExports(reloaded)
-				assert.deepEqual(dependencyReads, [false, false])
+				assert.deepEqual(dependencyReads, [false])
+				assert.equal(
+					bindCount.get('file:///dependency/data/demo/function/public.spyglasstest'),
+					1,
+				)
 				new SymbolService(reloaded.symbolStorage).query(
 					`${ProjectRoot}private/doc.mcfunction`,
 					'function',

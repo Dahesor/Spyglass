@@ -4,6 +4,7 @@ import { Arrayable, ResourceLocation } from '../../../common/index.js'
 import type { AstNode } from '../../../node/index.js'
 import type { LinterContext } from '../../../service/index.js'
 import { LinterSeverity, SymbolLinterConfig as Config } from '../../../service/index.js'
+import { ErrorSeverity, Range } from '../../../source/index.js'
 import type { LanguageErrorInfo } from '../../../source/LanguageError.js'
 import type { Symbol } from '../../../symbol/index.js'
 import { LocalSymbol, LocalSymbolVisibility, SymbolUtil } from '../../../symbol/index.js'
@@ -39,6 +40,19 @@ export const undeclaredSymbol: Linter<AstNode> = (node, ctx) => {
 		})
 	}
 	if (Config.Action.isReport(action)) {
+		if (ctx.isDependency) {
+			ctx.err.report(
+				localize(
+					'linter.undeclared-symbol.dependency-hint',
+					node.symbol.category,
+					localeQuote(node.symbol.identifier),
+				),
+				Range.create(node.range.start, Math.min(node.range.start + 1, node.range.end)),
+				ErrorSeverity.Hint,
+				{ transient: true },
+			)
+			return
+		}
 		const info: LanguageErrorInfo = {}
 		const uriBuilder = ctx.meta.getUriBuilder(node.symbol.category)
 		if (uriBuilder) {

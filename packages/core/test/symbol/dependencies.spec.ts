@@ -37,6 +37,49 @@ function declarePrivate(symbols: SymbolService) {
 }
 
 describe('dependency symbol exports', () => {
+	it('replaces only one file while preserving sibling declarations and consumer usages', t => {
+		const uri = 'file:///dependency/doc.mcfunction'
+		const sibling = 'file:///dependency/sibling.mcfunction'
+		const source = new SymbolService(new SymbolStorage({}))
+		const declare = (symbols: SymbolService, text: string) =>
+			symbols.query(uri, 'test', 'shared').enter({
+				data: { desc: text },
+				usage: { type: 'declaration' },
+			})
+		declare(source, 'before')
+		source.query(sibling, 'test', 'shared').enter({ usage: { type: 'reference' } })
+		source.query(sibling, 'test', 'untouched').enter({ usage: { type: 'definition' } })
+		const symbols = new SymbolService(new SymbolStorage({}))
+		SymbolImport.importDependencySymbols(
+			symbols,
+			SymbolTable.getDependencyExports(source.storage.global, 'before'),
+		)
+		symbols.query(outside, 'test', 'shared').enter({ usage: { type: 'reference' } })
+		const shared = symbols.lookup('test', ['shared']).symbol!
+		const untouched = symbols.lookup('test', ['untouched']).symbol!
+		const edited = new SymbolService(new SymbolStorage({}))
+		declare(edited, 'after')
+		SymbolImport.replaceDependencyFile(
+			symbols,
+			'before',
+			'after',
+			uri,
+			SymbolTable.getDependencyExports(edited.storage.global, 'after'),
+		)
+		t.assert.equal(symbols.lookup('test', ['shared']).symbol, shared)
+		t.assert.equal(symbols.lookup('test', ['untouched']).symbol, untouched)
+		t.assert.equal(SymbolUtil.viewFromContext(shared, outside)?.desc, 'after')
+		t.assert.equal(shared.facets?.global?.declaration?.length, 1)
+		t.assert.deepEqual(
+			shared.facets?.global?.reference?.map(location => location.uri).sort(),
+			[sibling, outside].sort(),
+		)
+		t.assert.equal(untouched.facets?.global?.definition?.[0].uri, sibling)
+		t.assert.equal(untouched.facets?.global?.isotopes[0].providerName, 'after')
+		SymbolImport.replaceDependencyFile(symbols, 'after', 'removed', uri, {})
+		t.assert.equal(shared.facets?.global?.declaration?.length, 0)
+		t.assert.equal(untouched.facets?.global?.definition?.[0].uri, sibling)
+	})
 	it('deeply isolates exported metadata, members and locations from the source', t => {
 		const source = new SymbolService(new SymbolStorage({}))
 		const query = source.query('file:///dependency/doc', 'function', 'parent')

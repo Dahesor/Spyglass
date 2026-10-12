@@ -147,11 +147,13 @@ export namespace CheckerContext {
 
 export interface LinterContext extends ProcessorContext {
 	err: LinterErrorReporter
+	isDependency: boolean
 	ruleName: string
 	ruleValue: unknown
 }
 interface LinterContextOptions extends ProcessorContextOptions {
 	err: LinterErrorReporter
+	isDependency?: boolean
 	ruleName: string
 	ruleValue: unknown
 }
@@ -160,6 +162,7 @@ export namespace LinterContext {
 		return {
 			...ProcessorContext.create(project, opts),
 			err: opts.err,
+			isDependency: opts.isDependency ?? false,
 			ruleName: opts.ruleName,
 			ruleValue: opts.ruleValue,
 		}
