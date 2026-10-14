@@ -970,11 +970,22 @@ export class Project extends EventDispatcher<{
 		if (node.binderErrors) {
 			return
 		}
-		const storage = this.createSymbolStorage({})
+		const readOnly = this.#readOnlyDependencyUris.has(doc.uri)
+		const resources = readOnly
+			? Object.fromEntries(
+				Object.entries(this.symbolStorage.global).filter(([category]) =>
+					category !== 'mcdoc' && category !== 'mcdoc/dispatcher'
+				),
+			)
+			: {}
+		const storage = this.createSymbolStorage(SymbolTable.link(SymbolTable.unlink(resources)))
 		// Borrow shared mcdoc categories without reindexing the entire schema for each viewed file.
 		storage.global.mcdoc = this.symbolStorage.global.mcdoc ?? {}
 		storage.global['mcdoc/dispatcher'] = this.symbolStorage.global['mcdoc/dispatcher'] ?? {}
 		await this.bindDocument(doc, node, storage)
+		if (readOnly) {
+			await this.check(doc, node, storage)
+		}
 		const symbolService = new SymbolService(this.symbolStorage)
 		traversePreOrder(node, () => true, () => true, child => {
 			if (child.symbol && !LocalSymbol.is(child.symbol)) {
@@ -1099,13 +1110,20 @@ export class Project extends EventDispatcher<{
 	}
 
 	@SingletonPromise()
-	private async check(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
+	private async check(
+		doc: TextDocument,
+		node: FileNode<AstNode>,
+		viewStorage?: SymbolStorage,
+	): Promise<void> {
 		if (node.checkerErrors || this.isIgnoredDependency(doc.uri)) {
 			return
 		}
 		try {
 			const checker = this.meta.getChecker(node.type)
-			const ctx = CheckerContext.create(this, { doc })
+			const ctx = CheckerContext.create(this, {
+				doc,
+				...(viewStorage ? { symbols: new SymbolService(viewStorage) } : {}),
+			})
 			ctx.symbols.clear({ contributor: 'checker', uri: doc.uri })
 			LocalSymbol.clear(ctx.symbols, node, { contributor: 'checker', uri: doc.uri })
 			await ctx.symbols.contributeAsAsync('checker', async () => {

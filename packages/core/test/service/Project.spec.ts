@@ -181,6 +181,11 @@ describe('Project', () => {
 				})
 				node.symbol = ctx.symbols.storage.global.function![ctx.doc.uri]
 			})
+			meta.registerChecker<LiteralNode>('literal', (node, ctx) => {
+				ctx.symbols.query(ctx.doc, 'random_sequence', 'demo:checked').enter({
+					usage: { type: 'definition', range: node.range },
+				})
+			})
 		}])
 		try {
 			assert.deepEqual(bound, [
@@ -219,6 +224,7 @@ describe('Project', () => {
 				const boundBefore = bound.length
 				await project.onDidOpen(mappedUri, 'plaintext', i, 'bar')
 				const opened = await project.ensureClientManagedChecked(mappedUri)
+				assert.equal(project.symbolStorage.global.random_sequence?.['demo:checked'], undefined)
 				assert.equal(opened?.doc.uri, originalUri)
 				assert.equal(opened?.doc.getText(), 'foo')
 				assert.equal(opened?.node.children[0]?.type, 'literal')

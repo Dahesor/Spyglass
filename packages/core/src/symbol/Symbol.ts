@@ -612,13 +612,13 @@ export interface SymbolLocation extends SymbolLocationMetadata {
 	 * The range of this symbol usage. It should contain exactly the symbol identifier itself, with no
 	 * whitespaces whatsoever included.
 	 *
-	 * Does not exist for non-file URIs.
+	 * Does not exist for URIs other than file: and archive:.
 	 */
 	range?: Range
 	/**
 	 * The same range as `range`, but in `PositionRange` form.
 	 *
-	 * Does not exist for non-file URIs.
+	 * Does not exist for URIs other than file: and archive:.
 	 */
 	posRange?: PositionRange
 	/**
@@ -631,13 +631,13 @@ export interface SymbolLocation extends SymbolLocationMetadata {
 	 *
 	 * The `range` for the Symbol `Foo` is `[7, 10)`, while the `fullRange` for it is `[0, 13)`.
 	 *
-	 * Does not exist for non-file URIs.
+	 * Does not exist for URIs other than file: and archive:.
 	 */
 	fullRange?: Range
 	/**
 	 * The same range as `fullRange`, but in `PositionRange` form.
 	 *
-	 * Does not exist for non-file URIs.
+	 * Does not exist for URIs other than file: and archive:.
 	 */
 	fullPosRange?: PositionRange
 	/**
