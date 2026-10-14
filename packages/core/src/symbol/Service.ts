@@ -445,7 +445,7 @@ export class SymbolService {
 	 * and emits a `symbolLocationCreated` event.
 	 *
 	 * Does nothing if `addition` is undefined. The usage type defaults to `reference`.
-	 * For non-file URIs, the location is stored without range information.
+	 * For URIs other than file: and archive:, the location is stored without range information.
 	 *
 	 * @param symbol The symbol associated with the location and emitted event.
 	 * @param addition The usage to record, including its node or range and metadata.
@@ -476,7 +476,7 @@ export class SymbolService {
 					? { originalUsageType: addition.originalUsageType }
 					: {}),
 			})
-			if (!doc.uri.startsWith('file:')) {
+			if (!doc.uri.startsWith('file:') && !doc.uri.startsWith('archive:')) {
 				delete location.range
 				delete location.posRange
 				delete location.fullRange
