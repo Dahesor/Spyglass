@@ -23,7 +23,85 @@ import { ReturnsDocDirective } from '../lib/parser/doc/directives.js'
 
 const root = 'file:///pack/data/demo/function/'
 
+describe('score doc target', () => {
+	for (const [input, expected] of [
+		['$ho|', '$holder'],
+		['$holder |', 'coins'],
+		['$holder\t|', undefined],
+		['$holder  |', undefined],
+		['$holder |coins', 'coins'],
+		['$holder co|ins', 'coins'],
+		['$holder coins|', 'coins'],
+		['$holder coins |description', undefined],
+		['$holder\n# |comment', undefined],
+	] as const) {
+		it(`completes the correct score parameter: ${JSON.stringify(input)}`, t => {
+			const project = mockProjectData()
+			initialize(project)
+			const marked = '\n#> score ' + input
+			const offset = marked.indexOf('|')
+			const text = marked.replace('|', '')
+			const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
+			const node = parseDoc(new core.Source(text).skip(), core.ParserContext.create(project, { doc }))
+			const ctx = core.CompleterContext.create(project, { doc, offset })
+			ctx.symbols.query(doc, 'objective', 'coins').enter({ usage: { type: 'declaration' } })
+			ctx.symbols.query(doc, 'score_holder', '$holder').enter({ usage: { type: 'declaration' } })
+			const items = completeDoc(node, ctx)
+			t.assert.deepEqual(items.map(item => item.label), expected ? [expected] : [])
+		})
+	}
+	for (const suffix of ['', ' coins', '\tcoins', ' coins description']) {
+		it(`accepts an optional objective: ${JSON.stringify(suffix)}`, (t: TestContext) => {
+			const project = mockProjectData()
+			initialize(project)
+			const text = '\n#> score $holder' + suffix + '\n# Description'
+			const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
+			const ctx = core.ParserContext.create(project, { doc })
+			const node = parseDoc(new core.Source(text).skip(), ctx)
+			t.assert.deepEqual(ctx.err.errors, [])
+			t.assert.equal(node.valid, true)
+			t.assert.deepEqual(node.fields.map(field => {
+				t.assert.ok(core.SymbolNode.is(field))
+				return [field.value, field.options.category]
+			}), suffix ? [['$holder', 'score_holder'], ['coins', 'objective']] : [['$holder', 'score_holder']])
+		})
+	}
+})
+
 describe('within visibility parameters', () => {
+	for (const [source, scopes, path] of [
+		['foo/bar', ['@private', '@private within %parent', '@private within demo:foo', '@protected within %parent'], 'foo'],
+		['foo/bar', ['@private within %parent/sub', '@private within demo:foo/sub'], 'foo/sub'],
+		['foo/bar', ['@private within %parent/%parent', '@private within %parent/%parent/%parent', '@private within demo:'], ''],
+		['bar', ['@private', '@private within %parent', '@private within demo:'], ''],
+	] as const) {
+		it(`resolves equivalent parent scopes for ${source} to demo:${path}`, (t: TestContext) => {
+			let expected: core.IsotopeVisibility[] | undefined
+			for (const scope of scopes) {
+				const env = setup()
+				env.project.meta.resolveResourceLocation = uri => {
+					const match = /\/data\/([^/]+)\/[^/]+\/(.+)\.[^.]+$/.exec(uri)
+					return match ? { isTag: false, namespace: match[1], path: match[2].split('/') } : undefined
+				}
+				t.assert.deepEqual(env.declaration(root + source + '.mcfunction', '', `\n#> objective coins\n#${scope}`).errors, [])
+				const rules = env.raw().facets?.isotopes?.[0].visibleWithin
+				expected ??= rules
+				t.assert.deepEqual(rules, expected, scope)
+				for (const pack of ['pack', 'other-pack']) {
+					for (const type of ['function', 'predicate', 'loot_table']) {
+						for (const candidate of [path || 'any', `${path ? path + '/' : ''}nested/child`]) {
+							t.assert.ok(env.view(`file:///${pack}/data/demo/${type}/${candidate}.json`), `${scope}: ${type}/${candidate}`)
+						}
+						t.assert.equal(env.view(`file:///${pack}/data/other/${type}/${path || 'any'}.json`), undefined)
+						if (path) {
+							t.assert.equal(env.view(`file:///${pack}/data/demo/${type}/${path}suffix.json`), undefined)
+							t.assert.equal(env.view(`file:///${pack}/data/demo/${type}/outside.json`), undefined)
+						}
+					}
+				}
+			}
+		})
+	}
 	for (const modifier of ['private', 'protected']) {
 		for (
 			const [scope, allowed, denied] of [
@@ -432,8 +510,9 @@ describe('doc access and command usages', () => {
 				declaration()
 			}
 			const raw = env.project.symbolStorage.global.function!['demo:value']
-			t.assert.equal(core.SymbolUtil.viewFromContext(raw, doc.uri)?.reference?.length, 1)
-			t.assert.equal(core.SymbolUtil.viewFromContext(raw, root + 'outside.json'), undefined)
+			const resolve = env.project.symbolStorage.resolveResourceLocation
+			t.assert.equal(core.SymbolUtil.viewFromContext(raw, doc.uri, resolve)?.reference?.length, 1)
+			t.assert.equal(core.SymbolUtil.viewFromContext(raw, root + 'outside.json', resolve), undefined)
 		})
 	}
 	it('uses directive-provided visibility alternatives instead of deriving a folder in the target', t => {
@@ -927,6 +1006,24 @@ describe('directive controlled input', () => {
 		return { project, node, ctx, bind, errors: [...parserCtx.err.errors, ...ctx.err.errors] }
 	}
 	for (const newline of ['\n', '\r\n']) {
+		for (const identifier of ['input', 'reads', 'writes', 'context']) {
+			it(`reads consecutive indented ${identifier} comments: ${JSON.stringify(newline)}`, t => {
+				const env = parseAndBind([
+					'',
+					'#> function demo:test',
+					`# @${identifier} score @s foo.bar`,
+					'#  First line',
+					'#    Deeper line',
+					'#  ',
+					'#\t\tLast line',
+					'# Outside',
+					'#  Still outside',
+				].join(newline))
+				t.assert.equal(env.node.docDirectives[0].inputComment, 'First line\nDeeper line\n\nLast line')
+				t.assert.equal(env.node.commentDescription?.includes('Outside'), true)
+				t.assert.equal(env.node.commentDescription?.includes('Still outside'), true)
+			})
+		}
 		for (const indentation of ['  ', '\t\t']) {
 			it(
 				'consumes an indented comment and then a directive: '
