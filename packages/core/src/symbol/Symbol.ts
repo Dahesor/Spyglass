@@ -504,7 +504,7 @@ export const SymbolUsageTypes = Object.freeze(
 
 /** The usage type of a symbol
  * - `declaration`: The statement of existence of a symbol.
- * - `implementation`: The actual logic of the symbol.
+ * - `implementation`: One way that the symbol may exist.
  * - `definition`: Being both a `declaration` and an `implementation`.
  * - `reference`: A usage of the symbol by some other part.
  * - `typeDefinition`: The type definition of the symbol.

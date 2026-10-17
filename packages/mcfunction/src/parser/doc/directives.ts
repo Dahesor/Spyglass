@@ -3,6 +3,7 @@ import { localeQuote, localize } from '@spyglassmc/locales'
 import type { DocAccess, DocDirectiveNode, DocNode } from '../../node/index.js'
 import {
 	DefaultDocDirective,
+	type DocDirective,
 	type DocDirectiveHandlerContext,
 	type DocDirectiveParserContext,
 	type DocDirectiveReturn,
@@ -11,26 +12,32 @@ import {
 } from '../doc.js'
 
 export function registerDocDirectives(meta: core.MetaRegistry): void {
-	registerDocDirective(meta, new PublicDocDirective())
-	registerDocDirective(meta, new InternalDocDirective())
-	registerDocDirective(meta, new ProtectedDocDirective())
-	registerDocDirective(meta, new PrivateDocDirective())
-	registerDocDirective(meta, new LocalDocDirective())
-	registerDocDirective(meta, new UserDocDirective())
-	registerDocDirective(meta, new ChatOnlyDocDirective())
-	registerDocDirective(meta, new DeprecatedDocDirective())
-	registerDocDirective(meta, new OverrideDocDirective())
-	registerDocDirective(meta, new ReturnsDocDirective())
-	registerDocDirective(meta, new ContextDocDirective())
-	registerDocDirective(meta, new ReadsDocDirective())
-	registerDocDirective(meta, new WritesDocDirective())
-	registerDocDirective(meta, new InputDocDirective())
-	registerDocDirective(meta, new ResultDocDirective())
-	registerDocDirective(meta, new SuccessDocDirective())
-	registerDocDirective(meta, new VoidDocDirective())
-	registerDocDirective(meta, new TypeDocDirective())
-	registerDocDirective(meta, new AuthorDocDirective())
-	registerDocDirective(meta, new FunctionPredicateDocDirective())
+	const directives: DocDirective[] = [
+		new PublicDocDirective(),
+		new InternalDocDirective(),
+		new ProtectedDocDirective(),
+		new PrivateDocDirective(),
+		new LocalDocDirective(),
+		new UserDocDirective(),
+		new ChatOnlyDocDirective(),
+		new DeprecatedDocDirective(),
+		new OverrideDocDirective(),
+		new ReturnsDocDirective(),
+		new ContextDocDirective(),
+		new ReadsDocDirective(),
+		new WritesDocDirective(),
+		new InputDocDirective(),
+		new ResultDocDirective(),
+		new SuccessDocDirective(),
+		new VoidDocDirective(),
+		new TypeDocDirective(),
+		new AuthorDocDirective(),
+		new FunctionPredicateDocDirective(),
+		new ReadonlyDocDirective(),
+	]
+	for (const directive of directives) {
+		registerDocDirective(meta, directive)
+	}
 }
 
 // #region Abstract Directives
@@ -70,7 +77,11 @@ class CommandTreeDocDirective extends DefaultDocDirective {
 			src.readLine()
 		}
 		directive.arguments.push(...(src.string.slice(start, src.innerCursor).match(/\S+/g) ?? []))
-		directive.inputComment = input.readComment()?.text
+		const comments: string[] = []
+		for (let comment = input.readComment(); comment; comment = input.readComment()) {
+			comments.push(comment.text)
+		}
+		directive.inputComment = comments.length ? comments.join('\n') : undefined
 	}
 }
 
@@ -159,7 +170,26 @@ class ScopedAccessModifierDirective extends AccessModifierDirective {
 			)
 	}
 	private escapeGlob(value: string): string {
-		return value.replace(/[\\*?\[\]{}()!+@]/g, '\\// #endregion')
+		return value.replace(/[\\*?\[\]{}()!+@]/g, '\\$&')
+	}
+	protected parentRules(value: string, ctx: core.BinderContext): core.IsotopeVisibility[] {
+		const location = ctx.meta.resolveResourceLocation?.(ctx.doc.uri, ctx)
+		const rules: core.IsotopeVisibility[] = []
+		if (location) {
+			const path = [...location.path]
+			const parts = value.split('/')
+			while (parts[0] === '%parent') {
+				path.pop()
+				parts.shift()
+			}
+			path.push(...parts.filter(Boolean))
+			rules.push({
+				namespace: location.namespace ?? core.ResourceLocation.DefaultNamespace,
+				...(path.length ? { path: path.join('/') } : {}),
+			})
+		}
+		rules.push({ glob: this.escapeGlob(ctx.doc.uri) })
+		return rules
 	}
 	protected withinRules(
 		directive: core.DeepReadonly<DocDirectiveNode>,
@@ -174,17 +204,7 @@ class ScopedAccessModifierDirective extends AccessModifierDirective {
 			if (within.quote) {
 				rules.push({ glob: within.value })
 			} else if (within.value.startsWith('%parent')) {
-				let uri = ctx.doc.uri
-				const parts = within.value.split('/')
-				while (parts[0] === '%parent') {
-					const parentEnd = uri.replace(/\/$/, '').lastIndexOf('/') + 1
-					if (parentEnd > uri.indexOf('://') + 3) {
-						uri = uri.slice(0, parentEnd)
-					}
-					parts.shift()
-				}
-				const path = this.escapeGlob(uri + parts.join('/'))
-				rules.push({ glob: path.endsWith('/') ? path + '**' : path + '{,/**,.*}' })
+				return this.parentRules(within.value, ctx)
 			} else {
 				const [namespace, path] = within.value.split(':')
 				rules.push({ namespace, ...(path ? { path } : {}) })
@@ -212,7 +232,7 @@ class ScopedAccessModifierDirective extends AccessModifierDirective {
 		}
 		const range = within.range
 		const namespace = ctx.meta.resolveResourceLocation?.(ctx.doc.uri, ctx)?.namespace
-			?? 'minecraft'
+			?? core.ResourceLocation.DefaultNamespace
 		const items = [
 			core.CompletionItem.create('""', range, {
 				insertText: '"${1}"',
@@ -259,11 +279,9 @@ export class PrivateDocDirective extends ScopedAccessModifierDirective {
 		_node: DocNode,
 		ctx: core.BinderContext,
 	): DocAccess {
-		const folder = ctx.doc.uri.slice(0, ctx.doc.uri.lastIndexOf('/') + 1)
-		const escapedFolder = folder.replace(/[\\*?\[\]{}()!+@]/g, '\\$&')
 		return {
 			visibility: core.SymbolIsotopeScope.Private,
-			visibleWithin: this.withinRules(directive, ctx) ?? [{ glob: `${escapedFolder}**` }],
+			visibleWithin: this.withinRules(directive, ctx) ?? this.parentRules('%parent', ctx),
 		}
 	}
 }
@@ -320,6 +338,22 @@ export class AuthorDocDirective extends GreedyStringDirective {
 	// Not including author as part of the description, so do nothing here
 }
 
+export class ReadonlyDocDirective extends GreedyStringDirective {
+	override readonly identifier = 'readonly'
+	override handleDirective(
+		directive: core.DeepReadonly<DocDirectiveNode>,
+		_node: DocNode,
+		_ctx: core.BinderContext,
+		_input: DocDirectiveHandlerContext,
+	): DocDirectiveReturn {
+		const desc: string = bold('@' + italic(this.identifier))
+			+ dashIfNotEmpty(directive.arguments[0])
+		return {
+			desc: [desc],
+		}
+	}
+}
+
 export class DeprecatedDocDirective extends GreedyStringDirective {
 	override readonly identifier = 'deprecated'
 	override handleDirective(
@@ -329,7 +363,7 @@ export class DeprecatedDocDirective extends GreedyStringDirective {
 		_input: DocDirectiveHandlerContext,
 	): DocDirectiveReturn {
 		const desc: string = bold('@' + italic(this.identifier))
-			+ dashIfExists(directive.arguments[0])
+			+ dashIfNotEmpty(directive.arguments[0])
 		return {
 			mark_deprecated: true,
 			desc: [desc],
@@ -364,7 +398,7 @@ export class ContextDocDirective extends CommandTreeDocDirective {
 		}
 		let desc: string = italic('@' + this.identifier) + ' '
 			+ wellKnownContext
-			+ dashIfExists(context_description)
+			+ dashIfNotEmpty(context_description)
 		desc += directive.inputComment ? Dash + directive.inputComment : ''
 		return {
 			desc: [desc],
@@ -383,7 +417,7 @@ export class ReadsDocDirective extends CommandTreeDocDirective {
 		_ctx: core.BinderContext,
 	): DocDirectiveReturn {
 		let desc: string = italic('@' + this.identifier) + ' '
-			+ bold(directive.arguments[0])
+			+ italic(directive.arguments[0])
 			+ ' '
 			+ code(directive.arguments.slice(1).join(' '))
 		desc += Dash + (directive.inputComment ?? '')
@@ -407,7 +441,7 @@ export class WritesDocDirective extends CommandTreeDocDirective {
 			+ italic(directive.arguments[0])
 			+ ' '
 			+ code(directive.arguments.slice(1).join(' '))
-		desc += dashIfExists(directive.inputComment)
+		desc += dashIfNotEmpty(directive.inputComment)
 		return {
 			desc: [desc],
 		}
@@ -428,7 +462,7 @@ export class InputDocDirective extends CommandTreeDocDirective {
 			+ italic(directive.arguments[0])
 			+ ' '
 			+ code(directive.arguments.slice(1).join(' '))
-		desc += dashIfExists(directive.inputComment)
+		desc += dashIfNotEmpty(directive.inputComment)
 		return {
 			desc: [desc],
 		}
@@ -599,7 +633,7 @@ export class FunctionPredicateDocDirective extends GreedyStringDirective {
 		_ctx: core.BinderContext,
 		_input: DocDirectiveHandlerContext,
 	): DocDirectiveReturn {
-		const desc: string = '@' + italic(this.identifier) + dashIfExists(directive.arguments[0])
+		const desc: string = '@' + italic(this.identifier) + dashIfNotEmpty(directive.arguments[0])
 		return { desc: [desc] }
 	}
 }
@@ -695,7 +729,7 @@ function space(str: string | undefined): string {
 	return str ? ' ' + str + ' ' : ''
 }
 
-function dashIfExists(str: string | undefined): string {
+function dashIfNotEmpty(str: string | undefined): string {
 	if (!str || str === '') {
 		return ''
 	}

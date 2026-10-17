@@ -13,7 +13,7 @@ export function registerDocTargets(meta: core.MetaRegistry): void {
 	registerDocTarget(meta, new SymbolDocTarget('tag', 'tag'))
 	registerDocTarget(meta, new SymbolDocTarget('objective', 'objective'))
 	registerDocTarget(meta, new SymbolDocTarget('team', 'team'))
-	registerDocTarget(meta, new SymbolDocTarget('score', 'score_holder', false))
+	registerDocTarget(meta, new ScoreDocTarget())
 
 	core.NormalFileCategories.forEach(registry => {
 		if (registry === 'function') {
@@ -29,8 +29,8 @@ export function registerDocTargets(meta: core.MetaRegistry): void {
 class SymbolDocTarget extends DefaultDocTarget {
 	constructor(
 		public override readonly identifier: string,
-		private readonly category: string,
-		private readonly unquotable = true,
+		protected readonly category: string,
+		protected readonly unquotable = true,
 	) {
 		super()
 	}
@@ -90,6 +90,100 @@ class SymbolDocTarget extends DefaultDocTarget {
 		if (this.unquotable && !core.BrigadierUnquotablePattern.test(tag.value)) {
 			ctx.err.report(localize('parser.string.illegal-brigadier', localeQuote(tag.value)), tag)
 			return false
+		}
+		return true
+	}
+}
+
+class ScoreDocTarget extends SymbolDocTarget {
+	constructor() {
+		super('score', 'score_holder', false)
+	}
+
+	override completer(
+		node: core.DeepReadonly<DocNode>,
+		ctx: core.CompleterContext,
+	): core.CompletionItem[] {
+		const field = node.fields[0]
+		if (field?.type !== 'symbol') {
+			return []
+		}
+		const tag = field as core.DeepReadonly<core.SymbolNode>
+		if (tag.options.category !== this.category) {
+			return []
+		}
+		if (ctx.offset <= tag.range.end) {
+			const completionNode = ctx.offset < tag.range.start
+				? core.SymbolNode.mock(ctx.offset, { category: this.category })
+				: tag
+			return core.completer.symbol(
+				{ ...completionNode, parent: tag.parent as core.AstNode },
+				ctx,
+			)
+		}
+		if (!tag.value) {
+			return core.completer.symbol(
+				{
+					...core.SymbolNode.mock(ctx.offset, { category: this.category }),
+					parent: tag.parent as core.AstNode,
+				},
+				ctx,
+			)
+		}
+		const objective = node.fields[1]
+		if (objective?.type === 'symbol' && ctx.offset <= objective.range.end) {
+			return core.completer.symbol(
+				ctx.offset < objective.range.start
+					? {
+						...core.SymbolNode.mock(ctx.offset, { category: 'objective' }),
+						parent: tag.parent as core.AstNode,
+					}
+					: objective as core.DeepReadonly<core.SymbolNode>,
+				ctx,
+			)
+		}
+		if (!objective && ctx.doc.getText().slice(tag.range.end, ctx.offset) === ' ') {
+			return core.completer.symbol(
+				{
+					...core.SymbolNode.mock(ctx.offset, { category: 'objective' }),
+					parent: tag.parent as core.AstNode,
+				},
+				ctx,
+			)
+		}
+		return []
+	}
+
+	override parser(src: core.Source, ctx: core.ParserContext, node: DocNode): boolean {
+		const tag = core.stopBefore(
+			core.symbol({ category: this.category, usageType: 'declaration' }),
+			core.Whitespaces,
+		)(src, ctx)
+		node.fields.push(tag)
+		node.children.push(tag)
+		if (!tag.value) {
+			ctx.err.report(localize('expected', this.identifier), tag)
+			return false
+		}
+		if (this.unquotable && !core.BrigadierUnquotablePattern.test(tag.value)) {
+			ctx.err.report(localize('parser.string.illegal-brigadier', localeQuote(tag.value)), tag)
+			return false
+		}
+		src.skipSpace()
+		if (src.canReadInLine()) {
+			const objective = core.stopBefore(
+				core.symbol({ category: 'objective', usageType: 'reference' }),
+				core.Whitespaces,
+			)(src, ctx)
+			node.fields.push(objective)
+			node.children.push(objective)
+			if (!core.BrigadierUnquotablePattern.test(objective.value)) {
+				ctx.err.report(
+					localize('parser.string.illegal-brigadier', localeQuote(objective.value)),
+					objective,
+				)
+				return false
+			}
 		}
 		return true
 	}
