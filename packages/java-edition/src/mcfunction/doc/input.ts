@@ -82,7 +82,6 @@ const entity_target: NodeComponent = {
 		]),
 	},
 }
-
 const message_target: NodeComponent = {
 	message: {
 		type: 'argument',
@@ -119,6 +118,52 @@ const contextArgTree: mcf.RootTreeNode = {
 	},
 }
 
+const callbyArgTree: mcf.RootTreeNode = {
+	type: 'root',
+	children: {
+		'function': {
+			type: 'literal',
+			children: {
+				name: {
+					type: 'argument',
+					executable: true,
+					parser: 'minecraft:function',
+				},
+			},
+		},
+		'enchantment': {
+			type: 'literal',
+			children: {
+				name: {
+					type: 'argument',
+					executable: true,
+					parser: 'minecraft:resource',
+					properties: {
+						registry: 'minecraft:enchantment',
+					},
+				},
+			},
+		},
+		'advancement': {
+			type: 'literal',
+			children: {
+				name: {
+					type: 'argument',
+					executable: true,
+					parser: 'minecraft:resource',
+					properties: {
+						registry: 'minecraft:advancement',
+					},
+				},
+			},
+		},
+		'user': {
+			type: 'literal',
+			executable: true,
+		},
+	},
+}
+
 const inputArgTree: mcf.RootTreeNode = {
 	type: 'root',
 	children: {
@@ -141,6 +186,7 @@ export function registerDocInput(meta: core.MetaRegistry): void {
 	registerDocArguments(meta, { identifier: 'input', tree: inputArgTree })
 	registerDocArguments(meta, { identifier: 'read_write', tree: readwriteArgTree })
 	registerDocArguments(meta, { identifier: 'context', tree: contextArgTree })
+	registerDocArguments(meta, { identifier: 'callby', tree: callbyArgTree })
 }
 
 type DocArgumentStep = readonly [

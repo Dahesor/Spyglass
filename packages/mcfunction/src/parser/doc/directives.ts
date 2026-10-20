@@ -13,27 +13,28 @@ import {
 
 export function registerDocDirectives(meta: core.MetaRegistry): void {
 	const directives: DocDirective[] = [
-		new PublicDocDirective(),
-		new InternalDocDirective(),
-		new ProtectedDocDirective(),
-		new PrivateDocDirective(),
-		new LocalDocDirective(),
-		new UserDocDirective(),
-		new ChatOnlyDocDirective(),
-		new DeprecatedDocDirective(),
-		new OverrideDocDirective(),
-		new ReturnsDocDirective(),
-		new ContextDocDirective(),
-		new ReadsDocDirective(),
-		new WritesDocDirective(),
-		new InputDocDirective(),
-		new ResultDocDirective(),
-		new SuccessDocDirective(),
-		new VoidDocDirective(),
-		new TypeDocDirective(),
-		new AuthorDocDirective(),
-		new FunctionPredicateDocDirective(),
-		new ReadonlyDocDirective(),
+		new PublicDirective(),
+		new InternalDirective(),
+		new ProtectedDirective(),
+		new PrivateDirective(),
+		new LocalDirective(),
+		new CallbyDirective(),
+		new UserDirective(),
+		new ChatOnlyDirective(),
+		new DeprecatedDirective(),
+		new OverrideDirective(),
+		new ReturnsDirective(),
+		new ContextDirective(),
+		new ReadsDirective(),
+		new WritesDirective(),
+		new InputDirective(),
+		new ResultDirective(),
+		new SuccessDirective(),
+		new VoidDirective(),
+		new TypeDirective(),
+		new AuthorDirective(),
+		new FunctionPredicateDirective(),
+		new ReadonlyDirective(),
 	]
 	for (const directive of directives) {
 		registerDocDirective(meta, directive)
@@ -262,17 +263,17 @@ class ScopedAccessModifierDirective extends AccessModifierDirective {
 
 // #endregion
 
-export class PublicDocDirective extends AccessModifierDirective {
+export class PublicDirective extends AccessModifierDirective {
 	override readonly identifier = 'public'
 	override modifyAccess(
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
 	): DocAccess {
-		return { visibility: core.SymbolIsotopeScope.Global }
+		return { visibility: core.SymbolIsotopeScope.Public }
 	}
 }
 
-export class PrivateDocDirective extends ScopedAccessModifierDirective {
+export class PrivateDirective extends ScopedAccessModifierDirective {
 	override readonly identifier = 'private'
 	override modifyAccess(
 		directive: core.DeepReadonly<DocDirectiveNode>,
@@ -286,7 +287,7 @@ export class PrivateDocDirective extends ScopedAccessModifierDirective {
 	}
 }
 
-export class LocalDocDirective extends AccessModifierDirective {
+export class LocalDirective extends AccessModifierDirective {
 	override readonly identifier = 'local'
 	override modifyAccess(
 		_directive: core.DeepReadonly<DocDirectiveNode>,
@@ -296,18 +297,36 @@ export class LocalDocDirective extends AccessModifierDirective {
 	}
 }
 
-export class UserDocDirective extends DefaultDocDirective {
+export class CallbyDirective extends CommandTreeDocDirective {
+	override readonly identifier = 'callby'
+	override readonly isCommon: boolean = false
+	override readonly parser_id: string = 'impdoc:callby_arguments'
+	override handleDirective(
+		directive: core.DeepReadonly<DocDirectiveNode>,
+		_node: DocNode,
+		_ctx: core.BinderContext,
+	): DocDirectiveReturn {
+		let desc: string = italic('@' + this.identifier + ' ' + directive.arguments[0])
+			+ space(code(directive.arguments.slice(1).join(' ')))
+		desc += dashIfNotEmpty(directive.inputComment)
+		return {
+			desc: [desc],
+		}
+	}
+}
+
+export class UserDirective extends DefaultDocDirective {
 	override readonly identifier = 'user'
 	// TODO
 }
 
-export class ChatOnlyDocDirective extends DefaultDocDirective {
+export class ChatOnlyDirective extends DefaultDocDirective {
 	override readonly identifier = 'chatonly'
 	override readonly isCommon: boolean = false
 	// TODO
 }
 
-export class ProtectedDocDirective extends ScopedAccessModifierDirective {
+export class ProtectedDirective extends ScopedAccessModifierDirective {
 	override readonly identifier = 'protected'
 	override modifyAccess(
 		directive: core.DeepReadonly<DocDirectiveNode>,
@@ -323,22 +342,22 @@ export class ProtectedDocDirective extends ScopedAccessModifierDirective {
 	}
 }
 
-export class InternalDocDirective extends AccessModifierDirective {
+export class InternalDirective extends AccessModifierDirective {
 	override readonly identifier = 'internal'
 	override modifyAccess(
 		_directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
 	): DocAccess {
-		return { visibility: core.SymbolIsotopeScope.Project }
+		return { visibility: core.SymbolIsotopeScope.Internal }
 	}
 }
 
-export class AuthorDocDirective extends GreedyStringDirective {
+export class AuthorDirective extends GreedyStringDirective {
 	override readonly identifier = 'author'
 	// Not including author as part of the description, so do nothing here
 }
 
-export class ReadonlyDocDirective extends GreedyStringDirective {
+export class ReadonlyDirective extends GreedyStringDirective {
 	override readonly identifier = 'readonly'
 	override handleDirective(
 		directive: core.DeepReadonly<DocDirectiveNode>,
@@ -354,7 +373,7 @@ export class ReadonlyDocDirective extends GreedyStringDirective {
 	}
 }
 
-export class DeprecatedDocDirective extends GreedyStringDirective {
+export class DeprecatedDirective extends GreedyStringDirective {
 	override readonly identifier = 'deprecated'
 	override handleDirective(
 		directive: core.DeepReadonly<DocDirectiveNode>,
@@ -371,12 +390,12 @@ export class DeprecatedDocDirective extends GreedyStringDirective {
 	}
 }
 
-export class OverrideDocDirective extends AccessModifierDirective {
+export class OverrideDirective extends AccessModifierDirective {
 	override readonly identifier = 'override'
 	// TODO
 }
 
-export class ContextDocDirective extends CommandTreeDocDirective {
+export class ContextDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'context'
 	override readonly isCommon: boolean = false
 	override readonly parser_id: string = 'impdoc:context_arguments'
@@ -399,14 +418,14 @@ export class ContextDocDirective extends CommandTreeDocDirective {
 		let desc: string = italic('@' + this.identifier) + ' '
 			+ wellKnownContext
 			+ dashIfNotEmpty(context_description)
-		desc += directive.inputComment ? Dash + directive.inputComment : ''
+		desc += dashIfNotEmpty(directive.inputComment)
 		return {
 			desc: [desc],
 		}
 	}
 }
 
-export class ReadsDocDirective extends CommandTreeDocDirective {
+export class ReadsDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'reads'
 	override readonly isCommon: boolean = false
 	override readonly allowDuplicates: boolean = true
@@ -427,7 +446,7 @@ export class ReadsDocDirective extends CommandTreeDocDirective {
 	}
 }
 
-export class WritesDocDirective extends CommandTreeDocDirective {
+export class WritesDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'writes'
 	override readonly isCommon: boolean = false
 	override readonly allowDuplicates: boolean = true
@@ -448,7 +467,7 @@ export class WritesDocDirective extends CommandTreeDocDirective {
 	}
 }
 
-export class InputDocDirective extends CommandTreeDocDirective {
+export class InputDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'input'
 	override readonly isCommon: boolean = false
 	override readonly allowDuplicates: boolean = true
@@ -469,7 +488,7 @@ export class InputDocDirective extends CommandTreeDocDirective {
 	}
 }
 
-export class ReturnsDocDirective extends DefaultDocDirective {
+export class ReturnsDirective extends DefaultDocDirective {
 	override readonly identifier = 'returns'
 	override readonly isCommon: boolean = false
 	override parseArguments(
@@ -534,7 +553,7 @@ export class ReturnsDocDirective extends DefaultDocDirective {
 	}
 }
 
-export class ResultDocDirective extends GreedyStringDirective {
+export class ResultDirective extends GreedyStringDirective {
 	override includeInSuggestion(
 		_ctx: core.CompleterContext,
 		input: DocDirectiveSuggestCtx,
@@ -564,7 +583,7 @@ export class ResultDocDirective extends GreedyStringDirective {
 	}
 }
 
-export class SuccessDocDirective extends GreedyStringDirective {
+export class SuccessDirective extends GreedyStringDirective {
 	override includeInSuggestion(
 		_ctx: core.CompleterContext,
 		input: DocDirectiveSuggestCtx,
@@ -594,7 +613,7 @@ export class SuccessDocDirective extends GreedyStringDirective {
 	}
 }
 
-export class VoidDocDirective extends GreedyStringDirective {
+export class VoidDirective extends GreedyStringDirective {
 	override includeInSuggestion(
 		_ctx: core.CompleterContext,
 		input: DocDirectiveSuggestCtx,
@@ -624,7 +643,7 @@ export class VoidDocDirective extends GreedyStringDirective {
 	}
 }
 
-export class FunctionPredicateDocDirective extends GreedyStringDirective {
+export class FunctionPredicateDirective extends GreedyStringDirective {
 	override readonly identifier = 'predicate'
 	override readonly isCommon: boolean = false
 	override handleDirective(
@@ -638,7 +657,7 @@ export class FunctionPredicateDocDirective extends GreedyStringDirective {
 	}
 }
 
-export class TypeDocDirective extends DefaultDocDirective {
+export class TypeDirective extends DefaultDocDirective {
 	override readonly identifier = 'type'
 	override readonly isCommon: boolean = true
 	override readonly hasMandatoryArgument: boolean = true

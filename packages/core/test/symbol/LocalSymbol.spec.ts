@@ -79,6 +79,10 @@ describe('LocalSymbol', () => {
 		LocalSymbol.clear(service, file, { uri: doc.uri })
 		t.assert.equal(lookup(child, 'test', ['name']), undefined)
 		t.assert.notEqual(service.lookup('test', ['name']).symbol, undefined)
+		t.assert.equal(service.storage.getPaths(doc.uri).size, 1)
+		service.clear({ uri: doc.uri })
+		t.assert.equal(service.storage.getPaths().size, 0)
+		t.assert.equal(service.lookup('test', ['name']).symbol, undefined)
 	})
 	it('keeps delayed local and member writes in the selected local table', t => {
 		const { util, doc, file, child } = setup()
@@ -104,7 +108,7 @@ describe('LocalSymbol', () => {
 		if (!LocalSymbol.is(symbol)) {
 			throw new Error('Expected local symbol')
 		}
-		t.assert.equal(symbol.facets, undefined)
+		t.assert.equal(symbol.scopes, undefined)
 		t.assert.equal(symbol.desc, 'local type')
 		t.assert.equal(symbol.definition?.length, 1)
 		t.assert.equal(symbol.definition?.[0].isotopeIdentifier, undefined)
@@ -114,7 +118,7 @@ describe('LocalSymbol', () => {
 		const { util, doc, file, child } = setup()
 		t.assert.throws(() =>
 			LocalSymbol.queryInsideScope(util, { doc, node: child }, 1, 'test', 'name')
-				.enterIsotope('regular', { data: { scope: SymbolIsotopeScope.Global, source: 3 } })
+				.enterIsotope('regular', { data: { scope: SymbolIsotopeScope.Public, source: 3 } })
 		)
 		t.assert.equal(file.locals!['test']?.['name'], undefined)
 	})

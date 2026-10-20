@@ -1,55 +1,55 @@
 exports[`SymbolUtil > clear() > Should clear all 1`] = `
 CATEGORY mcdoc
 + SYMBOL ShouldBeKept1 {mcdoc}
-+ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
++ + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL ShouldBeKept1.ShouldBeRemoved1 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + ------------
 + + + SYMBOL ShouldBeKept1.ShouldBeKept2 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"},{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"},{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://another_test_file"}}]}
 + ------------
 + SYMBOL ShouldBeKept3 {mcdoc}
-+ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
++ + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://another_test_file"}}]}
 + + members:
 + + + SYMBOL ShouldBeKept3.ShouldBeKept4 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://another_test_file"}}]}
 + + + ------------
 + + + SYMBOL ShouldBeKept3.ShouldBeKept5 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"},{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"},{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + ------------
 + + + SYMBOL ShouldBeKept3.ShouldBeRemoved3 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > clear() > Should clear all 2`] = `
 CATEGORY mcdoc
 + SYMBOL ShouldBeKept1 {mcdoc}
-+ + facets: {"global":{"isotopes":[],"definition":[]}}
++ + scopes: {"public":[]}
 + + members:
 + + + SYMBOL ShouldBeKept1.ShouldBeKept2 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://another_test_file"}}]}
 + ------------
 + SYMBOL ShouldBeKept3 {mcdoc}
-+ + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
++ + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://another_test_file"}}]}
 + + members:
 + + + SYMBOL ShouldBeKept3.ShouldBeKept4 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://another_test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://another_test_file"}}]}
 + + + ------------
 + + + SYMBOL ShouldBeKept3.ShouldBeKept5 {mcdoc}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"regular","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]}}
++ + + + scopes: {"public":[{"identifier":"regular","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://another_test_file","isotopeIdentifier":"regular"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > contributeAs > Should execute correctly 1`] = `
 CATEGORY test
 + SYMBOL Bound {test}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",\\"uri_binder\\"]","source":3,"origin":{"uri":"spyglassmc://test_file","contributor":"uri_binder"},"desc":"This symbol is URI bound."}],"reference":[{"uri":"spyglassmc://test_file","contributor":"uri_binder","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",\\"uri_binder\\"]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",\\"uri_binder\\"]","source":3,"scope":3,"usages":{"reference":[{"uri":"spyglassmc://test_file","contributor":"uri_binder","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",\\"uri_binder\\"]"}]},"origin":{"uri":"spyglassmc://test_file","contributor":"uri_binder"},"desc":"This symbol is URI bound."}]}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar.Qux.Xer” 1`] = `
 parentSymbol:
 + SYMBOL Foo.Bar.Qux {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 parentMap:
 undefined
 symbol:
@@ -59,28 +59,28 @@ undefined
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar.Qux” 1`] = `
 parentSymbol:
 + SYMBOL Foo.Bar {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 parentMap:
 + SYMBOL Foo.Bar.Qux {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 + SYMBOL Foo.Bar.Qux {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar.Unknown” 1`] = `
 parentSymbol:
 + SYMBOL Foo.Bar {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 parentMap:
 + SYMBOL Foo.Bar.Qux {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 undefined
 `;
@@ -88,25 +88,25 @@ undefined
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Bar” 1`] = `
 parentSymbol:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 parentMap:
 + SYMBOL Foo.Bar {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 + SYMBOL Foo.Bar {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Baz.Xer” 1`] = `
@@ -121,19 +121,19 @@ undefined
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Baz” 1`] = `
 parentSymbol:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 parentMap:
 + SYMBOL Foo.Bar {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 undefined
 `;
@@ -141,19 +141,19 @@ undefined
 exports[`SymbolUtil > lookup() > Should return correctly for “Foo.Unknown” 1`] = `
 parentSymbol:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 parentMap:
 + SYMBOL Foo.Bar {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 undefined
 `;
@@ -163,22 +163,22 @@ parentSymbol:
 undefined
 parentMap:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > lookup() > Should return correctly for “Unknown” 1`] = `
@@ -186,13 +186,13 @@ parentSymbol:
 undefined
 parentMap:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 undefined
 `;
@@ -202,13 +202,13 @@ parentSymbol:
 undefined
 parentMap:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 undefined
 `;
@@ -218,22 +218,22 @@ parentSymbol:
 undefined
 parentMap:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 symbol:
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux.Xer” 1`] = `
@@ -242,44 +242,44 @@ undefined
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux.Xer” 2`] = `
 SYMBOL Foo.Bar.Qux.Xer {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux.Xer” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + + + members:
 + + + + + + + SYMBOL Foo.Bar.Qux.Xer {advancement}
-+ + + + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ + + + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux” 1`] = `
 SYMBOL Foo.Bar.Qux {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux” 2`] = `
 SYMBOL Foo.Bar.Qux {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Qux” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Unknown” 1`] = `
@@ -288,50 +288,50 @@ undefined
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Unknown” 2`] = `
 SYMBOL Foo.Bar.Unknown {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar.Unknown” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + + ------------
 + + + + + SYMBOL Foo.Bar.Unknown {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar” 1`] = `
 SYMBOL Foo.Bar {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + members:
 + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar” 2`] = `
 SYMBOL Foo.Bar {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 + members:
 + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Bar” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz.Xer” 1`] = `
@@ -349,13 +349,13 @@ undefined
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz.Xer” 4`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz” 1`] = `
@@ -364,22 +364,22 @@ undefined
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz” 2`] = `
 SYMBOL Foo.Baz {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Baz” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + ------------
 + + + SYMBOL Foo.Baz {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Unknown” 1`] = `
@@ -388,56 +388,56 @@ undefined
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Unknown” 2`] = `
 SYMBOL Foo.Unknown {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo.Unknown” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + ------------
 + + + SYMBOL Foo.Unknown {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo” 1`] = `
 SYMBOL Foo {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + members:
 + + SYMBOL Foo.Bar {advancement}
-+ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + members:
 + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo” 2`] = `
 SYMBOL Foo {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 + members:
 + + SYMBOL Foo.Bar {advancement}
-+ + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + members:
 + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Foo” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Unknown” 1`] = `
@@ -446,20 +446,20 @@ undefined
 
 exports[`SymbolUtil > query() > Should return correctly for “Unknown” 2`] = `
 SYMBOL Unknown {advancement}
-+ facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;
 
 exports[`SymbolUtil > query() > Should return correctly for “Unknown” 3`] = `
 CATEGORY advancement
 + SYMBOL Foo {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + members:
 + + + SYMBOL Foo.Bar {advancement}
-+ + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + + + + members:
 + + + + + SYMBOL Foo.Bar.Qux {advancement}
-+ + + + + + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"}}],"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]}}
++ + + + + + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{"definition":[{"uri":"spyglassmc://test_file","isotopeIdentifier":"[3,\\"spyglassmc://test_file\\",null]"}]},"origin":{"uri":"spyglassmc://test_file"}}]}
 + ------------
 + SYMBOL Unknown {advancement}
-+ + facets: {"global":{"isotopes":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}}
++ + scopes: {"public":[{"identifier":"[3,\\"spyglassmc://test_file\\",null]","source":3,"scope":3,"usages":{},"origin":{"uri":"spyglassmc://test_file"},"desc":"Entered."}]}
 `;

@@ -49,7 +49,7 @@ it('loads unreferenced dependency dispatchers on first startup and after cache r
 				),
 				true,
 			)
-			t.assert.equal(player?.facets?.global?.definition?.length, 1)
+			t.assert.equal(player?.scopes?.public?.[0]?.usages.definition?.length, 1)
 		} finally {
 			await project.close()
 		}
@@ -93,16 +93,18 @@ it('resolves public mcdoc types across separate dependency packages', async t =>
 		)
 		t.assert.deepEqual(errors, [])
 		t.assert.equal(
-			project.symbolStorage.global.mcdoc!['::a::Own']?.facets?.global?.definition?.length,
+			project.symbolStorage.global.mcdoc!['::a::Own']?.scopes?.public?.[0]?.usages.definition
+				?.length,
 			1,
 		)
 		t.assert.equal(
-			project.symbolStorage.global.mcdoc!['::b::Value']?.facets?.global?.definition?.length,
+			project.symbolStorage.global.mcdoc!['::b::Value']?.scopes?.public?.[0]?.usages.definition
+				?.length,
 			1,
 		)
 		t.assert.equal(
 			project.symbolStorage.global.mcdoc!['::a::Own']
-				?.facets?.global?.reference?.some(location =>
+				?.scopes?.public?.[0]?.usages.reference?.some(location =>
 					location.uri === 'file:///root/main.mcdoc'
 				),
 			true,
@@ -111,13 +113,13 @@ it('resolves public mcdoc types across separate dependency packages', async t =>
 			for (const identifier of ['::a::Own', '::b::Value']) {
 				const symbol = project.symbolStorage.global.mcdoc![identifier]
 				t.assert.notEqual(symbol.data, undefined)
-				t.assert.equal(symbol.facets?.isotopes, undefined)
+				t.assert.equal(symbol.scopes?.restricted, undefined)
 			}
 			const member =
 				project.symbolStorage.global['mcdoc/dispatcher']!['minecraft:item'].members!['example']
 			t.assert.notEqual(member.data, undefined)
-			t.assert.equal(member.facets?.global?.definition?.length, 1)
-			t.assert.equal(member.facets?.isotopes, undefined)
+			t.assert.equal(member.scopes?.public?.[0]?.usages.definition?.length, 1)
+			t.assert.equal(member.scopes?.restricted, undefined)
 		}
 		assertBaseSymbols()
 		await project.onDidOpen(

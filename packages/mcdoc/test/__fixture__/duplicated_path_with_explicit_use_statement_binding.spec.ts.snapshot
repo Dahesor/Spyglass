@@ -4,90 +4,92 @@ exports[`mcdoc __fixture__ > duplicated path with explicit use statement binding
     "mcdoc": {
       "::module": {
         "subcategory": "module",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///module.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "nextAnonymousIndex": 0
-                }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///module.mcdoc",
-                "range": {
-                  "start": 0,
-                  "end": 0
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 0
-                  }
-                },
-                "contributor": "uri_binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
         "data": {
           "nextAnonymousIndex": 0
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///module.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "nextAnonymousIndex": 0
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///module.mcdoc",
+                    "range": {
+                      "start": 0,
+                      "end": 0
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 0
+                      }
+                    },
+                    "contributor": "uri_binder",
+                    "isotopeIdentifier": "regular"
+                  }
+                ]
+              }
+            }
+          ]
         }
       },
       "::client": {
         "subcategory": "module",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///client.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "nextAnonymousIndex": 0
-                }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///client.mcdoc",
-                "range": {
-                  "start": 0,
-                  "end": 0
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 0
-                  }
-                },
-                "contributor": "uri_binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
         "data": {
           "nextAnonymousIndex": 0
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///client.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "nextAnonymousIndex": 0
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///client.mcdoc",
+                    "range": {
+                      "start": 0,
+                      "end": 0
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 0
+                      }
+                    },
+                    "contributor": "uri_binder",
+                    "isotopeIdentifier": "regular"
+                  }
+                ]
+              }
+            }
+          ]
         }
       },
       "::module::Used": {
@@ -98,60 +100,61 @@ exports[`mcdoc __fixture__ > duplicated path with explicit use statement binding
           }
         },
         "subcategory": "struct",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///module.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "struct",
-                    "fields": []
-                  }
-                }
-              }
-            ],
-            "definition": [
-              {
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
                 "uri": "file:///module.mcdoc",
-                "range": {
-                  "start": 7,
-                  "end": 11
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 7
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 11
+                "contributor": "binder"
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "struct",
+                  "fields": []
+                }
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///module.mcdoc",
+                    "range": {
+                      "start": 7,
+                      "end": 11
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 7
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 11
+                      }
+                    },
+                    "fullRange": {
+                      "start": 0,
+                      "end": 14
+                    },
+                    "fullPosRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 14
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
                   }
-                },
-                "fullRange": {
-                  "start": 0,
-                  "end": 14
-                },
-                "fullPosRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 14
-                  }
-                },
-                "contributor": "binder",
-                "isotopeIdentifier": "regular"
+                ]
               }
-            ]
-          }
+            }
+          ]
         }
       },
       "::client::Used": {
@@ -162,60 +165,61 @@ exports[`mcdoc __fixture__ > duplicated path with explicit use statement binding
           }
         },
         "subcategory": "struct",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///client.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "struct",
-                    "fields": []
-                  }
-                }
-              }
-            ],
-            "definition": [
-              {
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
                 "uri": "file:///client.mcdoc",
-                "range": {
-                  "start": 45,
-                  "end": 49
-                },
-                "posRange": {
-                  "start": {
-                    "line": 2,
-                    "character": 7
-                  },
-                  "end": {
-                    "line": 2,
-                    "character": 11
+                "contributor": "binder"
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "struct",
+                  "fields": []
+                }
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///client.mcdoc",
+                    "range": {
+                      "start": 45,
+                      "end": 49
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 2,
+                        "character": 7
+                      },
+                      "end": {
+                        "line": 2,
+                        "character": 11
+                      }
+                    },
+                    "fullRange": {
+                      "start": 38,
+                      "end": 53
+                    },
+                    "fullPosRange": {
+                      "start": {
+                        "line": 2,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 3,
+                        "character": 0
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
                   }
-                },
-                "fullRange": {
-                  "start": 38,
-                  "end": 53
-                },
-                "fullPosRange": {
-                  "start": {
-                    "line": 2,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 3,
-                    "character": 0
-                  }
-                },
-                "contributor": "binder",
-                "isotopeIdentifier": "regular"
+                ]
               }
-            ]
-          }
+            }
+          ]
         }
       }
     }

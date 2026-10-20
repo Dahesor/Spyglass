@@ -695,13 +695,14 @@ function resolvePath(
 }
 
 function identifierToUri(module: string, ctx: McdocBinderContext): string | undefined {
-	return ctx.symbols.storage.global.mcdoc?.[module]?.facets?.global?.definition?.[0]?.uri
+	return ctx.symbols.storage.global.mcdoc?.[module]?.scopes?.public?.[0]?.usages.definition?.[0]
+		?.uri
 }
 
 function uriToIdentifier(uri: string, ctx: CheckerContext): string | undefined {
 	return Object.values(ctx.symbols.storage.global.mcdoc ?? {}).find((symbol) => {
 		return (symbol.subcategory === 'module'
-			&& symbol.facets?.global?.definition?.some((loc) => loc.uri === uri))
+			&& symbol.scopes?.public?.[0]?.usages.definition?.some((loc) => loc.uri === uri))
 	})?.identifier
 }
 

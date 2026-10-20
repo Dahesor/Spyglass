@@ -32,7 +32,7 @@ describe('GlobalSymbol', () => {
 		}, SymbolEnterType.InFileSymbol)
 		const symbol = node.locals!.function!['demo:test']
 		t.assert.equal(LocalSymbol.is(symbol), true)
-		t.assert.equal(symbol.facets, undefined)
+		t.assert.equal(symbol.scopes, undefined)
 		t.assert.deepEqual(symbol.data, { target: 'demo:target' })
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, doc.uri)?.reference?.length, 1)
 		t.assert.equal(util.storage.global.function, undefined)
@@ -54,15 +54,18 @@ describe('GlobalSymbol', () => {
 			},
 		})
 		t.assert.equal(visits, 4)
-		t.assert.equal(service.storage.global['test']!['shared'].facets!.global!.reference!.length, 4)
+		t.assert.equal(
+			service.storage.global['test']!['shared'].scopes!.public![0].usages.reference!.length,
+			4,
+		)
 	})
 	it('preserves unrelated usage arrays when removing a dependency', t => {
 		const util = new SymbolService(new SymbolStorage(SymbolTable.link({ test: { empty: {} } })))
 		util.query('file:///local', 'test', 'local').enter({ usage: { type: 'definition' } })
-		const facet = util.storage.global['test']!['local'].facets!.global!
-		const definitions = facet.definition
+		const facet = util.storage.global['test']!['local'].scopes!.public!
+		const definitions = facet[0].usages.definition
 		SymbolImport.removeDependencySymbols(util, 'other-package')
-		t.assert.equal(facet.definition, definitions)
+		t.assert.equal(facet[0].usages.definition, definitions)
 		t.assert.equal(util.storage.global['test']!['empty'], undefined)
 	})
 	it('does not revisit live trim candidates on subsequent unrelated clears', t => {
@@ -93,14 +96,13 @@ describe('GlobalSymbol', () => {
 				usage: { type: 'reference', originalUsageType: 'reference' },
 			})
 		})
-		const facet = service.storage.global['test']!['shared'].facets!.global!
-		const reference = facet.reference![0]
-		const removed: unknown[] = []
-		service.storage.on('symbolLocationRemoved', ({ location }) => removed.push(location))
+		const facet = service.storage.global['test']!['shared'].scopes!.public!
 		service.clear({ uri: 'file:///second' })
-		t.assert.deepEqual(removed, [reference])
-		const definitions = facet.definition
+		t.assert.deepEqual(facet[0].usages.reference, [])
+		t.assert.equal(service.storage.getPaths('file:///second').size, 0)
+		t.assert.equal(service.storage.getPaths('file:///first').size, 1)
+		const definitions = facet[0].usages.definition
 		service.clear({ uri: 'file:///second' })
-		t.assert.equal(facet.definition, definitions)
+		t.assert.equal(facet[0].usages.definition, definitions)
 	})
 })

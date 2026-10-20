@@ -6,7 +6,11 @@ import { bindDoc, doc as parseDoc } from '@spyglassmc/mcfunction/lib/parser/doc.
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { TextDocument } from 'vscode-languageserver-textdocument'
-import { registerUriBuilders, uriBinder } from '../../lib/binder/index.js'
+import {
+	registerResourceLocationResolver,
+	registerUriBuilders,
+	uriBinder,
+} from '../../lib/binder/index.js'
 
 const root = 'file:///pack/'
 const privateDoc = root + 'data/demo/function/private/doc.mcfunction'
@@ -20,6 +24,7 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 	})
 	mcf.initialize(project)
 	registerUriBuilders(project.meta)
+	registerResourceLocationResolver(project.meta)
 	const fileUri = root + `data/demo/${category}/example${extension}`
 	if (withFile) {
 		const ctx = core.UriBinderContext.create(project)
@@ -105,7 +110,7 @@ describe('noAccessToSymbol', () => {
 			assert.ok(errors[0].message.includes('noAccessToSymbol'))
 			t.assert.equal(errors[0].severity, 2)
 			t.assert.equal(errors[0].info?.codeAction, undefined)
-			t.assert.equal(env.raw().facets?.global?.isotopes.length ?? 0, 0)
+			t.assert.equal(env.raw().scopes?.public?.length ?? 0, 0)
 			t.assert.deepEqual(env.lint(root + 'data/demo/function/private/sub/use.mcfunction'), [])
 		})
 	}
@@ -142,8 +147,8 @@ describe('noAccessToSymbol', () => {
 			t.assert.equal(errors.length, 1)
 			assert.ok(errors[0].message.includes('noAccessToSymbol'))
 			t.assert.equal(errors[0].severity, 2)
-			t.assert.equal(env.raw().facets?.global?.isotopes.length ?? 0, 0)
-			t.assert.equal(env.raw().facets?.global?.declaration?.length ?? 0, 0)
+			t.assert.equal(env.raw().scopes?.public?.length ?? 0, 0)
+			t.assert.equal(env.raw().scopes?.public?.[0]?.usages.declaration?.length ?? 0, 0)
 			t.assert.equal(core.SymbolUtil.viewFromContext(env.raw(), outside), undefined)
 		})
 	}
@@ -173,16 +178,18 @@ describe('noAccessToSymbol', () => {
 			contributor: 'binder',
 		})
 		t.assert.deepEqual(env.lint(), [])
-		t.assert.equal(env.raw().facets?.global?.definition?.length, 1)
+		t.assert.equal(env.raw().scopes?.public?.[0]?.usages.definition?.length, 1)
 	})
 	it('recognizes inaccessible file symbols after a symbol cache reload', t => {
 		const env = setup()
-		env.project.symbolStorage = new core.SymbolStorage(core.SymbolTable.deserialize(
-			core.SymbolTable.serialize(env.project.symbolStorage.global),
-		))
+		env.project.symbolStorage = new core.SymbolStorage(
+			core.SymbolTable.deserialize(core.SymbolTable.serialize(env.project.symbolStorage.global)),
+			env.project.symbolStorage.resolveResourceLocation,
+		)
 		env.project.symbolStorage.rebuildIndex()
 		const errors = env.lint()
 		t.assert.equal(errors.length, 1)
 		assert.ok(errors[0].message.includes('noAccessToSymbol'))
+		t.assert.deepEqual(env.lint(root + 'data/demo/function/private/sub/use.mcfunction'), [])
 	})
 })

@@ -72,7 +72,7 @@ describe('mcmeta', () => {
 			const symbols = new SymbolService(new SymbolStorage({}))
 			symbols.contributeAs('symbol_registrar/mcmeta', () => registrar(symbols, {}))
 			t.assert.equal(
-				symbols.storage.global.block!['minecraft:acacia_button'].facets?.global?.isotopes[0]
+				symbols.storage.global.block!['minecraft:acacia_button'].scopes?.public?.[0]
 					.source,
 				2,
 			)

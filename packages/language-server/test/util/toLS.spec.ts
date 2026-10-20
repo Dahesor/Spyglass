@@ -28,7 +28,7 @@ describe('indexed document symbols', () => {
 			})
 			const expected = documentSymbolsFromTable(util.storage.global, doc, hierarchical)
 			const unrelated = util.storage.global.function!['other1999']
-			Object.defineProperty(unrelated, 'facets', {
+			Object.defineProperty(unrelated, 'scopes', {
 				get() {
 					throw new Error('Unrelated symbol visited')
 				},

@@ -1,13 +1,15 @@
 import type { TextDocument } from 'vscode-languageserver-textdocument'
 import { bigintJsonNumberReplacer, type DeepReadonly } from '../common/index.js'
 import { LocalSymbol } from './local.js'
-import { SymbolPath, SymbolUsageTypes } from './Symbol.js'
+import { SymbolGlobalScopeTypes, SymbolPath, SymbolUsageTypes } from './Symbol.js'
 import type {
 	AllCategory,
 	Symbol,
+	SymbolIsotope,
 	SymbolLocation,
 	SymbolMap,
 	SymbolTable,
+	SymbolUsages,
 	SymbolUsageType,
 	SymbolView,
 } from './Symbol.ts'
@@ -89,16 +91,13 @@ export namespace SymbolUtil {
 			return LocalSymbol.isTrimmable(symbol)
 		}
 		return !Object.keys(symbol.members ?? {}).length && !Isotope.allIsotopesOf(symbol).length
-			&& !Isotope.allUsageContainers(symbol).some(owner =>
-				SymbolUsageTypes.some(type => owner[type]?.length)
-			)
 	}
 
 	/** @returns all usage containers of the given symbol. */
 	export function allUsageContainers(
 		symbol: Symbol,
-	): Partial<Record<SymbolUsageType, SymbolLocation[]>>[] {
-		return LocalSymbol.is(symbol) ? [symbol] : Isotope.allUsageContainers(symbol)
+	): SymbolUsages[] {
+		return LocalSymbol.is(symbol) ? [symbol] : Isotope.allDistinctUsages(symbol)
 	}
 
 	/** @returns a view of the symbol from the context of the given URI. */
@@ -162,7 +161,7 @@ export namespace SymbolUtil {
 		}
 		const raw = symbol as Symbol
 		const isotope = Isotope.selectIsotope(raw, undefined)
-		return isotope ? Isotope.ownerOf(raw, isotope) : {}
+		return isotope ? isotope.usages : {}
 	}
 
 	/**
@@ -248,8 +247,8 @@ export namespace SymbolUtil {
 	/**
 	 * @returns the canonical data of a global symbol, which is stored in its first global isotope.
 	 */
-	export function getCanonicalData(symbol: Pick<Symbol, 'facets'> | undefined): unknown {
-		return symbol?.facets?.global?.isotopes[0]?.data
+	export function getCanonicalData(symbol: Pick<Symbol, 'scopes'> | undefined): unknown {
+		return symbol?.scopes?.public?.[0]?.data
 	}
 }
 
@@ -302,8 +301,17 @@ export namespace SymbolFormatter {
 		if (symbol.data) {
 			ans.push(`${IndentChar}data: ${JSON.stringify(symbol.data, bigintJsonNumberReplacer)}`)
 		}
-		if (symbol.facets) {
-			ans.push(`${IndentChar}facets: ${JSON.stringify(symbol.facets, bigintJsonNumberReplacer)}`)
+		if (symbol.scopes) {
+			// Print shared usages pools once
+			const shared = new Set(
+				SymbolGlobalScopeTypes.flatMap(key => symbol.scopes?.[key]?.slice(1) ?? []),
+			)
+			const scopes = JSON.stringify(symbol.scopes, function(key, value) {
+				return key === 'usages' && shared.has(this as SymbolIsotope)
+					? undefined
+					: bigintJsonNumberReplacer(key, value)
+			})
+			ans.push(`${IndentChar}scopes: ${scopes}`)
 		}
 		if (LocalSymbol.is(symbol)) {
 			if (symbol.desc !== undefined) {

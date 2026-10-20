@@ -19,7 +19,12 @@ import type {
 } from '../../node/index.js'
 import type { ColorizerContext, MetaRegistry } from '../../service/index.js'
 import { Range } from '../../source/index.js'
-import { Isotope, LocalSymbol, type Symbol } from '../../symbol/index.js'
+import {
+	Isotope,
+	LocalSymbol,
+	type Symbol,
+	SymbolRestrictedScopeTypes,
+} from '../../symbol/index.js'
 import { traversePreOrder } from '../util.js'
 import type { Colorizer, ColorTokenType } from './Colorizer.js'
 import { ColorToken } from './Colorizer.js'
@@ -73,7 +78,7 @@ function isDeprecated(node: DeepReadonly<AstNode>, ctx: ColorizerContext): boole
 	if (LocalSymbol.is(symbol)) {
 		return symbol.deprecated === true
 	}
-	if (!symbol.facets?.isotopes?.length) {
+	if (!SymbolRestrictedScopeTypes.some(key => symbol.scopes?.[key]?.length)) {
 		return Isotope.selectIsotope(symbol, ctx.doc.uri, ctx.symbols.storage.resolveResourceLocation)
 			?.deprecated === true
 	}

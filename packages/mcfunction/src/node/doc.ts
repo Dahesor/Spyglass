@@ -9,8 +9,8 @@ export type DocAccess =
 		| {
 			visibility:
 				| typeof core.SymbolIsotopeScope.Local
-				| typeof core.SymbolIsotopeScope.Project
-				| typeof core.SymbolIsotopeScope.Global
+				| typeof core.SymbolIsotopeScope.Internal
+				| typeof core.SymbolIsotopeScope.Public
 		}
 		| {
 			visibility:

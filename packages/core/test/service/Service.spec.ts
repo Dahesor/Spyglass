@@ -57,7 +57,7 @@ function location(type: SymbolUsageType, fromFile = false): SymbolLocation {
 }
 
 describe('Service.getDefinitionLocations()', () => {
-	for (const scope of [SymbolIsotopeScope.Global, SymbolIsotopeScope.Protected]) {
+	for (const scope of [SymbolIsotopeScope.Public, SymbolIsotopeScope.Protected]) {
 		it(`finds consumer references and implementations from a dependency declaration (scope: ${scope})`, async t => {
 			const { service } = setup(t)
 			service.project.meta.resolveResourceLocation = mockResourceLocation
@@ -83,7 +83,7 @@ describe('Service.getDefinitionLocations()', () => {
 				usage: { type: 'reference', range: Range.create(1, 2) },
 			}, SymbolEnterType.InFileSymbol)
 			const source = dependency.storage.global.objective!['aaaaaa']
-			SymbolImport.importDependencySymbols(
+			SymbolImport.mergeDependencySymbols(
 				new SymbolService(service.project.symbolStorage),
 				SymbolTable.getDependencyExports(dependency.storage.global, 'package'),
 			)
@@ -132,7 +132,7 @@ describe('Service.getDefinitionLocations()', () => {
 			const symbols = new SymbolService(new SymbolStorage({}))
 			symbols.query(uri, 'objective', 'aaaaaa').enterIsotope('doc', {
 				data: {
-					scope: SymbolIsotopeScope.Global,
+					scope: SymbolIsotopeScope.Public,
 					source: SymbolIsotopeProvider.DocBlock,
 					origin: { uri },
 				},
@@ -142,7 +142,7 @@ describe('Service.getDefinitionLocations()', () => {
 		}
 		const first = makeDependency('file:///dependency/first.mcfunction')
 		const second = makeDependency('file:///dependency/second.mcfunction')
-		SymbolImport.importDependencySymbols(
+		SymbolImport.mergeDependencySymbols(
 			new SymbolService(service.project.symbolStorage),
 			SymbolTable.getDependencyExports(second.storage.global, 'second'),
 		)
@@ -158,20 +158,20 @@ describe('Service.getDefinitionLocations()', () => {
 		)
 		t.assert.equal(result?.locations, undefined)
 	})
-	for (const scope of [SymbolIsotopeScope.Private, SymbolIsotopeScope.Project]) {
+	for (const scope of [SymbolIsotopeScope.Private, SymbolIsotopeScope.Internal]) {
 		it(`does not expose consumer usages after a dependency declaration becomes restricted (scope: ${scope})`, async t => {
 			const { service } = setup(t)
 			const dependency = new SymbolService(new SymbolStorage({}))
 			dependency.query(doc, 'objective', 'aaaaaa').enterIsotope('doc', {
 				data: {
-					scope: SymbolIsotopeScope.Global,
+					scope: SymbolIsotopeScope.Public,
 					source: SymbolIsotopeProvider.DocBlock,
 					origin: { uri },
 				},
 				usage: { type: 'declaration', fromDocDeclaration: true },
 			})
 			const source = dependency.storage.global.objective!['aaaaaa']
-			SymbolImport.importDependencySymbols(
+			SymbolImport.mergeDependencySymbols(
 				new SymbolService(service.project.symbolStorage),
 				SymbolTable.getDependencyExports(dependency.storage.global, 'package'),
 			)
@@ -179,16 +179,17 @@ describe('Service.getDefinitionLocations()', () => {
 				.enter({
 					usage: { type: 'reference' },
 				}, SymbolEnterType.InFileSymbol)
-			const facet = source.facets!.global!
-			delete source.facets!.global
-			if (scope === SymbolIsotopeScope.Project) {
-				source.facets!.internal = facet
+			const facet = source.scopes!.public!
+			delete source.scopes!.public
+			if (scope === SymbolIsotopeScope.Internal) {
+				facet[0].scope = scope
+				source.scopes!.internal = facet
 			} else {
-				source.facets!.isotopes = [{
-					...facet.isotopes[0],
+				source.scopes!.restricted = [{
+					...facet[0],
 					scope,
 					visibleWithin: [{ glob: '**/private/**' }],
-					declaration: facet.declaration,
+					usages: { declaration: facet[0].usages.declaration },
 				}]
 			}
 			const result = await service.getSymbolLocations(file(source), doc, 1, ['reference'])
@@ -219,15 +220,17 @@ describe('Service.getDefinitionLocations()', () => {
 			it(`selects the first available target (${usages.join(',')}; fromFile: ${fromFile})`, async t => {
 				const { service, symbol } = setup(t)
 				for (const type of usages) {
-					symbol.facets!.global![type] = [location(type, fromFile && type !== 'declaration')]
+					symbol.scopes!.public![0].usages[type] = [
+						location(type, fromFile && type !== 'declaration'),
+					]
 				}
 				if (fromFile && !usages.includes('definition') && !usages.includes('implementation')) {
-					symbol.facets!.isotopes = [{
+					symbol.scopes!.restricted = [{
 						identifier: 'other',
 						source: 1,
 						scope: 0,
 						visibleWithin: [{ glob: '**/other/**' }],
-						implementation: [location('implementation', true)],
+						usages: { implementation: [location('implementation', true)] },
 					}]
 				}
 				const expected = fromFile ? fileOrigin : normal
@@ -238,20 +241,22 @@ describe('Service.getDefinitionLocations()', () => {
 	}
 	it('uses the selected isotope and hides targets outside its scope', async t => {
 		const { service, symbol } = setup(t)
-		delete symbol.facets!.global
-		symbol.facets!.isotopes = [{
+		delete symbol.scopes!.public
+		symbol.scopes!.restricted = [{
 			identifier: 'private',
 			source: 1,
 			scope: 0,
 			visibleWithin: [{ glob: '**/private/**' }],
-			declaration: [location('declaration')],
-			implementation: [location('implementation', true)],
+			usages: {
+				declaration: [location('declaration')],
+				implementation: [location('implementation', true)],
+			},
 		}, {
 			identifier: 'other',
 			source: 1,
 			scope: 0,
 			visibleWithin: [{ glob: '**/other/**' }],
-			definition: [location('definition', true)],
+			usages: { definition: [location('definition', true)] },
 		}]
 		const node = file(symbol)
 		t.assert.equal(
@@ -268,8 +273,8 @@ describe('Service.getDefinitionLocations()', () => {
 	})
 	it('uses the file origin of the resolved alias target', async t => {
 		const { service, symbol } = setup(t)
-		symbol.facets!.global!.declaration = [location('declaration')]
-		symbol.facets!.global!.implementation = [location('implementation', true)]
+		symbol.scopes!.public![0].usages.declaration = [location('declaration')]
+		symbol.scopes!.public![0].usages.implementation = [location('implementation', true)]
 		new SymbolService(service.project.symbolStorage).query(doc, 'function', 'demo:alias')
 			.enter({
 				data: { relations: { aliasOf: { category: 'function', path: ['demo:name'] } } },
@@ -282,12 +287,12 @@ describe('Service.getDefinitionLocations()', () => {
 	})
 	it('falls back when a preferred target cannot be mapped to disk', async t => {
 		const { service, symbol } = setup(t)
-		symbol.facets!.global!.definition = [{
+		symbol.scopes!.public![0].usages.definition = [{
 			...location('definition', true),
 			uri: 'unmapped://definition',
 		}]
-		symbol.facets!.global!.declaration = [location('declaration')]
-		symbol.facets!.global!.implementation = [location('implementation', true)]
+		symbol.scopes!.public![0].usages.declaration = [location('declaration')]
+		symbol.scopes!.public![0].usages.implementation = [location('implementation', true)]
 		service.project.fs.mapToDisk = async () => undefined
 		t.assert.equal(
 			(await service.getDefinitionLocations(file(symbol), doc, 1))?.locations?.[0].uri,
@@ -296,9 +301,9 @@ describe('Service.getDefinitionLocations()', () => {
 	})
 	it('preserves combined usages and current-file filtering for other navigation requests', async t => {
 		const { service, symbol } = setup(t)
-		symbol.facets!.global!.declaration = [location('declaration')]
-		symbol.facets!.global!.implementation = [location('implementation', true)]
-		symbol.facets!.global!.reference = [{ uri, range: Range.create(0) }]
+		symbol.scopes!.public![0].usages.declaration = [location('declaration')]
+		symbol.scopes!.public![0].usages.implementation = [location('implementation', true)]
+		symbol.scopes!.public![0].usages.reference = [{ uri, range: Range.create(0) }]
 		const node = file(symbol)
 		const all = await service.getSymbolLocations(node, doc, 1)
 		t.assert.equal(all?.locations?.length, 3)

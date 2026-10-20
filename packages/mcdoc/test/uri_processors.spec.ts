@@ -19,12 +19,15 @@ describe('mcdoc uriBinder()', () => {
 		const symbol = project.symbolStorage.global.mcdoc!['::example']
 		t.assert.equal(symbol.subcategory, 'module')
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.definition?.[0].uri, uri)
-		t.assert.equal(symbol.facets?.global?.definition?.[0].fromFile, undefined)
-		t.assert.equal(symbol.facets?.global?.definition?.[0].originalUsageType, undefined)
-		t.assert.equal(symbol.facets?.isotopes?.[0].implementation?.length ?? 0, 0)
+		t.assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.[0].fromFile, undefined)
+		t.assert.equal(
+			symbol.scopes?.public?.[0]?.usages.definition?.[0].originalUsageType,
+			undefined,
+		)
+		t.assert.equal(symbol.scopes?.restricted?.[0].usages.implementation?.length ?? 0, 0)
 		ctx.symbols.clear({ uri: docUri })
-		t.assert.equal(symbol.facets?.global?.definition?.length, 1)
-		t.assert.equal(symbol.facets?.global?.definition?.[0].uri, uri)
+		t.assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.length, 1)
+		t.assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.[0].uri, uri)
 	})
 	const suites: { uris: string[] }[] = [
 		{

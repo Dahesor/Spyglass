@@ -4,46 +4,47 @@ exports[`mcdoc __fixture__ > struct/anonymous 1`] = `
     "mcdoc": {
       "::test": {
         "subcategory": "module",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "nextAnonymousIndex": 1
-                }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 0,
-                  "end": 0
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 0
-                  }
-                },
-                "contributor": "uri_binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
         "data": {
           "nextAnonymousIndex": 1
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///test.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "nextAnonymousIndex": 1
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 0,
+                      "end": 0
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 0
+                      }
+                    },
+                    "contributor": "uri_binder",
+                    "isotopeIdentifier": "regular"
+                  }
+                ]
+              }
+            }
+          ]
         }
       },
       "::test::<anonymous 0>": {
@@ -54,46 +55,47 @@ exports[`mcdoc __fixture__ > struct/anonymous 1`] = `
           }
         },
         "subcategory": "struct",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "struct",
-                    "fields": []
-                  }
-                }
-              }
-            ],
-            "definition": [
-              {
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
                 "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 0,
-                  "end": 6
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 6
+                "contributor": "binder"
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "struct",
+                  "fields": []
+                }
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 0,
+                      "end": 6
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 6
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
                   }
-                },
-                "contributor": "binder",
-                "isotopeIdentifier": "regular"
+                ]
               }
-            ]
-          }
+            }
+          ]
         }
       }
     }

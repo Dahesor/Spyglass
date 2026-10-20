@@ -13,6 +13,21 @@ import { mockProjectData } from '../utils.ts'
 const doc = TextDocument.create('file:///test.mcfunction', 'mcfunction', 0, '')
 
 describe('SymbolStorage ownership', () => {
+	it('trims unused ancestors while preserving parents with live members', t => {
+		const storage = new SymbolStorage()
+		const service = new SymbolService(storage)
+		service.query(doc, 'test', 'parent').enter({})
+		service.query(doc, 'test', 'parent', 'unused').enter({})
+		service.query(doc, 'test', 'parent', 'live').enter({ usage: { type: 'definition' } })
+		storage.trim()
+		t.assert.equal(service.lookup('test', ['parent', 'unused']).symbol, undefined)
+		t.assert.notEqual(service.lookup('test', ['parent', 'live']).symbol, undefined)
+		t.assert.equal(storage.getPaths(doc.uri).size, 1)
+		service.clear({ uri: doc.uri })
+		t.assert.equal(service.lookup('test', ['parent']).symbol, undefined)
+		t.assert.equal(storage.getPaths().size, 0)
+	})
+
 	it('prunes historical paths while retaining other locations and contributors', t => {
 		const storage = new SymbolStorage()
 		const service = new SymbolService(storage)
@@ -78,52 +93,38 @@ describe('SymbolStorage ownership', () => {
 		)
 	})
 
-	it('shares committed changes, indexes and events across independent contexts and branches', t => {
+	it('shares committed changes and indexes across independent contexts and branches', t => {
 		const project = mockProjectData()
 		const first = BinderContext.create(project, { doc })
 		const second = BinderContext.create(project, { doc })
 		t.assert.notEqual(first.symbols, second.symbols)
 		t.assert.equal(first.symbols.storage, project.symbolStorage)
 		t.assert.equal(second.symbols.storage, project.symbolStorage)
-		const events: string[] = []
-		const indexedDuringEvents: string[][] = []
-		project.symbolStorage.on('symbolLocationCreated', ({ location }) => {
-			events.push(`created:${location.contributor}`)
-			indexedDuringEvents.push(
-				second.symbols.getSymbolsInFile(location.uri)
-					.map(symbol => symbol.identifier),
-			)
-		}).on('symbolLocationRemoved', ({ location }) => {
-			events.push(`removed:${location.contributor}`)
-		})
 		const branch = first.symbols.cloneDelayed()
 		branch.contributeAs('binder', () => {
 			branch.query(doc, 'test', 'accepted').enter({ usage: { type: 'definition' } })
 		})
 		t.assert.deepEqual(second.symbols.getSymbolsInFile(doc.uri), [])
-		t.assert.deepEqual(events, [])
 		branch.applyDelayedEdits()
 		branch.applyDelayedEdits()
 		const symbol = second.symbols.lookup('test', ['accepted']).symbol!
 		t.assert.deepEqual(second.symbols.getSymbolsInFile(doc.uri), [symbol])
-		t.assert.deepEqual(events, ['created:binder'])
-		t.assert.deepEqual(indexedDuringEvents, [['accepted']])
+		t.assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.length, 1)
+		t.assert.equal(project.symbolStorage.getPaths(doc.uri, 'binder').size, 1)
 		second.symbols.clear({ uri: doc.uri, contributor: 'binder' })
 		t.assert.equal(first.symbols.query(doc, 'test', 'accepted').symbolView, undefined)
-		t.assert.deepEqual(events, ['created:binder', 'removed:binder'])
+		t.assert.equal(project.symbolStorage.getPaths().size, 0)
 	})
 
 	it('discards speculative writes without changing the shared table or indexes', t => {
 		const storage = new SymbolStorage()
 		const service = new SymbolService(storage)
 		const branch = service.cloneDelayed()
-		let events = 0
-		storage.on('symbolCreated', () => events++)
 		branch.query(doc, 'test', 'discarded').enter({ usage: { type: 'definition' } })
 		t.assert.deepEqual(storage.global, {})
 		t.assert.deepEqual([...storage.getPaths()], [])
 		storage.trim()
-		t.assert.equal(events, 0)
+		t.assert.deepEqual(storage.global, {})
 	})
 
 	it('clears preexisting global symbols through a branch without rebuilding its index', t => {

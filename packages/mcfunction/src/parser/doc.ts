@@ -225,7 +225,7 @@ export function declareDocSymbol(
 	}
 	return handle.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 		data: {
-			scope: access?.visibility ?? core.SymbolIsotopeScope.Global,
+			scope: access?.visibility ?? core.SymbolIsotopeScope.Public,
 			...(
 				access?.visibility === core.SymbolIsotopeScope.Private
 					|| access?.visibility === core.SymbolIsotopeScope.Protected
