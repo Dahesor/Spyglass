@@ -4,46 +4,47 @@ exports[`mcdoc __fixture__ > union/number range 1`] = `
     "mcdoc": {
       "::test": {
         "subcategory": "module",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "nextAnonymousIndex": 1
-                }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 0,
-                  "end": 0
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 0
-                  }
-                },
-                "contributor": "uri_binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
         "data": {
           "nextAnonymousIndex": 1
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///test.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "nextAnonymousIndex": 1
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 0,
+                      "end": 0
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 0
+                      }
+                    },
+                    "contributor": "uri_binder",
+                    "isotopeIdentifier": "regular"
+                  }
+                ]
+              }
+            }
+          ]
         }
       },
       "::test::Union": {
@@ -88,94 +89,95 @@ exports[`mcdoc __fixture__ > union/number range 1`] = `
           }
         },
         "subcategory": "type_alias",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "union",
-                    "members": [
-                      {
-                        "kind": "int"
-                      },
-                      {
-                        "kind": "tuple",
-                        "items": [
-                          {
-                            "kind": "int"
-                          },
-                          {
-                            "kind": "int"
-                          }
-                        ]
-                      },
-                      {
-                        "kind": "struct",
-                        "fields": [
-                          {
-                            "kind": "pair",
-                            "key": "min_inclusive",
-                            "type": {
-                              "kind": "int"
-                            }
-                          },
-                          {
-                            "kind": "pair",
-                            "key": "max_inclusive",
-                            "type": {
-                              "kind": "int"
-                            }
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              }
-            ],
-            "definition": [
-              {
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
                 "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 5,
-                  "end": 10
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 5
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 10
+                "contributor": "binder"
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "union",
+                  "members": [
+                    {
+                      "kind": "int"
+                    },
+                    {
+                      "kind": "tuple",
+                      "items": [
+                        {
+                          "kind": "int"
+                        },
+                        {
+                          "kind": "int"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "struct",
+                      "fields": [
+                        {
+                          "kind": "pair",
+                          "key": "min_inclusive",
+                          "type": {
+                            "kind": "int"
+                          }
+                        },
+                        {
+                          "kind": "pair",
+                          "key": "max_inclusive",
+                          "type": {
+                            "kind": "int"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 5,
+                      "end": 10
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 5
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 10
+                      }
+                    },
+                    "fullRange": {
+                      "start": 0,
+                      "end": 96
+                    },
+                    "fullPosRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 7,
+                        "character": 1
+                      }
+                    },
+                    "contributor": "binder",
+                    "isotopeIdentifier": "regular"
                   }
-                },
-                "fullRange": {
-                  "start": 0,
-                  "end": 96
-                },
-                "fullPosRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 7,
-                    "character": 1
-                  }
-                },
-                "contributor": "binder",
-                "isotopeIdentifier": "regular"
+                ]
               }
-            ]
-          }
+            }
+          ]
         }
       },
       "::test::<anonymous 0>": {
@@ -201,156 +203,159 @@ exports[`mcdoc __fixture__ > union/number range 1`] = `
           }
         },
         "subcategory": "struct",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "struct",
-                    "fields": [
+        "members": {
+          "min_inclusive": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": "file:///test.mcdoc",
+                    "contributor": "binder"
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "kind": "pair",
-                        "key": "min_inclusive",
-                        "type": {
-                          "kind": "int"
-                        }
-                      },
-                      {
-                        "kind": "pair",
-                        "key": "max_inclusive",
-                        "type": {
-                          "kind": "int"
-                        }
+                        "uri": "file:///test.mcdoc",
+                        "range": {
+                          "start": 48,
+                          "end": 61
+                        },
+                        "posRange": {
+                          "start": {
+                            "line": 4,
+                            "character": 2
+                          },
+                          "end": {
+                            "line": 4,
+                            "character": 15
+                          }
+                        },
+                        "fullRange": {
+                          "start": 48,
+                          "end": 66
+                        },
+                        "fullPosRange": {
+                          "start": {
+                            "line": 4,
+                            "character": 2
+                          },
+                          "end": {
+                            "line": 4,
+                            "character": 20
+                          }
+                        },
+                        "contributor": "binder",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 37,
-                  "end": 43
-                },
-                "posRange": {
-                  "start": {
-                    "line": 3,
-                    "character": 1
-                  },
-                  "end": {
-                    "line": 3,
-                    "character": 7
-                  }
-                },
-                "contributor": "binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "min_inclusive": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///test.mcdoc",
-                      "contributor": "binder"
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "file:///test.mcdoc",
-                    "range": {
-                      "start": 48,
-                      "end": 61
-                    },
-                    "posRange": {
-                      "start": {
-                        "line": 4,
-                        "character": 2
-                      },
-                      "end": {
-                        "line": 4,
-                        "character": 15
-                      }
-                    },
-                    "fullRange": {
-                      "start": 48,
-                      "end": 66
-                    },
-                    "fullPosRange": {
-                      "start": {
-                        "line": 4,
-                        "character": 2
-                      },
-                      "end": {
-                        "line": 4,
-                        "character": 20
-                      }
-                    },
-                    "contributor": "binder",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "max_inclusive": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///test.mcdoc",
-                      "contributor": "binder"
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": "file:///test.mcdoc",
+                    "contributor": "binder"
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "file:///test.mcdoc",
+                        "range": {
+                          "start": 70,
+                          "end": 83
+                        },
+                        "posRange": {
+                          "start": {
+                            "line": 5,
+                            "character": 2
+                          },
+                          "end": {
+                            "line": 5,
+                            "character": 15
+                          }
+                        },
+                        "fullRange": {
+                          "start": 70,
+                          "end": 88
+                        },
+                        "fullPosRange": {
+                          "start": {
+                            "line": 5,
+                            "character": 2
+                          },
+                          "end": {
+                            "line": 5,
+                            "character": 20
+                          }
+                        },
+                        "contributor": "binder",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///test.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "struct",
+                  "fields": [
+                    {
+                      "kind": "pair",
+                      "key": "min_inclusive",
+                      "type": {
+                        "kind": "int"
+                      }
+                    },
+                    {
+                      "kind": "pair",
+                      "key": "max_inclusive",
+                      "type": {
+                        "kind": "int"
+                      }
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "file:///test.mcdoc",
                     "range": {
-                      "start": 70,
-                      "end": 83
+                      "start": 37,
+                      "end": 43
                     },
                     "posRange": {
                       "start": {
-                        "line": 5,
-                        "character": 2
+                        "line": 3,
+                        "character": 1
                       },
                       "end": {
-                        "line": 5,
-                        "character": 15
-                      }
-                    },
-                    "fullRange": {
-                      "start": 70,
-                      "end": 88
-                    },
-                    "fullPosRange": {
-                      "start": {
-                        "line": 5,
-                        "character": 2
-                      },
-                      "end": {
-                        "line": 5,
-                        "character": 20
+                        "line": 3,
+                        "character": 7
                       }
                     },
                     "contributor": "binder",
@@ -359,7 +364,7 @@ exports[`mcdoc __fixture__ > union/number range 1`] = `
                 ]
               }
             }
-          }
+          ]
         }
       }
     }

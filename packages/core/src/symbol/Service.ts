@@ -7,13 +7,14 @@ import {
 	SymbolHandle,
 } from './Handle.js'
 import { LocalSymbol, type LocalSymbolContext } from './local.js'
-import type { SymbolEvents, SymbolLocationEvent, SymbolStorage } from './Storage.js'
+import type { SymbolStorage } from './Storage.js'
 import type {
 	AllCategory,
 	Symbol,
 	SymbolLocationBuiltInContributor,
 	SymbolMap,
 	SymbolTable,
+	SymbolUsages,
 	SymbolUsageType,
 	SymbolView,
 } from './Symbol.js'
@@ -35,10 +36,16 @@ export interface SymbolWriteTarget {
 	identifier: string
 }
 
+export interface SymbolLocationEntry {
+	symbol: Symbol
+	type: SymbolUsageType
+	location: SymbolLocation
+}
+
 export interface SymbolClearOptions {
 	contributor?: string
 	uri?: string
-	predicate?: (this: void, data: SymbolLocationEvent) => boolean
+	predicate?: (this: void, data: SymbolLocationEntry) => boolean
 }
 
 /** A light weighted service for managing symbol contribution and pending edits.
@@ -307,7 +314,7 @@ export class SymbolService {
 	 */
 	removeLocationsFromSymbol(
 		symbol: Symbol,
-		predicate: (this: void, data: SymbolLocationEvent) => boolean,
+		predicate: (this: void, data: SymbolLocationEntry) => boolean,
 	): void {
 		this.runOrDefer(() => {
 			for (const container of SymbolUtil.allUsageContainers(symbol)) {
@@ -317,7 +324,9 @@ export class SymbolService {
 						if (!predicate({ location, symbol, type })) {
 							return true
 						}
-						this.storage.emit('symbolLocationRemoved', { symbol, type, location })
+						if (!LocalSymbol.is(symbol)) {
+							this.storage.recordLocationRemoved(symbol, location)
+						}
 						return false
 					})
 					if (retained?.length !== locations?.length) {
@@ -381,7 +390,6 @@ export class SymbolService {
 		} else {
 			ans = this.createSymbol(target, addition, doc, contributor)
 		}
-		this.storage.emit('symbolAmended', { symbol: ans })
 		return ans
 	}
 
@@ -412,7 +420,9 @@ export class SymbolService {
 			path,
 		})
 		this.amendSymbolMetadata(ans, addition.data)
-		this.storage.emit('symbolCreated', { symbol: ans })
+		if (!LocalSymbol.is(ans)) {
+			this.storage.markForTrim(ans)
+		}
 		if (addition.data || addition.usage) {
 			this.amendSymbol(ans, addition, doc, contributor)
 		}
@@ -441,28 +451,27 @@ export class SymbolService {
 	}
 
 	/**
-	 * Creates a symbol location from the supplied usage, appends it to the owner,
-	 * and emits a `symbolLocationCreated` event.
+	 * Creates a symbol location from the supplied usage and appends it to the owner.
 	 *
 	 * Does nothing if `addition` is undefined. The usage type defaults to `reference`.
 	 * For URIs other than file: and archive:, the location is stored without range information.
 	 *
-	 * @param symbol The symbol associated with the location and emitted event.
+	 * @param symbol The symbol associated with the location.
 	 * @param addition The usage to record, including its node or range and metadata.
 	 * @param doc The document used to create the location.
 	 * @param contributor The contributor responsible for the usage, if specified.
-	 * @param container The container whose usage arrays receive the location.
+	 * @param usages The usages
 	 */
 	appendSymbolUsage(
 		symbol: Symbol,
 		addition: SymbolAdditionUsage | undefined,
 		doc: TextDocument,
 		contributor: string | undefined,
-		container: Partial<Record<SymbolUsageType, SymbolLocation[]>>,
+		usages: SymbolUsages,
 	): void {
 		if (addition) {
 			const type = addition.type ?? 'reference'
-			const arr = (container[type] ??= [])
+			const arr = (usages[type] ??= [])
 			const range = Range.get(
 				(SymbolAdditionUsageWithNode.is(addition) ? addition.node : addition.range) ?? 0,
 			)
@@ -483,7 +492,9 @@ export class SymbolService {
 				delete location.fullPosRange
 			}
 			arr.push(location)
-			this.storage.emit('symbolLocationCreated', { symbol, type, location })
+			if (!LocalSymbol.is(symbol)) {
+				this.storage.recordLocationAdded(symbol, location)
+			}
 		}
 	}
 
@@ -533,13 +544,6 @@ export class SymbolService {
 	/** @returns true if the symbol exits but the current URI has no access to it. */
 	hasNoAccessToFileSymbol(symbol: Symbol | undefined, uri: string): boolean {
 		return SymbolUtil.hasNoAccessToFileSymbol(symbol, uri, this.storage.resolveResourceLocation)
-	}
-
-	/** Emit a symbol event.*/
-	emitEvent<K extends keyof SymbolEvents & string>(name: K, data: SymbolEvents[K]): void {
-		// redirect it to its storage.
-		// keep this function just for semantic clearance.
-		this.storage.emit(name, data)
 	}
 
 	private amendSymbolMetadata(symbol: Symbol, addition: SymbolAddition['data']): void {

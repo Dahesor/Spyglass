@@ -4,46 +4,47 @@ exports[`mcdoc __fixture__ > struct/duplicated keys in nested anonymous struct 1
     "mcdoc": {
       "::test": {
         "subcategory": "module",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "nextAnonymousIndex": 1
-                }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 0,
-                  "end": 0
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 0
-                  }
-                },
-                "contributor": "uri_binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
         "data": {
           "nextAnonymousIndex": 1
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///test.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "nextAnonymousIndex": 1
+              },
+              "usages": {
+                "definition": [
+                  {
+                    "uri": "file:///test.mcdoc",
+                    "range": {
+                      "start": 0,
+                      "end": 0
+                    },
+                    "posRange": {
+                      "start": {
+                        "line": 0,
+                        "character": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "character": 0
+                      }
+                    },
+                    "contributor": "uri_binder",
+                    "isotopeIdentifier": "regular"
+                  }
+                ]
+              }
+            }
+          ]
         }
       },
       "::test::Test": {
@@ -78,128 +79,130 @@ exports[`mcdoc __fixture__ > struct/duplicated keys in nested anonymous struct 1
           }
         },
         "subcategory": "struct",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "struct",
-                    "fields": [
+        "members": {
+          "child": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": "file:///test.mcdoc",
+                    "contributor": "binder"
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "kind": "pair",
-                        "key": "child",
-                        "type": {
-                          "kind": "struct",
-                          "fields": [
-                            {
-                              "kind": "pair",
-                              "key": "naughty",
-                              "type": {
-                                "kind": "boolean"
-                              }
-                            },
-                            {
-                              "kind": "pair",
-                              "key": "naughty",
-                              "type": {
-                                "kind": "string"
-                              }
-                            }
-                          ]
-                        }
+                        "uri": "file:///test.mcdoc",
+                        "range": {
+                          "start": 15,
+                          "end": 20
+                        },
+                        "posRange": {
+                          "start": {
+                            "line": 1,
+                            "character": 1
+                          },
+                          "end": {
+                            "line": 1,
+                            "character": 6
+                          }
+                        },
+                        "fullRange": {
+                          "start": 15,
+                          "end": 72
+                        },
+                        "fullPosRange": {
+                          "start": {
+                            "line": 1,
+                            "character": 1
+                          },
+                          "end": {
+                            "line": 4,
+                            "character": 2
+                          }
+                        },
+                        "contributor": "binder",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 7,
-                  "end": 11
-                },
-                "posRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 7
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 11
-                  }
-                },
-                "fullRange": {
-                  "start": 0,
-                  "end": 75
-                },
-                "fullPosRange": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 5,
-                    "character": 1
-                  }
-                },
-                "contributor": "binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
+              ]
+            }
           }
         },
-        "members": {
-          "child": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///test.mcdoc",
-                      "contributor": "binder"
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///test.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "struct",
+                  "fields": [
+                    {
+                      "kind": "pair",
+                      "key": "child",
+                      "type": {
+                        "kind": "struct",
+                        "fields": [
+                          {
+                            "kind": "pair",
+                            "key": "naughty",
+                            "type": {
+                              "kind": "boolean"
+                            }
+                          },
+                          {
+                            "kind": "pair",
+                            "key": "naughty",
+                            "type": {
+                              "kind": "string"
+                            }
+                          }
+                        ]
+                      }
                     }
-                  }
-                ],
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "file:///test.mcdoc",
                     "range": {
-                      "start": 15,
-                      "end": 20
+                      "start": 7,
+                      "end": 11
                     },
                     "posRange": {
                       "start": {
-                        "line": 1,
-                        "character": 1
+                        "line": 0,
+                        "character": 7
                       },
                       "end": {
-                        "line": 1,
-                        "character": 6
+                        "line": 0,
+                        "character": 11
                       }
                     },
                     "fullRange": {
-                      "start": 15,
-                      "end": 72
+                      "start": 0,
+                      "end": 75
                     },
                     "fullPosRange": {
                       "start": {
-                        "line": 1,
-                        "character": 1
+                        "line": 0,
+                        "character": 0
                       },
                       "end": {
-                        "line": 4,
-                        "character": 2
+                        "line": 5,
+                        "character": 1
                       }
                     },
                     "contributor": "binder",
@@ -208,7 +211,7 @@ exports[`mcdoc __fixture__ > struct/duplicated keys in nested anonymous struct 1
                 ]
               }
             }
-          }
+          ]
         }
       },
       "::test::<anonymous 0>": {
@@ -234,105 +237,107 @@ exports[`mcdoc __fixture__ > struct/duplicated keys in nested anonymous struct 1
           }
         },
         "subcategory": "struct",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": "file:///test.mcdoc",
-                  "contributor": "binder"
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "struct",
-                    "fields": [
+        "members": {
+          "naughty": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": "file:///test.mcdoc",
+                    "contributor": "binder"
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "kind": "pair",
-                        "key": "naughty",
-                        "type": {
-                          "kind": "boolean"
-                        }
-                      },
-                      {
-                        "kind": "pair",
-                        "key": "naughty",
-                        "type": {
-                          "kind": "string"
-                        }
+                        "uri": "file:///test.mcdoc",
+                        "range": {
+                          "start": 33,
+                          "end": 40
+                        },
+                        "posRange": {
+                          "start": {
+                            "line": 2,
+                            "character": 2
+                          },
+                          "end": {
+                            "line": 2,
+                            "character": 9
+                          }
+                        },
+                        "fullRange": {
+                          "start": 33,
+                          "end": 49
+                        },
+                        "fullPosRange": {
+                          "start": {
+                            "line": 2,
+                            "character": 2
+                          },
+                          "end": {
+                            "line": 2,
+                            "character": 18
+                          }
+                        },
+                        "contributor": "binder",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "file:///test.mcdoc",
-                "range": {
-                  "start": 22,
-                  "end": 28
-                },
-                "posRange": {
-                  "start": {
-                    "line": 1,
-                    "character": 8
-                  },
-                  "end": {
-                    "line": 1,
-                    "character": 14
-                  }
-                },
-                "contributor": "binder",
-                "isotopeIdentifier": "regular"
-              }
-            ]
+              ]
+            }
           }
         },
-        "members": {
-          "naughty": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": "file:///test.mcdoc",
-                      "contributor": "binder"
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": "file:///test.mcdoc",
+                "contributor": "binder"
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "struct",
+                  "fields": [
+                    {
+                      "kind": "pair",
+                      "key": "naughty",
+                      "type": {
+                        "kind": "boolean"
+                      }
+                    },
+                    {
+                      "kind": "pair",
+                      "key": "naughty",
+                      "type": {
+                        "kind": "string"
+                      }
                     }
-                  }
-                ],
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "file:///test.mcdoc",
                     "range": {
-                      "start": 33,
-                      "end": 40
+                      "start": 22,
+                      "end": 28
                     },
                     "posRange": {
                       "start": {
-                        "line": 2,
-                        "character": 2
+                        "line": 1,
+                        "character": 8
                       },
                       "end": {
-                        "line": 2,
-                        "character": 9
-                      }
-                    },
-                    "fullRange": {
-                      "start": 33,
-                      "end": 49
-                    },
-                    "fullPosRange": {
-                      "start": {
-                        "line": 2,
-                        "character": 2
-                      },
-                      "end": {
-                        "line": 2,
-                        "character": 18
+                        "line": 1,
+                        "character": 14
                       }
                     },
                     "contributor": "binder",
@@ -341,7 +346,7 @@ exports[`mcdoc __fixture__ > struct/duplicated keys in nested anonymous struct 1
                 ]
               }
             }
-          }
+          ]
         }
       }
     }

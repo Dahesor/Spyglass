@@ -944,7 +944,7 @@ function simplifyIndexed<T>(
 
 function resolveIndices<T>(
 	parallelIndices: ParallelIndices,
-	symbolMap: { [key: string]: Pick<Symbol, 'data' | 'facets'> },
+	symbolMap: { [key: string]: Pick<Symbol, 'data' | 'scopes'> },
 	symbolHandle: SymbolHandle | undefined,
 	context: SimplifyContext<T>,
 ): SimplifyResult<SimplifiedMcdocType> {

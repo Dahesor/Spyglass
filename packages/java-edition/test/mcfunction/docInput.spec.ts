@@ -27,12 +27,12 @@ function parse(marked: string, project = mockProjectData()) {
 
 describe('@input', () => {
 	for (
-		const args of [
-			'score @s counter',
-			'storage demo:ram foo',
-			'block ~ ~ ~ foo',
-			'entity @s foo',
-			'entity @e[limit=1] foo',
+		const [args, expected] of [
+			['score @s counter', '*@writes* *score* `@s counter` — Explanation'],
+			['storage demo:ram foo', '*@writes* *storage* `demo:ram foo` — Explanation'],
+			['block ~ ~ ~ foo', '*@writes* *block* `~ ~ ~ foo` — Explanation'],
+			['entity @s foo', '*@writes* *entity* `@s foo` — Explanation'],
+			['entity @e[limit=1] foo', '*@writes* *entity* `@e[limit=1] foo` — Explanation'],
 		]
 	) {
 		it('parses @writes without exceptions and produces documentation: ' + args, t => {
@@ -42,7 +42,7 @@ describe('@input', () => {
 			t.assert.equal(ctx.err.errors.length, 0)
 			const binder = core.BinderContext.create(project, { doc })
 			binder.symbols.contributeAs('binder', () => mcf.bindDoc(node, binder))
-			t.assert.equal(node.description, 'writes: ' + args + '\nExplanation')
+			t.assert.equal(node.description, expected)
 			const command = node.docDirectives[0].argumentNode!.children![0] as mcf.CommandNode
 			const value = command.children.at(-1)!.children[0] as core.AstNode & {
 				properties?: Record<string, unknown>
@@ -104,16 +104,25 @@ describe('@input', () => {
 		t.assert.equal(returns.docDirectives[0].parent, returns)
 		t.assert.deepEqual(input.docDirectives, [])
 	})
-	for (const args of ['score @s counter', 'storage demo:ram foo.bar[0]']) {
+	for (
+		const [args, expected] of [
+			['score @s counter', ' Other\n\n*@input* *score* `@s counter` — Description'],
+			[
+				'storage demo:ram foo.bar[0]',
+				' Other\n\n*@input* *storage* `demo:ram foo.bar[0]` — Description',
+			],
+		]
+	) {
 		it('documents arguments and one indented comment: ' + args, t => {
 			const { project, doc, node, ctx } = parse(
-				'#>function demo:self\n#@input ' + args + '\n#  Description\n# Other',
+				'#>function demo:self\n# @input ' + args + '\n#  Description\n# Other',
 			)
 			const binder = core.BinderContext.create(project, { doc })
 			binder.symbols.contributeAs('binder', () => mcf.bindDoc(node, binder))
 			t.assert.equal(ctx.err.errors.length, 0)
-			t.assert.equal(node.description, ' Other\n\ninput: ' + args + '\nDescription')
+			t.assert.equal(node.description, expected)
 			t.assert.equal(node.docDirectives[0].inputComment, 'Description')
+			t.assert.equal(node.commentDescription, ' Other')
 		})
 	}
 	it('leaves an equally indented comment outside the input', t => {

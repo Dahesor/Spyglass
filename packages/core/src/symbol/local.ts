@@ -14,7 +14,7 @@ export interface LocalSymbolContext {
 
 export interface LocalSymbol extends SymbolView {
 	isLocal: true
-	facets?: never
+	scopes?: never
 }
 
 const localTables = new WeakSet<SymbolTable>()
@@ -104,18 +104,18 @@ export namespace LocalSymbol {
 				symbol =>
 					service.removeLocationsFromSymbol(
 						symbol,
-						(event) =>
-							(!uri || event.location.uri === uri)
-							&& (!contributor || event.location.contributor === contributor)
-							&& predicate(event),
+						(entry) =>
+							(!uri || entry.location.uri === uri)
+							&& (!contributor || entry.location.contributor === contributor)
+							&& predicate(entry),
 					),
 			)
-			trim(service, table)
+			trim(table)
 		}
 	}
 
 	/** Remove trimmable symbols from the given local symbol table. */
-	export function trim(service: SymbolService, table: SymbolTable): void {
+	export function trim(table: SymbolTable): void {
 		const trimMap = (map: SymbolMap) => {
 			for (const symbol of Object.values(map)) {
 				if (symbol.members) {
@@ -123,7 +123,6 @@ export namespace LocalSymbol {
 				}
 				if (SymbolUtil.isTrimmable(symbol)) {
 					delete map[symbol.identifier]
-					service.emitEvent('symbolRemoved', { symbol })
 				}
 			}
 		}

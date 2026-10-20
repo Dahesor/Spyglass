@@ -1,23 +1,7 @@
-import { EventDispatcher } from '../common/index.js'
-import type { Symbol, SymbolLocation, SymbolTable, SymbolUsageType } from './Symbol.js'
+import type { Symbol, SymbolLocation, SymbolTable } from './Symbol.js'
 import { SymbolPath } from './Symbol.js'
 import { SymbolUtil } from './util.js'
 import type { ResourceLocationResolver } from './util/visibility.js'
-
-interface SymbolEvent {
-	symbol: Symbol
-}
-export interface SymbolLocationEvent extends SymbolEvent {
-	type: SymbolUsageType
-	location: SymbolLocation
-}
-export type SymbolEvents = {
-	symbolCreated: SymbolEvent
-	symbolAmended: SymbolEvent
-	symbolRemoved: SymbolEvent
-	symbolLocationCreated: SymbolLocationEvent
-	symbolLocationRemoved: SymbolLocationEvent
-}
 
 interface UriSymbolCache {
 	uris: Record<string, Map<string, number>>
@@ -25,18 +9,16 @@ interface UriSymbolCache {
 }
 
 /**
- * Owns a global table, its indexes and its committed-change events.
+ * Owns a global table, its location indexes and its trim candidates.
  */
-export class SymbolStorage extends EventDispatcher<SymbolEvents> {
+export class SymbolStorage {
 	readonly #trimCandidates = new Set<string>()
 	readonly #cache = new Map<string | undefined, UriSymbolCache>()
-	#hadObservers = false
 
 	constructor(
 		readonly global: SymbolTable = {},
 		readonly resolveResourceLocation?: ResourceLocationResolver,
 	) {
-		super()
 		this.rebuildIndex()
 	}
 
@@ -83,7 +65,7 @@ export class SymbolStorage extends EventDispatcher<SymbolEvents> {
 		const trimSymbol = (symbol: Symbol | undefined): void => {
 			if (symbol && SymbolUtil.isTrimmable(symbol)) {
 				delete symbol.parentMap[symbol.identifier]
-				this.emit('symbolRemoved', { symbol })
+				this.#trimCandidates.delete(SymbolPath.toString(symbol))
 				trimSymbol(symbol.parentSymbol)
 			}
 		}
@@ -94,44 +76,19 @@ export class SymbolStorage extends EventDispatcher<SymbolEvents> {
 		}
 	}
 
-	/** Keep indexes current before notifying observers */
-	override emit<K extends keyof SymbolEvents & string>(name: K, data: SymbolEvents[K]): void {
-		const { symbol } = data
-		switch (name) {
-			case 'symbolCreated':
-				this.markForTrim(symbol)
-				break
-			case 'symbolLocationRemoved':
-				if (this.owns(symbol)) {
-					this.unindexLocation(symbol, (data as SymbolLocationEvent).location)
-				}
-				this.markForTrim(symbol)
-				break
-			case 'symbolRemoved':
-				if (this.owns(symbol)) {
-					this.#trimCandidates.delete(SymbolPath.toString(symbol))
-				}
-				break
-			case 'symbolLocationCreated':
-				if (this.owns(symbol)) {
-					this.indexLocation(symbol, (data as SymbolLocationEvent).location)
-				}
-				break
-		}
-		if (this.#hadObservers) {
-			super.emit(name, data)
+	/** Record an added global usage location.*/
+	recordLocationAdded(symbol: Symbol, location: SymbolLocation): void {
+		if (this.owns(symbol)) {
+			this.indexLocation(symbol, location)
 		}
 	}
 
-	override on<K extends keyof SymbolEvents & string>(
-		name: K,
-		listener: (data: SymbolEvents[K]) => unknown,
-		options?: AddEventListenerOptions,
-	): this {
-		// Enable dispatch only when an observer subscribes
-		// Never disable it again to keep things simple, at least for now
-		this.#hadObservers = true
-		return super.on(name, listener, options)
+	/** Remove a global usage location and schedule its symbol for trimming. */
+	recordLocationRemoved(symbol: Symbol, location: SymbolLocation): void {
+		if (this.owns(symbol)) {
+			this.unindexLocation(symbol, location)
+			this.#trimCandidates.add(SymbolPath.toString(symbol))
+		}
 	}
 
 	private indexLocation(symbol: Symbol, location: SymbolLocation): void {

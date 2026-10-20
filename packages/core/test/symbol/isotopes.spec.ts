@@ -21,21 +21,21 @@ function add(service: SymbolService, identifier: string, scope: IsotopeScope, ov
 			scope,
 			desc: identifier,
 			overrideLevel,
-			...(scope < Scope.Project ? { visibleWithin: [{ glob: '**/demo/**' }] } : {}),
+			...(scope < Scope.Internal ? { visibleWithin: [{ glob: '**/demo/**' }] } : {}),
 		},
 		usage: { type: 'declaration' },
 	})
 	return service.storage.global.tag!['test']
 }
 
-describe('symbol facets', () => {
+describe('symbol scopes', () => {
 	it('stops cleanup after finding surviving usages for the affected metadata', t => {
 		const util = new SymbolService(new SymbolStorage({}))
-		const symbol = add(util, 'global', Scope.Global)
-		add(util, 'internal', Scope.Project)
-		const facet = symbol.facets!.global!
+		const symbol = add(util, 'global', Scope.Public)
+		add(util, 'internal', Scope.Internal)
+		const facet = symbol.scopes!.public!
 		let visited = 0
-		facet.reference = [{
+		facet[0].usages.reference = [{
 			uri,
 			get isotopeIdentifier() {
 				visited++
@@ -43,47 +43,47 @@ describe('symbol facets', () => {
 			},
 		}]
 		// The declaration already proves that each isotope survives. Neither the
-		// remaining references nor unaffected facets need a scan.
+		// remaining references nor unaffected scopes need a scan.
 		Isotope.cleanupAfterLocationRemoval(util, symbol, new Set(['global', 'internal']), false)
 		t.assert.equal(visited, 0)
-		t.assert.deepEqual(facet.isotopes.map(isotope => isotope.identifier), ['global'])
-		t.assert.deepEqual(symbol.facets!.internal!.isotopes.map(isotope => isotope.identifier), [
+		t.assert.deepEqual(facet.map(isotope => isotope.identifier), ['global'])
+		t.assert.deepEqual(symbol.scopes!.internal?.map(isotope => isotope.identifier), [
 			'internal',
 		])
-		facet.declaration = []
+		facet[0].usages.declaration = []
 		Isotope.cleanupAfterLocationRemoval(util, symbol, new Set(['internal']), false)
 		t.assert.equal(visited, 0)
 		Isotope.cleanupAfterLocationRemoval(util, symbol, new Set(['global']), false)
 		t.assert.equal(visited > 0, true)
-		t.assert.equal(facet.isotopes.length, 1)
+		t.assert.equal(facet.length, 1)
 	})
-	it('removes only affected metadata without surviving usages across shared facets', t => {
+	it('removes only affected metadata without surviving usages across shared scopes', t => {
 		const util = new SymbolService(new SymbolStorage({}))
-		const symbol = add(util, 'surviving', Scope.Global)
-		add(util, 'removed', Scope.Global)
-		add(util, 'internal', Scope.Project)
-		add(util, 'untouched', Scope.Project)
-		symbol.facets!.global!.declaration = symbol.facets!.global!.declaration!
+		const symbol = add(util, 'surviving', Scope.Public)
+		add(util, 'removed', Scope.Public)
+		add(util, 'internal', Scope.Internal)
+		add(util, 'untouched', Scope.Internal)
+		symbol.scopes!.public![0].usages.declaration = symbol.scopes!.public![0].usages.declaration!
 			.filter(location => location.isotopeIdentifier === 'surviving')
-		symbol.facets!.internal!.declaration = []
+		symbol.scopes!.internal![0].usages.declaration = []
 		Isotope.cleanupAfterLocationRemoval(
 			util,
 			symbol,
 			new Set(['surviving', 'removed', 'internal']),
 			false,
 		)
-		t.assert.deepEqual(symbol.facets!.global!.isotopes.map(isotope => isotope.identifier), [
+		t.assert.deepEqual(symbol.scopes!.public?.map(isotope => isotope.identifier), [
 			'surviving',
 		])
-		t.assert.deepEqual(symbol.facets!.internal!.isotopes.map(isotope => isotope.identifier), [
+		t.assert.deepEqual(symbol.scopes!.internal?.map(isotope => isotope.identifier), [
 			'untouched',
 		])
 	})
 	it('only sorts metadata when its priority changes, not when adding usages', t => {
 		const util = new SymbolService(new SymbolStorage({}))
-		const symbol = add(util, 'first', Scope.Global, 1)
-		add(util, 'second', Scope.Global, 2)
-		const isotopes = symbol.facets!.global!.isotopes
+		const symbol = add(util, 'first', Scope.Public, 1)
+		add(util, 'second', Scope.Public, 2)
+		const isotopes = symbol.scopes!.public!
 		const sort = isotopes.sort.bind(isotopes)
 		let sorts = 0
 		isotopes.sort = compare => {
@@ -99,85 +99,83 @@ describe('symbol facets', () => {
 	})
 	it('reuses the first matching file location and removes only duplicates during reconciliation', t => {
 		const util = new SymbolService(new SymbolStorage({}))
-		const symbol = add(util, 'doc', Scope.Global)
-		const facet = symbol.facets!.global!
-		facet.isotopes[0].source = Provider.DocBlock
-		facet.declaration![0].fromDocDeclaration = true
+		const symbol = add(util, 'doc', Scope.Public)
+		const facet = symbol.scopes!.public!
+		facet[0].source = Provider.DocBlock
+		facet[0].usages.declaration![0].fromDocDeclaration = true
 		const first: SymbolLocation = { uri, fromFile: true, isotopeIdentifier: 'doc' }
 		const duplicate = { ...first }
 		const imported: SymbolLocation = { uri, fromFile: true, importedFrom: outside }
-		facet.implementation = [first, duplicate, imported]
-		const removed: SymbolLocation[] = []
-		const created: SymbolLocation[] = []
-		util.storage.on('symbolLocationRemoved', event => removed.push(event.location))
-		util.storage.on('symbolLocationCreated', event => created.push(event.location))
+		facet[0].usages.implementation = [first, duplicate, imported]
+		util.storage.rebuildIndex()
 		Isotope.reconcileDocUsages(util, symbol)
-		t.assert.deepEqual(facet.implementation, [imported, first])
-		t.assert.equal(facet.implementation?.[1], first)
-		t.assert.deepEqual(removed, [duplicate])
-		t.assert.deepEqual(created, [])
+		t.assert.deepEqual(facet[0].usages.implementation, [imported, first])
+		t.assert.equal(facet[0].usages.implementation?.[1], first)
+		t.assert.equal(facet[0].usages.implementation?.includes(duplicate), false)
 		Isotope.reconcileDocUsages(util, symbol)
-		t.assert.equal(facet.implementation?.[1], first)
-		t.assert.equal(removed.length, 1)
+		t.assert.equal(facet[0].usages.implementation?.[1], first)
+		util.clear({ uri })
+		t.assert.equal(util.storage.getPaths().size, 0)
 	})
 	it('deduplicates file usages against preceding command usages in the shared facet', t => {
 		const util = new SymbolService(new SymbolStorage({}))
-		const symbol = add(util, 'doc', Scope.Global)
-		const facet = symbol.facets!.global!
-		facet.isotopes[0].source = Provider.DocBlock
-		facet.declaration![0].fromDocDeclaration = true
+		const symbol = add(util, 'doc', Scope.Public)
+		const facet = symbol.scopes!.public!
+		facet[0].source = Provider.DocBlock
+		facet[0].usages.declaration![0].fromDocDeclaration = true
 		const command: SymbolLocation = {
 			uri,
 			originalUsageType: 'definition',
 			isotopeIdentifier: 'doc',
 		}
-		facet.implementation = [command, { ...command, fromFile: true }]
+		facet[0].usages.implementation = [command, { ...command, fromFile: true }]
+		util.storage.rebuildIndex()
 		Isotope.reconcileDocUsages(util, symbol)
-		t.assert.deepEqual(facet.implementation, [command])
-		t.assert.equal(facet.implementation?.[0], command)
+		t.assert.deepEqual(facet[0].usages.implementation, [command])
+		t.assert.equal(facet[0].usages.implementation?.[0], command)
 	})
 	it('refreshes selection after creating a Regular fallback during reconciliation', t => {
 		const util = new SymbolService(new SymbolStorage({}))
-		const symbol = add(util, 'stale-doc', Scope.Global)
-		const facet = symbol.facets!.global!
-		facet.isotopes[0].source = Provider.DocBlock
-		facet.declaration = []
-		facet.reference = [
+		const symbol = add(util, 'stale-doc', Scope.Public)
+		let facet = symbol.scopes!.public!
+		facet[0].source = Provider.DocBlock
+		facet[0].usages.declaration = []
+		facet[0].usages.reference = [
 			{ uri, originalUsageType: 'reference', isotopeIdentifier: 'stale-doc' },
 			{ uri: outside, originalUsageType: 'reference', isotopeIdentifier: 'stale-doc' },
 		]
-		const events: string[] = []
-		util.storage.on('symbolLocationRemoved', () => events.push('removed'))
-		util.storage.on('symbolLocationCreated', () => events.push('created'))
+		util.storage.rebuildIndex()
 		Isotope.reconcileDocUsages(util, symbol)
-		t.assert.equal(facet.isotopes.length, 1)
-		t.assert.equal(facet.isotopes[0].source, Provider.Regular)
-		t.assert.deepEqual(facet.reference?.map(value => value.isotopeIdentifier), [
-			facet.isotopes[0].identifier,
-			facet.isotopes[0].identifier,
+		facet = symbol.scopes!.public!
+		t.assert.equal(facet.length, 1)
+		t.assert.equal(facet[0].source, Provider.Regular)
+		t.assert.deepEqual(facet[0].usages.reference?.map(value => value.isotopeIdentifier), [
+			facet[0].identifier,
+			facet[0].identifier,
 		])
-		t.assert.deepEqual(events, [])
 	})
-	it('emits removals before creations when references move to a doc isotope', t => {
+	it('preserves location indexes when references move to a doc isotope', t => {
 		const util = new SymbolService(new SymbolStorage({}))
 		const symbol = add(util, 'doc', Scope.Private)
-		const doc = symbol.facets!.isotopes![0]
+		const doc = symbol.scopes!.restricted![0]
 		doc.source = Provider.DocBlock
-		doc.declaration![0].fromDocDeclaration = true
-		add(util, 'regular', Scope.Global)
-		const facet = symbol.facets!.global!
-		facet.declaration = []
-		facet.reference = [
+		doc.usages.declaration![0].fromDocDeclaration = true
+		add(util, 'regular', Scope.Public)
+		const facet = symbol.scopes!.public!
+		facet[0].usages.declaration = []
+		facet[0].usages.reference = [
 			{ uri, originalUsageType: 'reference', isotopeIdentifier: 'regular' },
 			{ uri: outside, originalUsageType: 'reference', isotopeIdentifier: 'regular' },
 		]
-		const events: string[] = []
-		util.storage.on('symbolLocationRemoved', () => events.push('removed'))
-		util.storage.on('symbolLocationCreated', () => events.push('created'))
+		util.storage.rebuildIndex()
 		Isotope.reconcileDocUsages(util, symbol)
-		t.assert.equal(doc.reference?.length, 2)
-		t.assert.deepEqual(facet.reference, [])
-		t.assert.deepEqual(events, ['removed', 'removed', 'created', 'created'])
+		t.assert.equal(doc.usages.reference?.length, 2)
+		t.assert.deepEqual(facet[0].usages.reference, [])
+		t.assert.equal(util.storage.getPaths(uri).size, 1)
+		t.assert.equal(util.storage.getPaths(outside).size, 1)
+		util.clear({ uri })
+		util.clear({ uri: outside })
+		t.assert.equal(util.storage.getPaths().size, 0)
 	})
 	it('stores every usage in Global and keeps the base free of descriptions and locations', t => {
 		const util = new SymbolService(new SymbolStorage({}))
@@ -200,30 +198,30 @@ describe('symbol facets', () => {
 			t.assert.equal(key in symbol, false)
 		}
 		for (const type of SymbolUsageTypes) {
-			t.assert.equal(symbol.facets?.global?.[type]?.length, 1)
+			t.assert.equal(symbol.scopes?.public?.[0]?.usages[type]?.length, 1)
 		}
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'description')
 	})
-	for (const scope of [Scope.Global, Scope.Project]) {
+	for (const scope of [Scope.Public, Scope.Internal]) {
 		it(`shares usages across metadata overrides and restores the remaining description (scope ${scope})`, t => {
 			const service = new SymbolService(new SymbolStorage({}))
 			add(service, 'first', scope, 1)
 			const symbol = add(service, 'second', scope, 7)
-			const facet = scope === Scope.Global ? symbol.facets!.global! : symbol.facets!.internal!
-			t.assert.deepEqual(facet.isotopes.map(value => value.identifier), ['second', 'first'])
+			const facet = scope === Scope.Public ? symbol.scopes!.public! : symbol.scopes!.internal!
+			t.assert.deepEqual(facet.map(value => value.identifier), ['second', 'first'])
 			t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.declaration?.length, 2)
 			t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'second')
 			service.clear({
 				predicate: ({ location }) => location.isotopeIdentifier === 'second',
 			})
 			t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'first')
-			t.assert.equal(facet.declaration?.length, 1)
+			t.assert.equal(facet[0].usages.declaration?.length, 1)
 		})
 	}
 	it('prefers Internal over Public regardless of their override levels', t => {
 		const service = new SymbolService(new SymbolStorage({}))
-		add(service, 'public', Scope.Global, 100)
-		const symbol = add(service, 'internal', Scope.Project, -1)
+		add(service, 'public', Scope.Public, 100)
+		const symbol = add(service, 'internal', Scope.Internal, -1)
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside)?.desc, 'internal')
 		service.clear({
 			predicate: ({ location }) => location.isotopeIdentifier === 'internal',
@@ -236,14 +234,14 @@ describe('symbol facets', () => {
 		add(service, 'private', Scope.Private, 1)
 		const symbol = add(service, 'tie', Scope.Private, 1)
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'private')
-		symbol.facets!.isotopes![2].overrideLevel = 2
+		symbol.scopes!.restricted![2].overrideLevel = 2
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'tie')
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside), undefined)
 	})
 	it('refreshes glob matching after replacement and in-place edits', t => {
 		const service = new SymbolService(new SymbolStorage({}))
 		const symbol = add(service, 'private', Scope.Private)
-		const isotope = symbol.facets!.isotopes![0]
+		const isotope = symbol.scopes!.restricted![0]
 		t.assert.equal(Isotope.selectIsotope(symbol, uri), isotope)
 		isotope.visibleWithin = [{ glob: '**/other/**' }]
 		t.assert.equal(Isotope.selectIsotope(symbol, uri), undefined)
@@ -255,9 +253,9 @@ describe('symbol facets', () => {
 	it('checks namespace in addition to matching globs', t => {
 		const service = new SymbolService(new SymbolStorage({}))
 		const symbol = add(service, 'namespace', Scope.Protected)
-		symbol.facets!.isotopes![0].visibleWithin![0].namespace = 'other'
+		symbol.scopes!.restricted![0].visibleWithin![0].namespace = 'other'
 		t.assert.equal(Isotope.selectIsotope(symbol, uri, mockResourceLocation), undefined)
-		symbol.facets!.isotopes![0].visibleWithin![0].namespace = 'demo'
+		symbol.scopes!.restricted![0].visibleWithin![0].namespace = 'demo'
 		t.assert.notEqual(Isotope.selectIsotope(symbol, uri, mockResourceLocation), undefined)
 	})
 	it('records inaccessible references without creating a public facet', t => {
@@ -267,8 +265,8 @@ describe('symbol facets', () => {
 			{ usage: { type: 'reference' } },
 			SymbolEnterType.InFileSymbol,
 		)
-		t.assert.equal(symbol.facets?.isotopes?.[0].reference?.length, 1)
-		t.assert.equal(symbol.facets?.global, undefined)
+		t.assert.equal(symbol.scopes?.restricted?.[0].usages.reference?.length, 1)
+		t.assert.equal(symbol.scopes?.public, undefined)
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside), undefined)
 	})
 	it('rejects undefined scope or source before mutating metadata or locations', t => {
@@ -284,14 +282,14 @@ describe('symbol facets', () => {
 				/cannot be undefined/,
 			)
 		}
-		t.assert.equal(symbol.facets?.isotopes?.[0].desc, 'private')
-		t.assert.equal(symbol.facets?.isotopes?.[0].reference, undefined)
+		t.assert.equal(symbol.scopes?.restricted?.[0].desc, 'private')
+		t.assert.equal(symbol.scopes?.restricted?.[0].usages.reference, undefined)
 	})
 	it('defers isotope creation and chained updates until delayed edits commit', t => {
 		const service = new SymbolService(new SymbolStorage({}))
 		const delayed = service.cloneDelayed()
 		delayed.query(uri, 'tag', 'test').enterIsotope('doc', {
-			data: { source: Provider.Regular, scope: Scope.Global, desc: 'first' },
+			data: { source: Provider.Regular, scope: Scope.Public, desc: 'first' },
 			usage: { type: 'declaration' },
 		}).enterIsotope('doc', { data: { desc: 'updated' }, usage: { type: 'reference' } })
 		t.assert.equal(service.storage.global.tag, undefined)
@@ -300,25 +298,31 @@ describe('symbol facets', () => {
 			SymbolUtil.viewFromContext(service.storage.global.tag!['test'], uri)?.desc,
 			'updated',
 		)
-		t.assert.equal(service.storage.global.tag!['test'].facets?.global?.reference?.length, 1)
+		t.assert.equal(
+			service.storage.global.tag!['test'].scopes?.public?.[0]?.usages.reference?.length,
+			1,
+		)
 		delayed.applyDelayedEdits()
-		t.assert.equal(service.storage.global.tag!['test'].facets?.global?.reference?.length, 1)
+		t.assert.equal(
+			service.storage.global.tag!['test'].scopes?.public?.[0]?.usages.reference?.length,
+			1,
+		)
 	})
 	it('does not leak abandoned delayed updates', t => {
 		const service = new SymbolService(new SymbolStorage({}))
-		const symbol = add(service, 'first', Scope.Global)
+		const symbol = add(service, 'first', Scope.Public)
 		service.cloneDelayed().query(uri, 'tag', 'test').enterIsotope('first', {
 			data: { desc: 'abandoned' },
 			usage: { type: 'reference' },
 		})
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.desc, 'first')
-		t.assert.equal(symbol.facets?.global?.reference, undefined)
+		t.assert.equal(symbol.scopes?.public?.[0]?.usages.reference, undefined)
 	})
 	it('uses contextual data in queries and keeps visible collections linked to raw symbols', t => {
 		const service = new SymbolService(new SymbolStorage({}))
 		const symbol = add(service, 'private', Scope.Private)
 		symbol.data = 'base data'
-		symbol.facets!.isotopes![0].data = 'private data'
+		symbol.scopes!.restricted![0].data = 'private data'
 		const query = service.query(uri, 'tag', 'test')
 		t.assert.equal(
 			query.getData((value): value is string => typeof value === 'string'),
@@ -336,8 +340,8 @@ describe('symbol facets', () => {
 		})
 		service.query(outside, 'mcdoc', 'module::Type').enter({ usage: { type: 'reference' } })
 		const symbol = service.storage.global.mcdoc!['module::Type']
-		t.assert.equal(symbol.facets?.global?.isotopes.length, 1)
-		t.assert.equal(symbol.facets?.global?.reference?.length, 1)
+		t.assert.equal(symbol.scopes?.public?.length, 1)
+		t.assert.equal(symbol.scopes?.public?.[0]?.usages.reference?.length, 1)
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, undefined)?.desc, 'type')
 	})
 	it('uses Builtin for registered resources and Regular for ordinary contributions', t => {
@@ -351,11 +355,11 @@ describe('symbol facets', () => {
 		)
 		service.query(uri, 'item', 'regular').enter({ usage: { type: 'definition' } })
 		t.assert.equal(
-			service.storage.global.item!['builtin'].facets?.global?.isotopes[0].source,
+			service.storage.global.item!['builtin'].scopes?.public?.[0].source,
 			Provider.Builtin,
 		)
 		t.assert.equal(
-			service.storage.global.item!['regular'].facets?.global?.isotopes[0].source,
+			service.storage.global.item!['regular'].scopes?.public?.[0].source,
 			Provider.Regular,
 		)
 	})
@@ -363,12 +367,14 @@ describe('symbol facets', () => {
 
 describe('file symbol access checks', () => {
 	it('matches isotope selection across scopes, URI rules and contextual views', t => {
-		for (const scope of [Scope.Private, Scope.Protected, Scope.Project, Scope.Global]) {
+		for (const scope of [Scope.Private, Scope.Protected, Scope.Internal, Scope.Public]) {
 			const service = new SymbolService(new SymbolStorage({}))
 			const symbol = add(service, 'test', scope)
-			for (const rules of [[], [{ glob: '' }], [{ glob: '**/demo/**' }], [{ namespace: 'demo' }]]) {
-				if (symbol.facets?.isotopes?.[0]) {
-					symbol.facets.isotopes[0].visibleWithin = rules
+			for (
+				const rules of [[], [{ glob: '' }], [{ glob: '**/demo/**' }], [{ namespace: 'demo' }]]
+			) {
+				if (symbol.scopes?.restricted?.[0]) {
+					symbol.scopes.restricted[0].visibleWithin = rules
 				}
 				for (const contextUri of [undefined, '', uri, outside]) {
 					t.assert.equal(
@@ -386,26 +392,27 @@ describe('file symbol access checks', () => {
 			}
 			for (const category of ['mcdoc', 'mcdoc/dispatcher']) {
 				symbol.category = category
-				t.assert.equal(Isotope.isVisible(symbol, uri), scope === Scope.Global)
+				t.assert.equal(Isotope.isVisible(symbol, uri), scope === Scope.Public)
 			}
 		}
 	})
 	it('skips restricted rules for public symbols and stops at the first restricted match', t => {
 		const service = new SymbolService(new SymbolStorage({}))
 		const symbol = add(service, 'private', Scope.Private)
-		const first = symbol.facets!.isotopes![0]!
+		const first = symbol.scopes!.restricted![0]!
 		first.visibleWithin = [{ namespace: 'demo' }]
 		let calls = 0
 		const resolve = (value: string) => {
 			calls++
 			return mockResourceLocation(value)
 		}
-		add(service, 'public', Scope.Global)
+		add(service, 'public', Scope.Public)
 		t.assert.equal(Isotope.isVisible(symbol, uri, resolve), true)
 		t.assert.equal(calls, 0)
-		delete symbol.facets!.global
-		symbol.facets!.isotopes!.push({
+		delete symbol.scopes!.public
+		symbol.scopes!.restricted!.push({
 			identifier: 'later',
+			usages: {},
 			source: Provider.Regular,
 			scope: Scope.Private,
 			get visibleWithin(): IsotopeVisibility[] {
@@ -418,9 +425,9 @@ describe('file symbol access checks', () => {
 
 	it('does not scan usages of a visible symbol with many command definitions', t => {
 		const service = new SymbolService(new SymbolStorage({}))
-		const symbol = add(service, 'public', Scope.Global)
+		const symbol = add(service, 'public', Scope.Public)
 		let reads = 0
-		symbol.facets!.global!.definition = Array.from({ length: 10000 }, () => ({
+		symbol.scopes!.public![0].usages.definition = Array.from({ length: 10000 }, () => ({
 			uri,
 			get fromFile() {
 				reads++
@@ -434,11 +441,11 @@ describe('file symbol access checks', () => {
 	it('still reports inaccessible file symbols but allows non-file symbols', t => {
 		const service = new SymbolService(new SymbolStorage({}))
 		const symbol = add(service, 'private', Scope.Private)
-		const isotope = symbol.facets!.isotopes![0]!
-		isotope.definition = [{ uri, fromFile: true }]
+		const isotope = symbol.scopes!.restricted![0]!
+		isotope.usages.definition = [{ uri, fromFile: true }]
 		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, uri), false)
 		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, outside), true)
-		isotope.definition = [{ uri }]
+		isotope.usages.definition = [{ uri }]
 		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(symbol, outside), false)
 		t.assert.equal(SymbolUtil.hasNoAccessToFileSymbol(undefined, outside), false)
 	})

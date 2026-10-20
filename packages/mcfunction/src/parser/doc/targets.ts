@@ -257,6 +257,7 @@ class FunctionDocTarget extends RegistryDocTarget {
 		'context',
 		'returns',
 		'predicate',
+		'callby',
 	]
 	override binder(node: DocNode, ctx: core.BinderContext): void {
 		const field = node.fields[0]

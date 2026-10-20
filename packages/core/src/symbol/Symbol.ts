@@ -358,9 +358,9 @@ export enum SymbolIsotopeProvider {
 
 export const IsotopeScopesGlobal = {
 	/** Visible inside project */
-	Project: 2,
+	Internal: 2,
 	/** Visible globally */
-	Global: 3,
+	Public: 3,
 } as const
 
 export const SymbolIsotopeScope = {
@@ -442,32 +442,18 @@ export interface SymbolMetadata {
  * An isotope of a symbol is a different set of metadata associated with the same symbol.\
  * Different isotopes can take effect in different contexts.
  */
-export interface SymbolIsotope
-	extends GlobalSymbolIsotope, Partial<Record<SymbolUsageType, SymbolLocation[]>>
-{
+export interface SymbolIsotope {
 	/**
 	 * The scope of this isotope. Smaller scopes always have higher priority over larger scopes.
 	 */
 	scope: IsotopeScope
 	/** Visibility rules. Entries are ORed together.*/
 	visibleWithin?: IsotopeVisibility[]
-}
-
-/** Visibility rules. Different checks are ANDed together within a single rule */
-export interface IsotopeVisibility {
-	/**  Glob pattern to check. An empty string matches nothing. */
-	glob?: string
-	/** Exact resource namespace. */
-	namespace?: string
-	/** Resource path and its descendants, excluding namespace. A trailing slash matches descendants only. */
-	path?: string
-}
-
-/**
- * If an isotope has a global scope (public or internal), it will be saved separatly
- * Since they share the same usages.
- */
-export interface GlobalSymbolIsotope {
+	/**
+	 * Usage storage. Public and Internal isotopes each share one object per symbol and scope.
+	 * Restricted isotopes each own a separate object.
+	 */
+	usages: SymbolUsages
 	/** The originating document and contributor. */
 	origin?: { uri: string; contributor?: string }
 	identifier: string
@@ -493,14 +479,36 @@ export interface GlobalSymbolIsotope {
 	data?: unknown
 }
 
-export interface SymbolGlobalData extends Partial<Record<SymbolUsageType, SymbolLocation[]>> {
-	/** An ordered list (ordered by {@link GlobalSymbolIsotope.overrideLevel}) of global isotopes. */
-	isotopes: GlobalSymbolIsotope[]
+/** Visibility rules. Different checks are ANDed together within a single rule */
+export interface IsotopeVisibility {
+	/** Glob pattern to check. An empty string matches nothing. */
+	glob?: string
+	/** Exact resource namespace. */
+	namespace?: string
+	/** Resource path excluding namespace. A trailing slash matches children only. */
+	path?: string
 }
+
+export type SymbolUsages = Partial<Record<SymbolUsageType, SymbolLocation[]>>
 
 export const SymbolUsageTypes = Object.freeze(
 	['definition', 'declaration', 'implementation', 'reference', 'typeDefinition'] as const,
 )
+
+export const SymbolGlobalScopeTypes = Object.freeze(
+	['public', 'internal'] as const,
+)
+
+export const SymbolRestrictedScopeTypes = Object.freeze(
+	['restricted'] as const,
+)
+
+export const SymbolScopeTypes = Object.freeze(
+	[...SymbolRestrictedScopeTypes, ...SymbolGlobalScopeTypes] as const,
+)
+export type SymbolRestrictedScopeType = (typeof SymbolRestrictedScopeTypes)[number]
+export type SymbolGlobalScopeType = (typeof SymbolGlobalScopeTypes)[number]
+export type SymbolScopeType = SymbolRestrictedScopeType | SymbolGlobalScopeType
 
 /** The usage type of a symbol
  * - `declaration`: The statement of existence of a symbol.
@@ -532,24 +540,11 @@ export interface Symbol extends SymbolMetadata {
 	 */
 	parentSymbol?: Symbol
 	path: readonly string[]
-	facets?: {
-		/**
-		 * {@link SymbolIsotope} of this symbol. Here only isotops with non-global scope are included.
-		 */
-		isotopes?: SymbolIsotope[]
-		/**
-		 * Global isotopes of this symbol.
-		 */
-		global?: SymbolGlobalData
-		/**
-		 * Internal isotopes of this symbol.
-		 */
-		internal?: SymbolGlobalData
-	}
+	scopes?: Partial<Record<SymbolScopeType, SymbolIsotope[]>>
 }
 
 /** A read-only contextual projection of the symbol */
-export interface SymbolView extends Symbol, Partial<Record<SymbolUsageType, SymbolLocation[]>> {
+export interface SymbolView extends Symbol, SymbolUsages {
 	deprecated?: boolean
 	desc?: string
 }
@@ -675,9 +670,11 @@ export interface SymbolTable extends Partial<Record<AllCategory, SymbolMap>> {
 	[category: string]: SymbolMap | undefined
 }
 
-export interface UnlinkedSymbol
-	extends
-		Omit<Symbol, 'category' | 'identifier' | 'members' | 'parentMap' | 'parentSymbol' | 'path'>
+export interface UnlinkedSymbol extends
+	Omit<
+		Symbol,
+		'category' | 'identifier' | 'members' | 'parentMap' | 'parentSymbol' | 'path' | 'scopes'
+	>
 {
 	category?: undefined
 	identifier?: undefined
@@ -685,6 +682,14 @@ export interface UnlinkedSymbol
 	parentMap?: undefined
 	parentSymbol?: undefined
 	path?: undefined
+	scopes?: Partial<
+		& Record<SymbolRestrictedScopeType, SymbolIsotope[]>
+		& Record<SymbolGlobalScopeType, UnlinkedSymbolIsotope[]>
+	>
+}
+
+export interface UnlinkedSymbolIsotope extends Omit<SymbolIsotope, 'usages'> {
+	usages?: SymbolUsages
 }
 
 export interface UnlinkedSymbolMap {
@@ -696,31 +701,26 @@ export interface UnlinkedSymbolTable extends Partial<Record<AllCategory, Unlinke
 }
 
 export namespace SymbolTable {
+	function unlinkIsotopes(isotopes: SymbolIsotope[]): UnlinkedSymbolIsotope[] {
+		return isotopes.map(({ usages, ...metadata }, index) =>
+			index === 0 ? { ...metadata, usages } : metadata
+		)
+	}
+
 	export function getDependencyExports(table: SymbolTable, checksum: string): SymbolTable {
-		const filter = (map: UnlinkedSymbolMap): void => {
+		const projectMap = (map: SymbolMap): UnlinkedSymbolMap => {
+			const result: UnlinkedSymbolMap = {}
 			for (const [name, symbol] of Object.entries(map)) {
-				const global = symbol.facets?.global
-				const exported = global?.isotopes.filter(isotope =>
+				const exported = symbol.scopes?.public?.filter(isotope =>
 					isotope.source !== SymbolIsotopeProvider.Imported
 				) ?? []
-				const ids = new Map(
-					exported.map(
-						isotope => [
-							isotope.identifier,
-							JSON.stringify([checksum, 'isotope', isotope.identifier]),
-						],
-					),
-				)
-				const importedGlobal: SymbolGlobalData = {
-					isotopes: exported.map(isotope => ({
-						...isotope,
-						identifier: ids.get(isotope.identifier)!,
-						source: SymbolIsotopeProvider.Imported,
-						providerName: checksum,
-					})),
-				}
+				const ids = new Map(exported.map(isotope => [
+					isotope.identifier,
+					JSON.stringify([checksum, 'isotope', isotope.identifier]),
+				]))
+				const usages: SymbolUsages = {}
 				for (const type of SymbolUsageTypes) {
-					importedGlobal[type] = global?.[type]?.filter(location =>
+					usages[type] = exported[0]?.usages[type]?.filter(location =>
 						!location.isotopeIdentifier || ids.has(location.isotopeIdentifier)
 					).map(location => ({
 						...location,
@@ -730,48 +730,54 @@ export namespace SymbolTable {
 							: undefined,
 					}))
 				}
-				const isotopes = (symbol.facets?.isotopes ?? []).filter(isotope =>
-					isotope.source !== SymbolIsotopeProvider.Imported
-					&& isotope.scope === SymbolIsotopeScope.Protected
-				).map(isotope => ({
+				const publicIsotopes = exported.map(isotope => ({
 					...isotope,
-					identifier: JSON.stringify([checksum, 'isotope', isotope.identifier]),
+					identifier: ids.get(isotope.identifier)!,
 					source: SymbolIsotopeProvider.Imported,
 					providerName: checksum,
+					usages,
 				}))
-				for (const isotope of isotopes) {
-					for (const type of SymbolUsageTypes) {
-						isotope[type] = isotope[type]?.map(location => ({
-							...location,
-							importedFrom: checksum,
-							isotopeIdentifier: isotope.identifier,
-						}))
+				const scopes: NonNullable<UnlinkedSymbol['scopes']> = {}
+				if (publicIsotopes.length) {
+					scopes.public = unlinkIsotopes(publicIsotopes)
+				}
+				for (const key of SymbolRestrictedScopeTypes) {
+					const isotopes = (symbol.scopes?.[key] ?? []).filter(isotope =>
+						isotope.source !== SymbolIsotopeProvider.Imported
+						&& isotope.scope === SymbolIsotopeScope.Protected
+					).map(isotope => {
+						const identifier = JSON.stringify([checksum, 'isotope', isotope.identifier])
+						const usages: SymbolUsages = {}
+						for (const type of SymbolUsageTypes) {
+							usages[type] = isotope.usages[type]?.map(location => ({
+								...location,
+								importedFrom: checksum,
+								isotopeIdentifier: identifier,
+							}))
+						}
+						return {
+							...isotope,
+							identifier,
+							source: SymbolIsotopeProvider.Imported,
+							providerName: checksum,
+							usages,
+						}
+					})
+					if (isotopes.length) {
+						scopes[key] = isotopes
 					}
 				}
-				if (!exported.length && !isotopes.length) {
-					delete map[name]
+				if (
+					!SymbolScopeTypes.some(key =>
+						scopes[key]?.length
+					)
+				) {
 					continue
 				}
-				symbol.facets = {
-					...(exported.length ? { global: importedGlobal } : {}),
-					...(isotopes.length ? { isotopes } : {}),
-				}
-				delete symbol.data
-				if (symbol.members) {
-					filter(symbol.members)
-				}
-			}
-		}
-		// To avoid copying all data, even private ones
-		// We can first make a lightweight copy that shares some data with the original one
-		// since filter() makes sure that the original data is not modified.
-		const projectMap = (map: SymbolMap): UnlinkedSymbolMap => {
-			const result: UnlinkedSymbolMap = {}
-			for (const [name, symbol] of Object.entries(map)) {
 				result[name] = {
 					subcategory: symbol.subcategory,
 					relations: symbol.relations,
-					facets: symbol.facets,
+					scopes,
 					...(symbol.members ? { members: projectMap(symbol.members) } : {}),
 				}
 			}
@@ -784,19 +790,13 @@ export namespace SymbolTable {
 				exported[category] = projectMap(map)
 			}
 		}
-		for (const map of Object.values(exported)) {
-			if (map) {
-				filter(map)
-			}
-		}
 		return link(exported)
 	}
 
 	/**
 	 * The passed-in parameter `table` won't be mutated.
 	 *
-	 * @returns An identical symbol table where each Symbol's `parentMap` and `parentSymbol` properties
-	 * are set properly.
+	 * @returns A copied table with parent links and shared usage references restored.
 	 */
 	export function link(table: UnlinkedSymbolTable): SymbolTable {
 		const linkSymbol = (
@@ -812,6 +812,15 @@ export namespace SymbolTable {
 			symbol.parentMap = parentMap
 			if (parentSymbol) {
 				symbol.parentSymbol = parentSymbol
+			}
+			for (const key of SymbolGlobalScopeTypes) {
+				const scope = symbol.scopes?.[key]
+				if (scope?.length) {
+					const usages = scope[0].usages ?? {}
+					for (const isotope of scope) {
+						isotope.usages = usages
+					}
+				}
 			}
 			if (symbol.members) {
 				linkSymbolMap(symbol.members, symbol, category, path)
@@ -841,34 +850,56 @@ export namespace SymbolTable {
 	/**
 	 * The passed-in parameter `table` won't be mutated.
 	 *
-	 * @returns An identical symbol table where each Symbol's `parentMap` and `parentSymbol` properties
-	 * are deleted.
+	 * @returns A copied table without parent links and shared usages occur only on the first isotope
 	 */
 	export function unlink(table: SymbolTable): UnlinkedSymbolTable {
-		const unlinkSymbol = (symbol: UnlinkedSymbol) => {
-			delete symbol.category
-			delete symbol.identifier
-			delete symbol.parentMap
-			delete symbol.parentSymbol
-			delete symbol.path
-			if (symbol.members) {
-				unlinkSymbolMap(symbol.members)
+		const unlinkSymbol = (symbol: Symbol): UnlinkedSymbol => {
+			const {
+				category: _category,
+				identifier: _identifier,
+				parentMap: _parentMap,
+				parentSymbol: _parentSymbol,
+				path: _path,
+				members,
+				scopes,
+				...metadata
+			} = symbol
+			const unlinkedScopes: UnlinkedSymbol['scopes'] = scopes ? {} : undefined
+			if (scopes && unlinkedScopes) {
+				for (const key of SymbolRestrictedScopeTypes) {
+					if (scopes[key]) {
+						unlinkedScopes[key] = scopes[key]
+					}
+				}
+				for (const key of SymbolGlobalScopeTypes) {
+					if (scopes[key]) {
+						unlinkedScopes[key] = unlinkIsotopes(scopes[key])
+					}
+				}
+			}
+			return {
+				...metadata,
+				...(members ? { members: unlinkSymbolMap(members) } : {}),
+				...(unlinkedScopes ? { scopes: unlinkedScopes } : {}),
 			}
 		}
 
-		const unlinkSymbolMap = (map: UnlinkedSymbolMap) => {
-			for (const childSymbol of Object.values(map)) {
-				unlinkSymbol(childSymbol)
+		const unlinkSymbolMap = (map: SymbolMap): UnlinkedSymbolMap => {
+			const result: UnlinkedSymbolMap = {}
+			for (const [identifier, childSymbol] of Object.entries(map)) {
+				result[identifier] = unlinkSymbol(childSymbol)
+			}
+			return result
+		}
+
+		const ans: UnlinkedSymbolTable = {}
+		for (const [category, map] of Object.entries(table)) {
+			if (map) {
+				ans[category] = unlinkSymbolMap(map)
 			}
 		}
 
-		const ans = rfdc({ circles: true })(table) as UnlinkedSymbolTable
-
-		for (const map of Object.values(ans)) {
-			unlinkSymbolMap(map!)
-		}
-
-		return ans
+		return rfdc({ circles: true })(ans)
 	}
 
 	/**
@@ -886,22 +917,3 @@ export namespace SymbolTable {
 		return link(JSON.parse(json, bigintJsonLosslessReviver))
 	}
 }
-
-// interface SymbolEvent {
-// 	symbol: Symbol,
-// }
-// interface SymbolLocationEvent extends SymbolEvent {
-// 	type: SymbolUsageType,
-// 	location: SymbolLocation,
-// }
-// export class CachedSymbolTable extends TypedEmitter<{
-// 	symbolCreated: (e: SymbolEvent) => unknown,
-// 	symbolAmended: (e: SymbolEvent) => unknown,
-// 	symbolRemoved: (e: SymbolEvent) => unknown,
-// 	symbolLocationCreated: (e: SymbolLocationEvent) => unknown,
-// 	symbolLocationRemoved: (e: SymbolLocationEvent) => unknown,
-// }> {
-// 	constructor(public readonly table: SymbolTable) {
-// 		super()
-// 	}
-// }

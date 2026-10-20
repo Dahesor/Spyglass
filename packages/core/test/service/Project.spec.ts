@@ -140,7 +140,8 @@ describe('Project', () => {
 				await project.onDidChange(uri, [{ text: 'foo' }], version)
 				await project.ensureClientManagedChecked(uri)
 				for (const [identifier, contributor] of [['bound', 'binder'], ['checked', 'checker']]) {
-					const usages = project.symbolStorage.global['test']![identifier].facets?.global
+					const usages = project.symbolStorage.global['test']![identifier].scopes?.public?.[0]
+						?.usages
 						?.reference
 					assert.equal(usages?.length, 1)
 					assert.equal(usages?.[0].contributor, contributor)
@@ -196,8 +197,8 @@ describe('Project', () => {
 			assert.equal(exports.mock.callCount(), 4)
 			for (const { uri, checksum } of project.cacheService.imports) {
 				const symbol = project.symbolStorage.global.function![`${uri}value.spyglasstest`]
-				assert.equal(symbol.facets?.global?.isotopes?.length, 1)
-				assert.equal(symbol.facets?.global?.isotopes?.[0].providerName, checksum)
+				assert.equal(symbol.scopes?.public?.length, 1)
+				assert.equal(symbol.scopes?.public?.[0].providerName, checksum)
 			}
 			const originalUri = 'archive://first/value.spyglasstest'
 			// memfs refuses creation with a read-only mode before writing the data.
@@ -243,9 +244,8 @@ describe('Project', () => {
 				assert.equal(await project.ensureClientManagedChecked(mappedUri), undefined)
 			}
 			assert.equal(
-				project.symbolStorage.global.function![`${ProjectRoot}local.spyglasstest`].facets
-					?.global
-					?.isotopes[0].source,
+				project.symbolStorage.global.function![`${ProjectRoot}local.spyglasstest`].scopes
+					?.public?.[0].source,
 				3,
 			)
 		} finally {
@@ -321,9 +321,15 @@ describe('Project', () => {
 				const symbols = project.symbolStorage.global.function!
 				assert.equal(symbols['internal.spyglasstest'], undefined)
 				assert.equal(symbols['private.spyglasstest'], undefined)
-				assert.equal(symbols['public.spyglasstest'].facets?.global?.isotopes[0].source, 1)
-				assert.equal(symbols['public.spyglasstest'].facets?.global?.declaration?.length, 1)
-				assert.equal(symbols['public.spyglasstest'].facets?.global?.implementation?.length, 1)
+				assert.equal(symbols['public.spyglasstest'].scopes?.public?.[0].source, 1)
+				assert.equal(
+					symbols['public.spyglasstest'].scopes?.public?.[0]?.usages.declaration?.length,
+					1,
+				)
+				assert.equal(
+					symbols['public.spyglasstest'].scopes?.public?.[0]?.usages.implementation?.length,
+					1,
+				)
 				assert.equal(project.cacheService.imports[0].uri, 'file:///c:/dependency/')
 			} finally {
 				await project.close()
@@ -397,7 +403,7 @@ describe('Project', () => {
 			assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [copy])
 			assert.equal(reloaded.shouldExclude(`${other}value.spyglasstest`), true)
 			const symbol = reloaded.symbolStorage.global.function!['demo:duplicate']
-			assert.equal(symbol.facets?.global?.isotopes?.length, 1)
+			assert.equal(symbol.scopes?.public?.length, 1)
 			assert.equal(
 				SymbolUtil.viewFromContext(symbol, ProjectRoot)?.definition?.[0].uri,
 				`${copy}value.spyglasstest`,
@@ -444,7 +450,7 @@ describe('Project', () => {
 			assert.notEqual(current.checksum, previous.checksum)
 			const symbol = reloaded.symbolStorage.global.function!['demo:cached']
 			assert.equal(SymbolUtil.viewFromContext(symbol, ProjectRoot)?.desc, 'bar')
-			assert.deepEqual(symbol.facets?.global?.isotopes?.map(isotope => isotope.providerName), [
+			assert.deepEqual(symbol.scopes?.public?.map(isotope => isotope.providerName), [
 				current.checksum,
 			])
 		} finally {
@@ -638,19 +644,19 @@ describe('Project', () => {
 			)
 			assert.equal(symbols['demo:internal'], undefined)
 			assert.equal(symbols['demo:private'], undefined)
-			assert.equal(symbols['demo:own_internal'].facets?.internal?.isotopes.length, 1)
-			assert.equal(symbols['demo:shared'].facets?.internal?.isotopes.length, 1)
+			assert.equal(symbols['demo:own_internal'].scopes?.internal?.length, 1)
+			assert.equal(symbols['demo:shared'].scopes?.internal?.length, 1)
 			assert.equal(
 				SymbolUtil.viewFromContext(symbols['demo:shared'], ProjectRoot)?.desc,
 				'internal base',
 			)
 			for (const name of ['namespace_internal', 'namespace_restricted']) {
 				const symbol = symbols[`demo:${name}`]
-				assert.equal(symbol.facets?.global?.isotopes.length ?? 0, 0)
+				assert.equal(symbol.scopes?.public?.length ?? 0, 0)
 				assert.equal(symbol.data, undefined)
-				assert.equal(symbol.facets?.global?.isotopes[0]?.desc, undefined)
-				assert.equal(symbol.facets?.global?.implementation?.length ?? 0, 0)
-				assert.equal(symbol.facets?.isotopes?.length, 1)
+				assert.equal(symbol.scopes?.public?.[0]?.desc, undefined)
+				assert.equal(symbol.scopes?.public?.[0]?.usages.implementation?.length ?? 0, 0)
+				assert.equal(symbol.scopes?.restricted?.length, 1)
 				const view = SymbolUtil.viewFromContext(
 					symbol,
 					`${ProjectRoot}data/demo/function/use.spyglasstest`,
@@ -848,12 +854,12 @@ describe('Project', () => {
 			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
 			await project.ensureClientManagedChecked(uri)
 			const symbol = project.symbolStorage.global.function!['test:folder/inner']
-			assert.equal(symbol.facets?.global?.definition?.length, 1)
-			assert.equal(symbol.facets?.global?.definition?.[0].uri, uri)
-			assert.equal(symbol.facets?.global?.definition?.[0].fromFile, true)
-			assert.equal(symbol.facets?.global?.reference?.length, 1)
+			assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.length, 1)
+			assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.[0].uri, uri)
+			assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.[0].fromFile, true)
+			assert.equal(symbol.scopes?.public?.[0]?.usages.reference?.length, 1)
 			await project.onDidChange(uri, [{ text: 'foo' }], 1)
-			assert.equal(symbol.facets?.global?.definition?.length, 1)
+			assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.length, 1)
 		} finally {
 			await project.close()
 		}

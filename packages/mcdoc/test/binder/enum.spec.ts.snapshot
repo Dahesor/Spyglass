@@ -31,149 +31,155 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum () Foo { A = 1, B = 1.2, C = 1.2
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "B",
-                        "value": 1.2
-                      },
-                      {
-                        "identifier": "C",
-                        "value": 1.2
-                      },
-                      {
-                        "identifier": "D",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "E",
-                        "value": "Hello"
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "D": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "E": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "B",
+                      "value": 1.2
+                    },
+                    {
+                      "identifier": "C",
+                      "value": 1.2
+                    },
+                    {
+                      "identifier": "D",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "E",
+                      "value": "Hello"
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -182,7 +188,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum () Foo { A = 1, B = 1.2, C = 1.2
                 ]
               }
             }
-          }
+          ]
         }
       }
     }
@@ -233,200 +239,208 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (byte) Foo { A = 1, B = 4b, C = 
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "enumKind": "byte",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "B",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "C",
-                        "value": 5
-                      },
-                      {
-                        "identifier": "D",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "E",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "F",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "G",
-                        "value": null
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "D": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "E": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "F": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "G": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "enumKind": "byte",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "B",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "C",
+                      "value": 5
+                    },
+                    {
+                      "identifier": "D",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "E",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "F",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "G",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -435,7 +449,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (byte) Foo { A = 1, B = 4b, C = 
                 ]
               }
             }
-          }
+          ]
         }
       }
     }
@@ -527,200 +541,208 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (double) Foo { A = 1, B = 4d, C 
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "enumKind": "double",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "B",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "C",
-                        "value": 5
-                      },
-                      {
-                        "identifier": "D",
-                        "value": 1.2
-                      },
-                      {
-                        "identifier": "E",
-                        "value": 1.2
-                      },
-                      {
-                        "identifier": "F",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "G",
-                        "value": null
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "D": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "E": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "F": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "G": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "enumKind": "double",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "B",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "C",
+                      "value": 5
+                    },
+                    {
+                      "identifier": "D",
+                      "value": 1.2
+                    },
+                    {
+                      "identifier": "E",
+                      "value": 1.2
+                    },
+                    {
+                      "identifier": "F",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "G",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -729,7 +751,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (double) Foo { A = 1, B = 4d, C 
                 ]
               }
             }
-          }
+          ]
         }
       }
     }
@@ -813,200 +835,208 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (float) Foo { A = 1, B = 4f, C =
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "enumKind": "float",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "B",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "C",
-                        "value": 5
-                      },
-                      {
-                        "identifier": "D",
-                        "value": 1.2
-                      },
-                      {
-                        "identifier": "E",
-                        "value": 1.2
-                      },
-                      {
-                        "identifier": "F",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "G",
-                        "value": null
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "D": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "E": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "F": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "G": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "enumKind": "float",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "B",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "C",
+                      "value": 5
+                    },
+                    {
+                      "identifier": "D",
+                      "value": 1.2
+                    },
+                    {
+                      "identifier": "E",
+                      "value": 1.2
+                    },
+                    {
+                      "identifier": "F",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "G",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -1015,7 +1045,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (float) Foo { A = 1, B = 4f, C =
                 ]
               }
             }
-          }
+          ]
         }
       }
     }
@@ -1091,150 +1121,156 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (int) Foo { A = 1, B = 1.2, C = 
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "enumKind": "int",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "B",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "C",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "D",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "E",
-                        "value": null
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "D": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "E": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "enumKind": "int",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "B",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "C",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "D",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "E",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -1243,7 +1279,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (int) Foo { A = 1, B = 1.2, C = 
                 ]
               }
             }
-          }
+          ]
         }
       }
     }
@@ -1327,200 +1363,208 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (long) Foo { A = 1, B = 4l, C = 
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "enumKind": "long",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "B",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "C",
-                        "value": 5
-                      },
-                      {
-                        "identifier": "D",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "E",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "F",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "G",
-                        "value": 0
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "D": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "E": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "F": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "G": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "enumKind": "long",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "B",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "C",
+                      "value": 5
+                    },
+                    {
+                      "identifier": "D",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "E",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "F",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "G",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -1529,7 +1573,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (long) Foo { A = 1, B = 4l, C = 
                 ]
               }
             }
-          }
+          ]
         }
       }
     }
@@ -1621,200 +1665,208 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (short) Foo { A = 1, B = 4s, C =
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "enumKind": "short",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "B",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "C",
-                        "value": 5
-                      },
-                      {
-                        "identifier": "D",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "E",
-                        "value": 1
-                      },
-                      {
-                        "identifier": "F",
-                        "value": 4
-                      },
-                      {
-                        "identifier": "G",
-                        "value": null
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "D": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "E": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "F": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "G": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "enumKind": "short",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "B",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "C",
+                      "value": 5
+                    },
+                    {
+                      "identifier": "D",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "E",
+                      "value": 1
+                    },
+                    {
+                      "identifier": "F",
+                      "value": 4
+                    },
+                    {
+                      "identifier": "G",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -1823,7 +1875,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (short) Foo { A = 1, B = 4s, C =
                 ]
               }
             }
-          }
+          ]
         }
       }
     }
@@ -1899,100 +1951,104 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (string) Foo { A = 1, B = 1.2, C
           }
         },
         "subcategory": "enum",
-        "facets": {
-          "global": {
-            "isotopes": [
-              {
-                "identifier": "regular",
-                "source": 3,
-                "origin": {
-                  "uri": ""
-                },
-                "data": {
-                  "typeDef": {
-                    "kind": "enum",
-                    "enumKind": "string",
-                    "values": [
+        "members": {
+          "A": {
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
                       {
-                        "identifier": "A",
-                        "value": "1"
-                      },
-                      {
-                        "identifier": "B",
-                        "value": "1.2"
-                      },
-                      {
-                        "identifier": "C",
-                        "value": "Hello"
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
                       }
                     ]
                   }
                 }
-              }
-            ],
-            "definition": [
-              {
-                "uri": "",
-                "isotopeIdentifier": "regular"
-              }
-            ]
-          }
-        },
-        "members": {
-          "A": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
-                  }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+              ]
             }
           },
           "B": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
-                "definition": [
-                  {
-                    "uri": "",
-                    "isotopeIdentifier": "regular"
-                  }
-                ]
-              }
+                }
+              ]
             }
           },
           "C": {
-            "facets": {
-              "global": {
-                "isotopes": [
-                  {
-                    "identifier": "regular",
-                    "source": 3,
-                    "origin": {
-                      "uri": ""
-                    }
+            "scopes": {
+              "public": [
+                {
+                  "identifier": "regular",
+                  "source": 3,
+                  "scope": 3,
+                  "origin": {
+                    "uri": ""
+                  },
+                  "usages": {
+                    "definition": [
+                      {
+                        "uri": "",
+                        "isotopeIdentifier": "regular"
+                      }
+                    ]
                   }
-                ],
+                }
+              ]
+            }
+          }
+        },
+        "scopes": {
+          "public": [
+            {
+              "identifier": "regular",
+              "source": 3,
+              "scope": 3,
+              "origin": {
+                "uri": ""
+              },
+              "data": {
+                "typeDef": {
+                  "kind": "enum",
+                  "enumKind": "string",
+                  "values": [
+                    {
+                      "identifier": "A",
+                      "value": "1"
+                    },
+                    {
+                      "identifier": "B",
+                      "value": "1.2"
+                    },
+                    {
+                      "identifier": "C",
+                      "value": "Hello"
+                    }
+                  ]
+                }
+              },
+              "usages": {
                 "definition": [
                   {
                     "uri": "",
@@ -2001,7 +2057,7 @@ exports[`mcdoc binder > mcdoc:enum > Bind 'enum (string) Foo { A = 1, B = 1.2, C
                 ]
               }
             }
-          }
+          ]
         }
       }
     }

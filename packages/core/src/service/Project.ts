@@ -294,7 +294,7 @@ export class Project extends EventDispatcher<{
 		const entry = this.#dependencyImports.get(root)!
 		const exported = SymbolTable.getDependencyExports(entry.storage.global, entry.checksum)
 		SymbolImport.removeDependencySymbols(symbolService, entry.checksum, false)
-		SymbolImport.importDependencySymbols(symbolService, exported)
+		SymbolImport.mergeDependencySymbols(symbolService, exported)
 	}
 	#dependencyFiles: Set<string> | undefined
 
