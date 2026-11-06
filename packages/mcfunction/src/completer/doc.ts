@@ -5,6 +5,7 @@ import {
 	getCurrentFunctionIdentifier,
 	getDirectiveDescription,
 	getDocDirective,
+	isDocDirectiveAllowed,
 } from '../parser/doc.js'
 
 type DirectiveNode = core.DeepReadonly<DocDirectiveNode>
@@ -23,8 +24,12 @@ export const completeDoc: core.Completer<DocNode> = (node, ctx) => {
 	const position = findDirectivePosition(node.docDirectives, ctx.offset)
 	if (position) {
 		if (ctx.offset > position.occurrence.identifierRange.end) {
-			return getDocDirective(ctx.meta, docTarget(node, ctx), position.occurrence.identifier)
-				?.completer?.(position.occurrence, ctx) ?? []
+			const directive = getDocDirective(ctx.meta, position.occurrence.identifier)
+			if (!directive) {
+				return []
+			}
+			const completer = directive.completer ?? (() => [])
+			return completer.call(directive, position.occurrence, ctx)
 		}
 		return position.occurrence.isInline
 			? completeInlineDocDirectives(
@@ -145,24 +150,18 @@ function completeFunctionHeaderArguments(
 	return [completeThis(ctx, range)]
 }
 
-function accepts(directive: DocDirective, target: DocTargets): boolean {
-	return directive.isCommon || target.acceptedDirectives.includes(directive.identifier)
-}
-
 function completeInlineDocDirectives(
 	node: DocumentationNode,
 	ctx: core.CompleterContext,
 	range: core.RangeLike,
 	occurrence?: DirectiveNode,
 ): core.CompletionItem[] {
-	const target = docTarget(node, ctx)
 	const items = completeDirectives(
 		ctx,
-		target,
 		range,
 		{ node, occurrence, possibleCallers: [] },
 		node.docDirectives,
-		directive => directive.isCommon && !directive.hasMandatoryArgument,
+		directive => directive.allowedTargets === undefined && !directive.hasMandatoryArgument,
 		occurrence ? undefined : '2',
 	)
 	if (
@@ -222,20 +221,18 @@ function completeBlockDocDirectives(
 	const acceptedArguments = new Set(slots.flatMap(slot => slot.identifiers))
 	return completeDirectives(
 		ctx,
-		target,
 		occurrence.identifierRange,
 		{ node, occurrence, possibleCallers },
 		siblings,
 		directive =>
 			possibleCallers.length > 0
 				? !!parent || acceptedArguments.has(directive.identifier)
-				: !!target && accepts(directive, target),
+				: !!target && isDocDirectiveAllowed(directive, target),
 	)
 }
 
 function completeDirectives(
 	ctx: core.CompleterContext,
-	target: DocTargets | undefined,
 	range: core.RangeLike,
 	input: DocDirectiveSuggestCtx,
 	siblings: readonly DirectiveNode[],
@@ -253,10 +250,8 @@ function completeDirectives(
 		if (!eligible(directive)) {
 			continue
 		}
-		const include = target?.directiveOverrides?.get(directive.identifier)?.includeInSuggestion
-			?? directive.includeInSuggestion
 		if (
-			!include.call(directive, ctx, input)
+			!directive.includeInSuggestion(ctx, input)
 			|| (!directive.allowDuplicates && used.has(directive.identifier))
 		) {
 			continue

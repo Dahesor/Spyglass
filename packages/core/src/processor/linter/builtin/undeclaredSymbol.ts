@@ -11,14 +11,15 @@ import { LocalSymbol, LocalSymbolVisibility, SymbolUtil } from '../../../symbol/
 import type { Linter } from '../Linter.js'
 
 export const undeclaredSymbol: Linter<AstNode> = (node, ctx) => {
+	const resolvedSymbol = ctx.symbols.resolveAlias(node.symbol)
 	if (
 		!node.symbol
 		|| ctx.symbols.hasNoAccessToFileSymbol(
-			ctx.symbols.resolveAlias(node.symbol),
+			resolvedSymbol,
 			ctx.doc.uri,
 		)
 		|| SymbolUtil.isDeclared(
-			ctx.symbols.viewFromContext(node.symbol, ctx.doc.uri),
+			ctx.symbols.viewFromContext(resolvedSymbol, ctx.doc.uri),
 		)
 	) {
 		return

@@ -78,9 +78,9 @@ export class CacheService {
 	 * @param project
 	 */
 	constructor(private readonly cacheRoot: RootUriString, private readonly project: Project) {
-		this.project.on('documentUpdated', async ({ doc }) => {
+		this.project.on('documentUpdated', async ({ doc, isView }) => {
 			if (
-				!this.#hasValidatedFiles
+				isView || !this.#hasValidatedFiles
 				// Do not save checksums for file schemes that we cannot map to disk (e.g. 'untitled:'
 				// for untitled files in VS Code)
 				|| !(doc.uri.startsWith(ArchiveUriSupporter.Protocol) || doc.uri.startsWith('file:'))
@@ -115,7 +115,10 @@ export class CacheService {
 				this.checksums.symbolRegistrars[id] = checksum
 			}
 		})
-		this.project.on('documentErrored', ({ uri, errors }) => {
+		this.project.on('documentErrored', ({ uri, errors, isView }) => {
+			if (isView) {
+				return
+			}
 			errors = errors.filter(error => !error.info?.transient)
 			if (errors.length) {
 				this.errors[uri] = errors

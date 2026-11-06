@@ -249,16 +249,6 @@ class FunctionDocTarget extends RegistryDocTarget {
 	constructor() {
 		super('function', 'function')
 	}
-	override acceptedDirectives: string[] = [
-		'chatonly',
-		'reads',
-		'writes',
-		'input',
-		'context',
-		'returns',
-		'predicate',
-		'callby',
-	]
 	override binder(node: DocNode, ctx: core.BinderContext): void {
 		const field = node.fields[0]
 		if (!core.ResourceLocationNode.is(field)) {

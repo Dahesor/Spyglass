@@ -160,6 +160,7 @@ const getColorTokenMark = (t: ColorToken): Decoration => {
 
 const colorTokenTheme = EditorView.baseTheme({
 	'.spyglassmc-color-token-comment': { color: '#008000' },
+	'.spyglassmc-color-token-docDirective': { color: '#800000' },
 	'.spyglassmc-color-token-enum': { color: '#0070C1' },
 	'.spyglassmc-color-token-enumMember': { color: '#0070C1' },
 	'.spyglassmc-color-token-function': { color: '#795E26' },

@@ -380,6 +380,10 @@
     },
     "semanticTokenTypes": [
       {
+        "id": "docDirective",
+        "description": "A documentation directive."
+      },
+      {
         "id": "error",
         "description": "An error."
       },
@@ -412,6 +416,9 @@
     "semanticTokenScopes": [
       {
         "scopes": {
+          "docDirective": [
+            "markup.heading.mcfunction"
+          ],
           "error": [
             "invalid.illegal"
           ],

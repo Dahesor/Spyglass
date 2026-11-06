@@ -130,16 +130,19 @@ export namespace BinderContext {
 
 export interface CheckerContext extends ProcessorContext {
 	err: ErrorReporter
+	isDependency?: boolean
 	ensureBindingStarted: (this: void, uri: string) => Promise<unknown>
 }
 interface CheckerContextOptions extends ProcessorContextOptions {
 	err?: ErrorReporter
+	isDependency?: boolean
 }
 export namespace CheckerContext {
 	export function create(project: ProjectData, opts: CheckerContextOptions): CheckerContext {
 		return {
 			...ProcessorContext.create(project, opts),
 			err: opts.err ?? new ErrorReporter(project.ctx['errorSource']),
+			isDependency: opts.isDependency ?? false,
 			ensureBindingStarted: project.ensureBindingStarted?.bind(project),
 		}
 	}

@@ -239,6 +239,7 @@ describe('within visibility parameters', () => {
 					}
 				}
 				t.assert.deepEqual(inspect('').items.map(item => item.label), ['within'])
+				t.assert.deepEqual(inspect('').tokens, [[`@${modifier}`, 'docDirective']])
 				const items = inspect('within ').items
 				t.assert.deepEqual(items.map(item => item.label), ['""', '%parent', 'THIS NAMESPACE'])
 				t.assert.equal(items[2].insertText, 'demo:')
@@ -1502,6 +1503,27 @@ describe('directive suggestion policy', () => {
 			),
 		}
 	}
+	it('validates and suggests directives using their declared targets', t => {
+		class CustomDirective extends DefaultDocDirective {
+			override readonly identifier = 'custom'
+			override readonly allowedTargets = ['function', 'objective']
+		}
+		const configure = (project: ReturnType<typeof mockProjectData>) =>
+			registerDocDirective(project.meta, new CustomDirective())
+		for (
+			const [target, allowed] of [
+				['function demo:test', true],
+				['objective coins', true],
+				['team red', false],
+			] as const
+		) {
+			const { node, labels } = complete(`\n#> ${target}\n# @custom|`, configure)
+			t.assert.equal(node.docDirectives[0]?.valid, allowed, target)
+			t.assert.equal(labels.includes('@custom'), allowed, target)
+			const inline = complete(`\n#> @custom| ${target}`, configure)
+			t.assert.equal(inline.node.docDirectives[0]?.valid, allowed, target)
+		}
+	})
 	for (const newline of ['\n', '\r\n']) {
 		for (const suffix of ['#  @|', '#  @v|']) {
 			it(

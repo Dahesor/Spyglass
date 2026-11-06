@@ -230,6 +230,7 @@ function nbtChecker(
 						? core.ResourceLocationNode.toString(dispatchedBy)
 						: undefined
 					nbt.checker.index('minecraft:storage', storage, {
+						allowUnknownKeys: ctx.isDependency,
 						isPredicate: node.properties.isPredicate,
 						isMerge: node.properties.isMerge,
 					})(tag, ctx)
@@ -289,7 +290,9 @@ function nbtPathChecker(dispatchedBy?: core.AstNode): core.SyncChecker<NbtPathNo
 				const storage = core.ResourceLocationNode.is(dispatchedBy)
 					? core.ResourceLocationNode.toString(dispatchedBy)
 					: undefined
-				nbt.checker.path('minecraft:storage', storage)(path, ctx)
+				nbt.checker.path('minecraft:storage', storage, {
+					allowUnknownKeys: ctx.isDependency,
+				})(path, ctx)
 				break
 		}
 	}

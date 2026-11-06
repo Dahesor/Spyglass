@@ -2,15 +2,6 @@ import * as core from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type { DocAccess, DocDirectiveNode, DocNode } from '../node/index.js'
 
-export type DocDirectiveOverride = ReadonlyMap<
-	string,
-	Partial<
-		Pick<
-			DocDirective,
-			'modifyAccess' | 'handleDirective' | 'parseArguments' | 'includeInSuggestion' | 'completer'
-		>
-	>
->
 /**
  * The return type of a documentation directive handler.
  */
@@ -67,9 +58,6 @@ export interface DocTargets {
 
 	binder(node: DocNode, ctx: core.BinderContext): void
 	completer(node: core.DeepReadonly<DocNode>, ctx: core.CompleterContext): core.CompletionItem[]
-	acceptedDirectives: string[]
-	/** Override individual handlers of registered directives */
-	directiveOverrides?: DocDirectiveOverride
 }
 
 /*
@@ -78,8 +66,8 @@ export interface DocTargets {
 export interface DocDirective {
 	/** Its identifier, for example, `public` */
 	readonly identifier: string
-	/** If this directive can be used for any doc target. */
-	readonly isCommon: boolean
+	/** If present, limit doc targets that can use this doc directive*/
+	readonly allowedTargets?: readonly string[]
 	/** If this directive is an access modifier */
 	readonly isAccessModifier: boolean
 	/** If it requires one or more arguments */
@@ -109,7 +97,7 @@ export interface DocDirective {
 		ctx: core.BinderContext,
 		input: DocDirectiveHandlerContext,
 	): DocDirectiveReturn
-	/** Whether this directive should be included in suggestion lists
+	/** Whether this directive should be included in suggestion lists.
 	 * Note that this does not affect the actual parsing or handling of the directive.
 	 */
 	includeInSuggestion(ctx: core.CompleterContext, input: DocDirectiveSuggestCtx): boolean
@@ -117,8 +105,6 @@ export interface DocDirective {
 
 export class DefaultDocTarget implements DocTargets {
 	readonly identifier: string = ''
-	readonly acceptedDirectives: string[] = []
-	readonly directiveOverrides: DocDirectiveOverride = new Map()
 	parser(_src: core.Source, _ctx: core.ParserContext, _node: DocNode): boolean {
 		return true
 	}
@@ -133,7 +119,7 @@ export class DefaultDocTarget implements DocTargets {
 
 export class DefaultDocDirective implements DocDirective {
 	readonly identifier: string = ''
-	readonly isCommon: boolean = true
+	readonly allowedTargets?: readonly string[]
 	readonly allowDuplicates: boolean = false
 	readonly isAccessModifier: boolean = false
 	readonly hasMandatoryArgument: boolean = false
@@ -326,7 +312,7 @@ export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
 		src.skipSpace()
 		if (src.tryPeek('@')) {
 			const indent = src.cursor - contentStart
-			const occurrence = parseDirective(src, false, ctx, undefined, indent, docTarget)
+			const occurrence = parseDirective(src, false, ctx, undefined, indent)
 			occurrence.range.start = commentStart
 			occurrence.valid = validateDirective(occurrence, docTarget, ctx)
 			ans.valid = ans.valid && occurrence.valid
@@ -364,7 +350,7 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	node.deprecated = undefined
 	const accessModifierSeen = new Set<string>()
 	for (const occurrence of node.docDirectives) {
-		const docDirective = getDocDirective(ctx.meta, docTarget, occurrence.identifier)
+		const docDirective = getDocDirective(ctx.meta, occurrence.identifier)
 		if (
 			!occurrence.valid || !docDirective
 			|| (!docDirective.allowDuplicates && accessModifierSeen.has(docDirective.identifier))
@@ -428,43 +414,15 @@ export function getDirectiveDescription(directive: DocDirective): string | undef
 		: undefined
 }
 
+export function isDocDirectiveAllowed(directive: DocDirective, target: DocTargets): boolean {
+	return directive.allowedTargets?.includes(target.identifier) ?? true
+}
+
 export function getDocDirective(
 	meta: core.MetaRegistry,
-	target: DocTargets | undefined,
 	identifier: string,
 ): DocDirective | undefined {
-	const directive = meta.getCustom<DocDirective>('impdoc:directive')?.get(identifier)
-	if (!directive) {
-		return undefined
-	}
-	const overrides = target?.directiveOverrides?.get(identifier)
-	const parseArguments = overrides?.parseArguments ?? directive.parseArguments
-	return {
-		identifier: directive.identifier,
-		isCommon: directive.isCommon,
-		isAccessModifier: directive.isAccessModifier,
-		hasMandatoryArgument: directive.hasMandatoryArgument,
-		allowDuplicates: directive.allowDuplicates,
-		description: directive.description ?? undefined,
-		parseArguments: parseArguments?.bind(directive),
-		completer:
-			(overrides?.completer ?? directive.completer ?? DefaultDocDirective.prototype.completer)
-				.bind(directive),
-		includeInSuggestion: (completionCtx, input) =>
-			(overrides?.includeInSuggestion ?? directive.includeInSuggestion).call(
-				directive,
-				completionCtx,
-				input,
-			),
-		modifyAccess: (occurrence, node, ctx) =>
-			overrides?.modifyAccess
-				? overrides.modifyAccess(occurrence, node, ctx)
-				: directive.modifyAccess(occurrence, node, ctx),
-		handleDirective: (occurrence, node, ctx, input) =>
-			overrides?.handleDirective
-				? overrides.handleDirective(occurrence, node, ctx, input)
-				: directive.handleDirective(occurrence, node, ctx, input),
-	}
+	return meta.getCustom<DocDirective>('impdoc:directive')?.get(identifier)
 }
 
 function handleDocDirective(
@@ -477,14 +435,12 @@ function handleDocDirective(
 ): DocDirectiveReturn | undefined {
 	const identifier = occurrence.identifier
 	const range = occurrence.range
-	const directive = getDocDirective(ctx.meta, target, identifier)
+	const directive = getDocDirective(ctx.meta, identifier)
 	if (!directive) {
-		// Unknown directives are parsed for compatibility but have no binding behavior.
+		// Unknown directives are parsed for compatibility but do not bind.
 		return undefined
 	}
-	if (
-		!caller && !directive.isCommon && !target.acceptedDirectives.includes(directive.identifier)
-	) {
+	if (!caller && !isDocDirectiveAllowed(directive, target)) {
 		ctx.err.report(
 			localize(
 				'mcfunction.doc.directive.diagnostic.disallowed',
@@ -556,7 +512,6 @@ function parseDirective(
 	ctx: core.ParserContext,
 	caller?: DocDirectiveNode,
 	indent = 0,
-	target?: DocTargets,
 ): DocDirectiveNode {
 	const cursorStart = src.cursor
 	// skip initial '@'
@@ -575,7 +530,7 @@ function parseDirective(
 		valid: false,
 	}
 	if (!isInline) {
-		const directive = getDocDirective(ctx.meta, target, identifier)
+		const directive = getDocDirective(ctx.meta, identifier)
 		const input: DocDirectiveParserContext = {
 			caller,
 			indent,
@@ -624,7 +579,7 @@ function parseDirective(
 					return undefined
 				}
 				src.cursor = suggestionStart
-				const child = parseDirective(src, false, ctx, node, childIndent, target)
+				const child = parseDirective(src, false, ctx, node, childIndent)
 				child.range.start = commentStart
 				child.valid = validateDirective(child, undefined, ctx)
 				node.children.push(child)
@@ -650,13 +605,13 @@ function validateDirective(
 	target: DocTargets | undefined,
 	ctx: core.ParserContext,
 ): boolean {
-	const docDirective = ctx.meta.getCustom<DocDirective>('impdoc:directive')?.get(node.identifier)
+	const docDirective = getDocDirective(ctx.meta, node.identifier)
 	if (!docDirective) {
 		// Do not report an error for unknown directives for compatibility
 		return true
 	}
 	node.hover = getDirectiveDescription(docDirective)
-	if (target && !docDirective.isCommon && !target.acceptedDirectives.includes(node.identifier)) {
+	if (target && !isDocDirectiveAllowed(docDirective, target)) {
 		ctx.err.report(
 			localize(
 				'mcfunction.doc.directive.diagnostic.disallowed',

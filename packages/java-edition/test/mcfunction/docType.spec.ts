@@ -10,9 +10,6 @@ function parse(text: string) {
 	const project = mockProjectData()
 	mcdoc.initialize(project)
 	je.mcf.initialize(project, { type: 'root', children: {} }, '1.21.5')
-	// Type interpretation by individual documentation targets is separate from type syntax.
-	project.meta.getCustom<mcf.DocTargets>('impdoc:target')!.get('function')!.acceptedDirectives
-		.push('type')
 	const doc = TextDocument.create(
 		'file:///pack/data/demo/function/self.mcfunction',
 		'mcfunction',
