@@ -297,6 +297,7 @@ const AnsiCodeMap: Record<RenderFormat, number> = {
 
 const ColorTokenTypeLegend: Record<ColorTokenType, Set<RenderFormat>> = {
 	comment: new Set(['foreground_green']),
+	docDirective: new Set(['foreground_blue']),
 	enum: new Set(['foreground_white']),
 	enumMember: new Set(['foreground_white']),
 	error: new Set(['foreground_red', 'underline']),

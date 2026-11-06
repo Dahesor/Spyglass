@@ -3,6 +3,7 @@ import {
 	FileNode,
 	Logger,
 	Project,
+	SymbolTable,
 	SymbolUtil,
 	VanillaConfig,
 } from '@spyglassmc/core'
@@ -84,6 +85,8 @@ it('resolves public mcdoc types across separate dependency packages', async t =>
 	)
 	try {
 		await project.init()
+		const dependency = 'file:///second/b.mcdoc'
+		await project.onDidOpen(dependency, 'mcdoc', 0, 'type EditorOnly = string')
 		await project.ready()
 		await project.onDidOpen(
 			'file:///root/main.mcdoc',
@@ -122,12 +125,12 @@ it('resolves public mcdoc types across separate dependency packages', async t =>
 			t.assert.equal(member.scopes?.restricted, undefined)
 		}
 		assertBaseSymbols()
-		await project.onDidOpen(
-			'file:///second/b.mcdoc',
-			'mcdoc',
-			0,
-			'type Value = int\ndispatch minecraft:item[example] to int',
-		)
+		const symbolsBefore = SymbolTable.serialize(project.symbolStorage.global)
+		await project.onDidChange(dependency, [{
+			text: 'type Edited = string\ndispatch minecraft:item[example] to string',
+		}], 1)
+		await project.ensureClientManagedChecked(dependency)
+		t.assert.equal(SymbolTable.serialize(project.symbolStorage.global), symbolsBefore)
 		assertBaseSymbols()
 	} finally {
 		await project.close()

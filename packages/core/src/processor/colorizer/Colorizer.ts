@@ -77,6 +77,7 @@ export const ColorTokenTypes = Object.freeze(
 		'punctuation',
 		'resourceLocation',
 		'vector',
+		'docDirective',
 	] as const,
 )
 export type ColorTokenType = typeof ColorTokenTypes[number]

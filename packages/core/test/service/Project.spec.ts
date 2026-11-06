@@ -253,7 +253,7 @@ describe('Project', () => {
 		}
 	})
 	for (const drive of ['C:', 'C%3A']) {
-		it(`filters dependency declarations with a noncanonical Windows drive ${drive}`, async () => {
+		it(`separates project and dependency symbols with a noncanonical Windows drive ${drive}`, async () => {
 			const { fs } = memfs({
 				'/dependency/public.spyglasstest': 'public',
 				'/dependency/internal.spyglasstest': 'internal',
@@ -310,7 +310,7 @@ describe('Project', () => {
 				externals,
 				logger: Logger.noop(),
 				initializers: [initializer],
-				projectRoots: [ProjectRoot],
+				projectRoots: [`file:///${drive}/root/`],
 				defaultConfig: ConfigService.merge(VanillaConfig, {
 					env: { dependencies: [`file:///${drive}/dependency/`] },
 				}),
@@ -331,6 +331,9 @@ describe('Project', () => {
 					1,
 				)
 				assert.equal(project.cacheService.imports[0].uri, 'file:///c:/dependency/')
+				const local = 'file:///c:/root/local.spyglasstest'
+				await project.onDidOpen(local, 'spyglasstest', 0, 'public')
+				assert.equal(project.symbolStorage.getPaths(local, 'uri_binder').size, 1)
 			} finally {
 				await project.close()
 			}
@@ -399,15 +402,11 @@ describe('Project', () => {
 				`${copy}value.spyglasstest`,
 				`${other}value.spyglasstest`,
 			])
+			const symbolsBefore = SymbolTable.serialize(reloaded.symbolStorage.global)
 			await reloaded.onDidOpen(`${other}value.spyglasstest`, 'spyglasstest', 0, 'foo')
-			assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [copy])
-			assert.equal(reloaded.shouldExclude(`${other}value.spyglasstest`), true)
-			const symbol = reloaded.symbolStorage.global.function!['demo:duplicate']
-			assert.equal(symbol.scopes?.public?.length, 1)
-			assert.equal(
-				SymbolUtil.viewFromContext(symbol, ProjectRoot)?.definition?.[0].uri,
-				`${copy}value.spyglasstest`,
-			)
+			assert.deepEqual(reloaded.cacheService.imports.map(value => value.uri), [copy, other])
+			assert.equal(reloaded.shouldExclude(`${other}value.spyglasstest`), false)
+			assert.equal(SymbolTable.serialize(reloaded.symbolStorage.global), symbolsBefore)
 		} finally {
 			await project.close()
 			await reloaded?.close()
@@ -458,7 +457,7 @@ describe('Project', () => {
 			await reloaded?.close()
 		}
 	})
-	it('opens unchanged local dependencies without scanning siblings and republishes edits and undo', async t => {
+	it('isolates directory dependency views and edits without scanning siblings', async t => {
 		const uri = 'file:///dependency/value.spyglasstest'
 		const bound: string[] = []
 		const files: Record<string, string> = {
@@ -480,6 +479,11 @@ describe('Project', () => {
 					usage: { type: 'declaration', node },
 				})
 			})
+			meta.registerChecker<LiteralNode>('literal', (node, ctx) => {
+				ctx.symbols.query({ doc: ctx.doc, node }, 'objective', 'calc.dnt').enter({
+					usage: { type: 'definition', node },
+				})
+			})
 		}])
 		const description = () =>
 			SymbolUtil.viewFromContext(
@@ -489,33 +493,68 @@ describe('Project', () => {
 		try {
 			assert.equal(bound.length, 101)
 			assert.equal(description(), 'foo')
+			const symbolsBefore = SymbolTable.serialize(project.symbolStorage.global)
+			const originalImport = project.cacheService.imports[0].checksum
+			const originalFileHash = project.cacheService.checksums.files[uri]
 			bound.length = 0
 			const hashes = t.mock.method(project.fs, 'hash')
 			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
-			await project.ensureClientManagedChecked(uri)
+			const opened = await project.ensureClientManagedChecked(uri)
+			assert.equal(opened?.node.children[0]?.symbol?.identifier, 'calc.dnt')
+			assert.equal(SymbolTable.serialize(project.symbolStorage.global), symbolsBefore)
 			assert.deepEqual(bound, [uri])
 			assert.equal(hashes.mock.callCount(), 0)
-			assert.equal(description(), 'foo')
-			const originalImport = project.cacheService.imports[0].checksum
 			bound.length = 0
 			await project.onDidChange(uri, [{ text: 'bar' }], 1)
+			assert.equal((await project.ensureClientManagedChecked(uri))?.doc.getText(), 'bar')
 			assert.deepEqual(bound, [uri])
 			assert.equal(hashes.mock.callCount(), 0)
-			assert.equal(description(), 'bar')
-			assert.notEqual(project.cacheService.imports[0].checksum, originalImport)
-			// Undo before the diagnostic cache advances must still restore the exports.
-			bound.length = 0
-			await project.onDidChange(uri, [{ text: 'foo' }], 2)
-			assert.deepEqual(bound, [uri])
-			assert.equal(hashes.mock.callCount(), 0)
-			assert.equal(description(), 'foo')
+			assert.equal(SymbolTable.serialize(project.symbolStorage.global), symbolsBefore)
 			assert.equal(project.cacheService.imports[0].checksum, originalImport)
+			assert.equal(project.cacheService.checksums.files[uri], originalFileHash)
 			project.onDidClose(uri)
 			bound.length = 0
 			hashes.mock.resetCalls()
 			await project.onDidOpen(uri, 'spyglasstest', 3, 'foo')
 			assert.deepEqual(bound, [uri])
 			assert.equal(hashes.mock.callCount(), 0)
+			await fileUtil.writeFile(project.externals, uri, 'bar')
+			await project.restart()
+			assert.equal(description(), 'bar')
+			assert.equal(project.getClientManaged(uri)?.doc.getText(), 'foo')
+		} finally {
+			await project.close()
+		}
+	})
+	it('keeps symbols and checksums from workspace-external documents out of the project', async () => {
+		const uri = 'file:///external/file.spyglasstest'
+		const { project } = await setup({
+			'/root/spyglass.json': '{}',
+			'/external/file.spyglasstest': 'foo',
+		}, [({ meta }) => {
+			meta.registerUriBinder((uris, ctx) => {
+				for (const uri of uris) {
+					ctx.symbols.query(uri, 'function', 'demo:external').enter(
+						{ usage: {} },
+						SymbolEnterType.File,
+					)
+				}
+			})
+			meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
+				ctx.symbols.query({ doc: ctx.doc, node }, 'objective', 'external').enter({
+					usage: { type: 'definition', node },
+				})
+			})
+		}])
+		try {
+			const symbolsBefore = SymbolTable.serialize(project.symbolStorage.global)
+			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
+			const opened = await project.ensureClientManagedChecked(uri)
+			assert.equal(opened?.node.children[0]?.symbol?.identifier, 'external')
+			assert.equal(project.cacheService.checksums.files[uri], undefined)
+			assert.equal(project.cacheService.errors[uri], undefined)
+			await project.ensureBindingStarted(uri)
+			assert.equal(SymbolTable.serialize(project.symbolStorage.global), symbolsBefore)
 		} finally {
 			await project.close()
 		}

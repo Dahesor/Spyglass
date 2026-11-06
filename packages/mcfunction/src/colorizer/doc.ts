@@ -2,7 +2,7 @@ import * as core from '@spyglassmc/core'
 import type { DocDirectiveNode, DocNode } from '../node/index.js'
 
 export const docDirective: core.Colorizer<DocDirectiveNode> = (node, ctx) => [
-	core.ColorToken.create(node.identifierRange, 'literal'),
+	core.ColorToken.create(node.identifierRange, 'docDirective'),
 	...(node.children ?? []).flatMap(child => core.colorizer.fallback(child, ctx)),
 ]
 

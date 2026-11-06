@@ -33,7 +33,7 @@ export function registerDocDirectives(meta: core.MetaRegistry): void {
 		new VoidDirective(),
 		new TypeDirective(),
 		new AuthorDirective(),
-		new FunctionPredicateDirective(),
+		new PredicateDirective(),
 		new ReadonlyDirective(),
 	]
 	for (const directive of directives) {
@@ -88,7 +88,6 @@ class CommandTreeDocDirective extends DefaultDocDirective {
 
 /** Access modifier directive */
 class AccessModifierDirective extends DefaultDocDirective {
-	override readonly isCommon: boolean = true
 	override readonly isAccessModifier = true
 }
 
@@ -299,7 +298,7 @@ export class LocalDirective extends AccessModifierDirective {
 
 export class CallbyDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'callby'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function']
 	override readonly parser_id: string = 'impdoc:callby_arguments'
 	override handleDirective(
 		directive: core.DeepReadonly<DocDirectiveNode>,
@@ -322,7 +321,7 @@ export class UserDirective extends DefaultDocDirective {
 
 export class ChatOnlyDirective extends DefaultDocDirective {
 	override readonly identifier = 'chatonly'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function']
 	// TODO
 }
 
@@ -397,7 +396,7 @@ export class OverrideDirective extends AccessModifierDirective {
 
 export class ContextDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'context'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function']
 	override readonly parser_id: string = 'impdoc:context_arguments'
 	override handleDirective(
 		directive: core.DeepReadonly<DocDirectiveNode>,
@@ -427,7 +426,7 @@ export class ContextDirective extends CommandTreeDocDirective {
 
 export class ReadsDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'reads'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function']
 	override readonly allowDuplicates: boolean = true
 	override readonly parser_id: string = 'impdoc:read_write_arguments'
 	override handleDirective(
@@ -448,7 +447,7 @@ export class ReadsDirective extends CommandTreeDocDirective {
 
 export class WritesDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'writes'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function']
 	override readonly allowDuplicates: boolean = true
 	override readonly parser_id: string = 'impdoc:read_write_arguments'
 	override handleDirective(
@@ -469,7 +468,7 @@ export class WritesDirective extends CommandTreeDocDirective {
 
 export class InputDirective extends CommandTreeDocDirective {
 	override readonly identifier = 'input'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function']
 	override readonly allowDuplicates: boolean = true
 	override readonly parser_id: string = 'impdoc:input_arguments'
 	override handleDirective(
@@ -490,7 +489,7 @@ export class InputDirective extends CommandTreeDocDirective {
 
 export class ReturnsDirective extends DefaultDocDirective {
 	override readonly identifier = 'returns'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function']
 	override parseArguments(
 		src: core.Source,
 		directive: DocDirectiveNode,
@@ -643,9 +642,9 @@ export class VoidDirective extends GreedyStringDirective {
 	}
 }
 
-export class FunctionPredicateDirective extends GreedyStringDirective {
+export class PredicateDirective extends GreedyStringDirective {
 	override readonly identifier = 'predicate'
-	override readonly isCommon: boolean = false
+	override readonly allowedTargets = ['function', 'predicate']
 	override handleDirective(
 		directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,
@@ -659,7 +658,6 @@ export class FunctionPredicateDirective extends GreedyStringDirective {
 
 export class TypeDirective extends DefaultDocDirective {
 	override readonly identifier = 'type'
-	override readonly isCommon: boolean = true
 	override readonly hasMandatoryArgument: boolean = true
 	override readonly allowDuplicates: boolean = true
 	override parseArguments(

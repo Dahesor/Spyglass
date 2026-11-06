@@ -62,6 +62,7 @@ export function register(meta: core.MetaRegistry) {
 export interface Options {
 	isPredicate?: boolean
 	isMerge?: boolean
+	allowUnknownKeys?: boolean
 }
 
 /**
@@ -193,6 +194,9 @@ export function typeDefinition(
 					return []
 				},
 				reportError: (error) => {
+					if (options.allowUnknownKeys && error.kind === 'unknown_key') {
+						return
+					}
 					if (options.isPredicate && error.kind === 'invalid_collection_length') {
 						return
 					}
@@ -375,6 +379,7 @@ interface NbtPathLink {
 export function path(
 	registry: core.FullResourceLocation,
 	id: core.FullResourceLocation | readonly core.FullResourceLocation[] | undefined,
+	options: Pick<Options, 'allowUnknownKeys'> = {},
 ): core.SyncChecker<NbtPathNode> {
 	return (node, ctx) => {
 		// TODO: support dispatcher
@@ -474,7 +479,10 @@ export function path(
 					}))
 				},
 				reportError: (error) => {
-					if (error.kind === 'invalid_collection_length') {
+					if (
+						error.kind === 'invalid_collection_length'
+						|| options.allowUnknownKeys && error.kind === 'unknown_key'
+					) {
 						return
 					}
 					mcdoc.runtime.checker.getDefaultErrorReporter<NbtPathLink>(
