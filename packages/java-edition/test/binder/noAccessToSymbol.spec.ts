@@ -56,8 +56,8 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 		const symbols = new core.SymbolService(project.symbolStorage)
 		symbols.contributeAs('binder', () => {
 			symbols.query({ doc, node }, category, name).enter({
-				usage: { type: 'reference', node },
-			}, core.SymbolEnterType.InFileSymbol)
+				usage: { type: 'reference', node, followDocScope: true },
+			})
 		})
 		const errors: core.LanguageError[] = []
 		for (const ruleName of ['undeclaredSymbol', 'noAccessToSymbol'] as const) {

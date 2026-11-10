@@ -8,7 +8,7 @@ import { argument } from '../../../lib/mcfunction/parser/argument.js'
 import { getPatch } from '../../../lib/mcfunction/tree/patch.js'
 
 for (const docFirst of [false, true]) {
-	it(`keeps home tag completion outside a private doc folder (doc first: ${docFirst})`, t => {
+	it(`binds tag additions as implementations both inside and outside the doc scope (doc first: ${docFirst})`, t => {
 		const project = mockProjectData()
 		mcf.initialize(project)
 		const root = 'file:///pack/data/test/function/'
@@ -61,9 +61,12 @@ for (const docFirst of [false, true]) {
 		const raw = homeNode.symbol!
 		const outside = core.SymbolUtil.viewFromContext(raw, home.uri)!
 		t.assert.equal(homeNode.options.usageType, 'definition')
-		t.assert.equal(outside.definition?.[0].uri, home.uri)
-		t.assert.equal(outside.definition?.length, 1)
+		t.assert.equal(outside.implementation?.[0].uri, home.uri)
+		t.assert.equal(outside.implementation?.length, 1)
+		t.assert.equal(outside.definition?.length ?? 0, 0)
+		t.assert.equal(outside.declaration?.length ?? 0, 0)
 		t.assert.equal(outside.reference?.length, 1)
+		t.assert.equal(core.SymbolUtil.getDeclaredLocation(outside), outside.implementation?.[0])
 		t.assert.equal(core.SymbolUtil.viewFromContext(raw, inner.uri)?.implementation?.length, 1)
 		const completions = core.completer.symbol(
 			core.SymbolNode.mock(0, { category: 'tag' }),

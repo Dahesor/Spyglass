@@ -71,7 +71,7 @@ describe('file-origin definitions and doc declarations', () => {
 		]
 	) {
 		for (const docFirst of [false, true]) {
-			it(`${category} ${ext} file implements a doc outside its URI scope (doc first: ${docFirst})`, t => {
+			it(`${category} ${ext} file definition follows a doc outside its URI scope (doc first: ${docFirst})`, t => {
 				const env = setup(category, ext)
 				if (docFirst) {
 					t.assert.deepEqual(env.declare(), [])
@@ -87,17 +87,17 @@ describe('file-origin definitions and doc declarations', () => {
 				t.assert.equal(env.view(outside), undefined)
 				const scoped = env.view(privateDoc)!
 				t.assert.equal(scoped.declaration?.length, 1)
-				t.assert.equal(scoped.implementation?.length, 1)
-				t.assert.equal(scoped.implementation?.[0].uri, env.fileUri)
-				t.assert.equal(scoped.implementation?.[0].contributor, 'uri_binder')
-				t.assert.equal(scoped.implementation?.[0].fromFile, true)
-				t.assert.equal(scoped.implementation?.[0].range?.start, 0)
+				t.assert.equal(scoped.definition?.length, 1)
+				t.assert.equal(scoped.definition?.[0].uri, env.fileUri)
+				t.assert.equal(scoped.definition?.[0].contributor, 'uri_binder')
+				t.assert.equal(scoped.definition?.[0].fromFile, true)
+				t.assert.equal(scoped.definition?.[0].range?.start, 0)
 			})
 		}
 	}
 	for (const modifier of ['@public', '']) {
 		for (const docFirst of [false, true]) {
-			it(`public doc makes a file implementation (${modifier}, doc first: ${docFirst})`, t => {
+			it(`public doc retains the file definition (${modifier}, doc first: ${docFirst})`, t => {
 				const env = setup()
 				if (docFirst) {
 					env.declare(privateDoc, modifier)
@@ -106,8 +106,8 @@ describe('file-origin definitions and doc declarations', () => {
 				if (!docFirst) {
 					env.declare(privateDoc, modifier)
 				}
-				t.assert.equal(env.view(outside)?.definition?.length ?? 0, 0)
-				t.assert.equal(env.view(outside)?.implementation?.[0].uri, env.fileUri)
+				t.assert.equal(env.view(outside)?.implementation?.length ?? 0, 0)
+				t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)
 				env.symbols.clear({ uri: privateDoc, contributor: 'binder' })
 				t.assert.equal(env.view(outside)?.definition?.length, 1)
 				t.assert.equal(env.view(outside)?.implementation?.length ?? 0, 0)
@@ -119,15 +119,15 @@ describe('file-origin definitions and doc declarations', () => {
 		env.bindFile()
 		env.declare()
 		env.declare(secondDoc)
-		t.assert.equal(env.view(privateDoc)?.implementation?.length, 1)
-		t.assert.equal(env.view(secondDoc)?.implementation?.length, 1)
+		t.assert.equal(env.view(privateDoc)?.definition?.length, 1)
+		t.assert.equal(env.view(secondDoc)?.definition?.length, 1)
 		env.reload(core.SymbolTable.deserialize(
 			core.SymbolTable.serialize(env.project.symbolStorage.global),
 		))
 		env.project.symbolStorage.rebuildIndex()
 		env.symbols.clear({ uri: privateDoc, contributor: 'binder' })
 		t.assert.equal(env.view(privateDoc), undefined)
-		t.assert.equal(env.view(secondDoc)?.implementation?.length, 1)
+		t.assert.equal(env.view(secondDoc)?.definition?.length, 1)
 		env.symbols.clear({ uri: secondDoc, contributor: 'binder' })
 		t.assert.equal(env.view(outside)?.definition?.length, 1)
 		t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)
@@ -146,24 +146,24 @@ describe('file-origin definitions and doc declarations', () => {
 			env.declare()
 			t.assert.equal(env.view(outside)?.definition?.[0].uri, env.fileUri)
 			t.assert.equal(env.view(privateDoc)?.declaration?.length, 1)
-			t.assert.equal(env.view(privateDoc)?.implementation?.length ?? 0, 0)
+			t.assert.equal(env.view(privateDoc)?.definition?.length ?? 0, 0)
 		})
 	}
-	it('reuses file implementations on both public and private declarations', t => {
+	it('reuses file definitions on both public and private declarations', t => {
 		const env = setup()
 		env.bindFile()
 		env.declare()
 		env.declare(outside, '@public')
-		t.assert.equal(env.view(outside)?.implementation?.length, 1)
-		t.assert.equal(env.view(privateDoc)?.implementation?.length, 1)
-		const publicImplementation = env.view(outside)?.implementation?.[0]
-		const privateImplementation = env.view(privateDoc)?.implementation?.[0]
+		t.assert.equal(env.view(outside)?.definition?.length, 1)
+		t.assert.equal(env.view(privateDoc)?.definition?.length, 1)
+		const publicDefinition = env.view(outside)?.definition?.[0]
+		const privateDefinition = env.view(privateDoc)?.definition?.[0]
 		core.Isotope.reconcileDocUsages(env.symbols, env.raw())
-		t.assert.equal(env.view(outside)?.implementation?.[0], publicImplementation)
-		t.assert.equal(env.view(privateDoc)?.implementation?.[0], privateImplementation)
+		t.assert.equal(env.view(outside)?.definition?.[0], publicDefinition)
+		t.assert.equal(env.view(privateDoc)?.definition?.[0], privateDefinition)
 		env.symbols.clear({ uri: outside, contributor: 'binder' })
 		t.assert.equal(env.view(outside), undefined)
-		t.assert.equal(env.view(privateDoc)?.implementation?.length, 1)
+		t.assert.equal(env.view(privateDoc)?.definition?.length, 1)
 	})
 	it('clears and rebinds the source file across every declaration owner', t => {
 		const env = setup('structure', '.nbt')
@@ -172,10 +172,10 @@ describe('file-origin definitions and doc declarations', () => {
 		env.bindFile()
 		env.symbols.clear({ uri: env.fileUri, contributor: 'uri_binder' })
 		t.assert.equal(env.raw().scopes?.restricted?.length, 2)
-		t.assert.equal(env.view(privateDoc)?.implementation?.length ?? 0, 0)
+		t.assert.equal(env.view(privateDoc)?.definition?.length ?? 0, 0)
 		env.bindFile()
-		t.assert.equal(env.view(privateDoc)?.implementation?.length, 1)
-		t.assert.equal(env.raw().scopes?.restricted?.[1].usages.implementation?.length, 1)
+		t.assert.equal(env.view(privateDoc)?.definition?.length, 1)
+		t.assert.equal(env.raw().scopes?.restricted?.[1].usages.definition?.length, 1)
 	})
 	for (const docFirst of [false, true]) {
 		it(`handles deferred file binding (doc first: ${docFirst})`, t => {
@@ -190,34 +190,39 @@ describe('file-origin definitions and doc declarations', () => {
 			t.assert.equal(env.project.symbolStorage.global.function, undefined)
 			env.symbols.applyDelayedEdits()
 			t.assert.equal(env.view(outside), undefined)
-			t.assert.equal(env.view(privateDoc)?.implementation?.[0].uri, env.fileUri)
+			t.assert.equal(env.view(privateDoc)?.definition?.[0].uri, env.fileUri)
 		})
 	}
-	it('keeps definitions from file contents dependent on the command URI', t => {
+	it('routes command implementations by URI while keeping the file definition scoped', t => {
 		const env = setup()
 		env.declare()
 		env.bindFile()
 		env.symbols.contributeAs('binder', () => {
 			for (const uri of [privateDoc, outside]) {
-				env.symbols.query(uri, 'function', 'demo:example').enter({
-					usage: { type: 'definition' },
-				}, core.SymbolEnterType.InFileSymbol)
+				const node = core.ResourceLocationNode.mock(0, {
+					category: 'function',
+					usageType: 'definition',
+				})
+				node.namespace = 'demo'
+				node.path = ['example']
+				const doc = TextDocument.create(uri, 'mcfunction', 0, 'demo:example')
+				core.binder.resourceLocation(
+					node,
+					core.BinderContext.create(env.project, { doc, symbols: env.symbols }),
+				)
 			}
 		})
-		t.assert.equal(env.view(outside)?.definition?.length, 1)
-		t.assert.equal(env.view(outside)?.definition?.[0].uri, outside)
-		t.assert.equal(env.view(privateDoc)?.implementation?.length, 2)
-		t.assert.equal(
-			env.view(privateDoc)?.implementation?.filter(location => location.fromFile).length,
-			1,
-		)
+		t.assert.equal(env.view(outside)?.definition?.length ?? 0, 0)
+		t.assert.equal(env.view(outside)?.implementation?.[0].uri, outside)
+		t.assert.equal(env.view(privateDoc)?.implementation?.[0].uri, privateDoc)
+		t.assert.equal(env.view(privateDoc)?.definition?.[0].fromFile, true)
 	})
 	it('binds a function header after another private doc has already claimed the file definition', t => {
 		const env = setup()
 		env.bindFile()
 		env.declare()
 		t.assert.deepEqual(env.declare(env.fileUri, '@private', true), [])
-		t.assert.equal(env.view(env.fileUri)?.implementation?.[0].uri, env.fileUri)
+		t.assert.equal(env.view(env.fileUri)?.definition?.[0].uri, env.fileUri)
 		t.assert.equal(env.raw().scopes?.public?.[0]?.usages.definition?.length ?? 0, 0)
 	})
 	it('keeps local headers private and restores their file definition after a cache reload', async t => {

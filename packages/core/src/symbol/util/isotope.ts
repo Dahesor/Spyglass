@@ -32,7 +32,6 @@ interface PendingDocUsage {
 	location: SymbolLocation
 }
 
-/** Match the same fields as the old file-location search, including absent ranges. */
 function fileUsageKey(location: SymbolLocation, type: SymbolUsageType): string {
 	return JSON.stringify([location.uri, location.contributor, location.range, type])
 }
@@ -61,13 +60,25 @@ export namespace Isotope {
 		contributor: string | undefined,
 	): void {
 		const scope = addition.data?.scope ?? SymbolIsotopeScope.Public
+		const usage = addition.usage
 		const hasMetadata = addition.data
 			&& ('desc' in addition.data || 'data' in addition.data || 'scope' in addition.data
 				|| 'source' in addition.data || 'deprecated' in addition.data
 				|| 'overrideLevel' in addition.data)
-		const isReference = (addition.usage?.type ?? 'reference') === 'reference' && !hasMetadata
-		const existing = selectIsotope(symbol, doc.uri, service.storage.resolveResourceLocation)
-			?? (isReference ? allIsotopesOf(symbol)[0] : undefined)
+		const isReference = (usage?.type ?? 'reference') === 'reference'
+		const selected = selectIsotope(symbol, doc.uri, service.storage.resolveResourceLocation)
+		const existing = selected
+			?? (isReference && (!hasMetadata || usage?.followDocScope)
+				? allIsotopesOf(symbol)[0]
+				: undefined)
+		const contextual = usage?.followDocScope ? existing : undefined
+		if (contextual) {
+			writeIsotope(service, symbol, contextual.identifier, { usage }, doc, contributor)
+			if (!hasMetadata || !selected) {
+				return
+			}
+		}
+		const reuseExisting = isReference && !hasMetadata && existing
 		const source = addition.data?.source
 			?? (addition.usage?.fromDocDeclaration
 				? SymbolIsotopeProvider.DocBlock
@@ -76,15 +87,15 @@ export namespace Isotope {
 				: SymbolIsotopeProvider.Regular)
 		const identifier = symbol.category === 'mcdoc' || symbol.category === 'mcdoc/dispatcher'
 			? 'regular'
-			: isReference && existing
-			? existing.identifier
+			: reuseExisting
+			? reuseExisting.identifier
 			: JSON.stringify([source, doc.uri, contributor])
 		writeIsotope(
 			service,
 			symbol,
 			identifier,
 			{
-				data: isReference && existing
+				data: reuseExisting
 					? undefined
 					: {
 						scope,
@@ -99,7 +110,7 @@ export namespace Isotope {
 							? { overrideLevel: addition.data.overrideLevel }
 							: {}),
 					},
-				usage: addition.usage,
+				usage: contextual ? undefined : usage,
 			},
 			doc,
 			contributor,
@@ -199,14 +210,13 @@ export namespace Isotope {
 			addition.usage.node.symbol = symbol
 		}
 
-		if (addition.usage?.fromDocDeclaration) {
+		if (addition.usage?.fromDocDeclaration || addition.usage?.fromFile) {
 			reconcileDocUsages(service, symbol)
 		}
 		return isotope
 	}
 
 	/** Reassign usages after declarations are added, removed or change access policy.
-	 * Since the existence of a doc declaration would turn definitions to implmentations
 	 * @param service The symbol service instance.
 	 * @param symbol The symbol to process.
 	 */
@@ -297,7 +307,7 @@ export namespace Isotope {
 					) {
 						return true
 					}
-					if (!location.fromFile && !location.originalUsageType) {
+					if (!location.fromFile && !location.followDocScope) {
 						return true
 					}
 					pending.push({ owner: usages, type, location })
@@ -326,8 +336,8 @@ export namespace Isotope {
 				}
 			}
 			const selectedByUri = new Map<string, SymbolIsotope | undefined>()
-			for (const { location } of pending) {
-				if (!location.fromFile && location.originalUsageType === 'definition') {
+			for (const { type, location } of pending) {
+				if (!location.fromFile && type === 'implementation') {
 					if (!selectedByUri.has(location.uri)) {
 						selectedByUri.set(
 							location.uri,
@@ -353,25 +363,26 @@ export namespace Isotope {
 		pending: PendingDocUsage[],
 		publicUsages: SymbolUsages | undefined,
 	): void {
-		// Keep the first match, as pending.find did, even if it is not a file usage.
-		const existingByOwner = new Map<SymbolUsages, Map<string, PendingDocUsage>>()
-		for (const previous of pending.some(value => value.location.fromFile) ? pending : []) {
-			let index = existingByOwner.get(previous.owner)
-			if (!index) {
-				existingByOwner.set(previous.owner, index = new Map())
+		const existingByOwner = new Map<SymbolUsages, Map<string, SymbolLocation>>()
+		for (const { owner, type, location } of pending) {
+			if (!location.fromFile) {
+				continue
 			}
-			const key = fileUsageKey(previous.location, previous.type)
+			let index = existingByOwner.get(owner)
+			if (!index) {
+				existingByOwner.set(owner, index = new Map())
+			}
+			const key = fileUsageKey(location, type)
 			if (!index.has(key)) {
-				index.set(key, previous)
+				index.set(key, location)
 			}
 		}
-		const fileLocations = new Set<string>()
+		const fileLocations = new Map<SymbolUsages, Set<string>>()
 		const retained = new Set<SymbolLocation>()
 		const created: SymbolLocation[] = []
 		const selectedByUri = new Map<string, SymbolIsotope | undefined>()
-		const docOwners = new Map<SymbolUsages, boolean>()
 		for (const previous of pending) {
-			const { location } = previous
+			const { location, type } = previous
 			let targets: SymbolIsotope[]
 			if (location.fromFile && declarations.length) {
 				targets = declarations
@@ -384,7 +395,7 @@ export namespace Isotope {
 				}
 				let selected = selectedByUri.get(location.uri)
 				if (!selected) {
-					// Keep inaccessible references in their previous owner; they do not create visibility.
+					// Keep inaccessible usages in a restricted owner without creating visibility.
 					if (!location.fromFile && declarations.length) {
 						selected = declarations[0]
 					}
@@ -412,50 +423,33 @@ export namespace Isotope {
 						}
 						// Creating metadata can change the fallback for every URI.
 						selectedByUri.clear()
-						docOwners.clear()
 					}
 				}
 				targets = [selected]
 			}
 			for (const target of targets) {
-				const { usages: owner, scope } = target
-				if (!docOwners.has(owner)) {
-					docOwners.set(
-						owner,
-						owner.declaration?.some(value => value.fromDocDeclaration) ?? false,
-					)
+				const owner = target.usages
+				let existing = previous.owner === owner ? location : undefined
+				if (location.fromFile) {
+					const key = fileUsageKey(location, type)
+					let seen = fileLocations.get(owner)
+					if (!seen) {
+						fileLocations.set(owner, seen = new Set())
+					}
+					if (seen.has(key)) {
+						continue
+					}
+					seen.add(key)
+					existing = existingByOwner.get(owner)?.get(key)
 				}
-				const isDoc = docOwners.get(owner)
-				const original = location.originalUsageType
-					?? (location.fromFile ? 'definition' : 'reference')
-				const type = original === 'definition' && isDoc ? 'implementation' : original
-				const key = fileUsageKey(location, type)
-				const dedupKey = JSON.stringify([
-					scope >= SymbolIsotopeScope.Internal ? scope : target.identifier,
-					key,
-				])
-				if (location.fromFile && fileLocations.has(dedupKey)) {
-					continue
-				}
-				fileLocations.add(dedupKey)
-				const existing = location.fromFile
-					? existingByOwner.get(owner)?.get(key)
-					: previous.owner === owner && previous.type === type
-					? previous
-					: undefined
-				const relocated = existing
-					? existing.location
-					: { ...location, isotopeIdentifier: target.identifier }
+				const relocated = existing ?? { ...location, isotopeIdentifier: target.identifier }
 				if (existing) {
-					existing.location.isotopeIdentifier = target.identifier
-					retained.add(existing.location)
+					existing.isotopeIdentifier = target.identifier
+					retained.add(existing)
 				} else {
 					created.push(relocated)
 				}
 				;(owner[type] ??= []).push(relocated)
-				if (type === 'declaration' && relocated.fromDocDeclaration) {
-					docOwners.set(owner, true)
-				}
 			}
 		}
 		for (const { location } of pending) {
@@ -651,61 +645,5 @@ export namespace Isotope {
 			reconcileDocUsages(service, symbol)
 		}
 		removeDetachedUsages(service, symbol, previousUsages)
-	}
-
-	/** Route in file usages into the selected isotope
-	 * @return usages that needs a new symbol for.
-	 */
-	export function enterInFileUsage(
-		service: SymbolService,
-		raw: Symbol | undefined,
-		addition: SymbolAddition,
-		doc: TextDocument,
-		contributor: string | undefined,
-	): SymbolAdditionUsage | undefined {
-		const isotope = raw
-			? selectIsotope(raw, doc.uri, service.storage.resolveResourceLocation)
-			: undefined
-		const originalType = addition.usage?.type ?? 'reference'
-		const usage: SymbolAdditionUsage = { ...addition.usage, originalUsageType: originalType }
-		if (raw && isotope) {
-			if (addition.data) {
-				service.amendSymbol(raw, { data: addition.data }, doc, contributor)
-			}
-			const owner = isotope.usages
-			const docDeclared = owner.declaration?.some(location => location.fromDocDeclaration)
-			writeIsotope(
-				service,
-				raw,
-				isotope.identifier,
-				{
-					usage: {
-						...usage,
-						type: originalType === 'definition' && docDeclared
-							? 'implementation'
-							: originalType,
-					},
-				},
-				doc,
-				contributor,
-			)
-		} else {
-			if (raw && originalType === 'reference') {
-				const owner = allIsotopesOf(raw)[0]
-				if (owner) {
-					writeIsotope(
-						service,
-						raw,
-						owner.identifier,
-						{ usage },
-						doc,
-						contributor,
-					)
-				}
-				return undefined
-			}
-			return usage
-		}
-		return undefined
 	}
 }

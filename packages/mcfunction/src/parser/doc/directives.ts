@@ -14,6 +14,7 @@ import {
 export function registerDocDirectives(meta: core.MetaRegistry): void {
 	const directives: DocDirective[] = [
 		new PublicDirective(),
+		DirectiveAlias('api', new PublicDirective()),
 		new InternalDirective(),
 		new ProtectedDirective(),
 		new PrivateDirective(),
@@ -260,6 +261,29 @@ class ScopedAccessModifierDirective extends AccessModifierDirective {
 	}
 }
 
+function DirectiveAlias(alias: string, parent: DefaultDocDirective): DefaultDocDirective {
+	return Object.assign(
+		Object.create(parent, {
+			description: {
+				get: () => {
+					if (!parent.description) {
+						return []
+					}
+					return [
+						italic(code('@' + alias) + space('=>') + code('@' + parent.identifier)),
+						...parent.description,
+					]
+				},
+				configurable: true,
+				enumerable: true,
+			},
+		}),
+		{
+			identifier: alias,
+			includeInSuggestion: () => false,
+		},
+	)
+}
 // #endregion
 
 export class PublicDirective extends AccessModifierDirective {
@@ -358,6 +382,7 @@ export class AuthorDirective extends GreedyStringDirective {
 
 export class ReadonlyDirective extends GreedyStringDirective {
 	override readonly identifier = 'readonly'
+	override readonly allowedTargets? = ['tag', 'score', 'bossbar', 'storage', 'stopwatch']
 	override handleDirective(
 		directive: core.DeepReadonly<DocDirectiveNode>,
 		_node: DocNode,

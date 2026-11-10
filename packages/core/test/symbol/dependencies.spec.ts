@@ -1,5 +1,4 @@
 import {
-	SymbolEnterType,
 	SymbolImport,
 	SymbolIsotopeProvider as Provider,
 	SymbolIsotopeScope as Scope,
@@ -17,8 +16,8 @@ function dependency() {
 	const symbols = new SymbolService(new SymbolStorage({}))
 	symbols.query('file:///dependency/shared.mcfunction', 'function', 'shared')
 		.enter({
-			usage: {},
-		}, SymbolEnterType.File)
+			usage: { type: 'definition', fromFile: true },
+		})
 	return symbols.storage.global
 }
 function declarePrivate(symbols: SymbolService) {
@@ -171,14 +170,11 @@ describe('dependency symbol exports', () => {
 		t.assert.equal(parent.members!['child'].parentSymbol, parent)
 		t.assert.equal(SymbolTable.serialize(source.storage.global), before)
 	})
-	it('does not relocate imported command definitions into a local private doc', t => {
+	it('does not relocate imported command implementations into a local private doc', t => {
 		const source = new SymbolService(new SymbolStorage({}))
-		source.query('file:///dependency/command.mcfunction', 'function', 'shared').enter(
-			{
-				usage: { type: 'definition' },
-			},
-			SymbolEnterType.InFileSymbol,
-		)
+		source.query('file:///dependency/command.mcfunction', 'function', 'shared').enter({
+			usage: { type: 'implementation', followDocScope: true },
+		})
 		const symbols = new SymbolService(new SymbolStorage({}))
 		SymbolImport.mergeDependencySymbols(
 			symbols,
@@ -188,7 +184,7 @@ describe('dependency symbol exports', () => {
 		const raw = symbols.storage.global.function!['shared']
 		t.assert.equal(SymbolUtil.viewFromContext(raw, inside)?.implementation, undefined)
 		t.assert.equal(
-			SymbolUtil.viewFromContext(raw, outside)?.definition?.[0].uri,
+			SymbolUtil.viewFromContext(raw, outside)?.implementation?.[0].uri,
 			'file:///dependency/command.mcfunction',
 		)
 	})

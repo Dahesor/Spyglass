@@ -21,7 +21,7 @@ describe('mcdoc uriBinder()', () => {
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, uri)?.definition?.[0].uri, uri)
 		t.assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.[0].fromFile, undefined)
 		t.assert.equal(
-			symbol.scopes?.public?.[0]?.usages.definition?.[0].originalUsageType,
+			symbol.scopes?.public?.[0]?.usages.definition?.[0].followDocScope,
 			undefined,
 		)
 		t.assert.equal(symbol.scopes?.restricted?.[0].usages.implementation?.length ?? 0, 0)

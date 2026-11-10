@@ -5,7 +5,6 @@ import {
 	Logger,
 	Range,
 	Service,
-	SymbolEnterType,
 	SymbolImport,
 	SymbolIsotopeProvider,
 	SymbolIsotopeScope,
@@ -80,8 +79,8 @@ describe('Service.getDefinitionLocations()', () => {
 				usage: { type: 'declaration', fromDocDeclaration: true, range: Range.create(0, 4) },
 			})
 			dependency.query(declarationDoc, 'objective', 'aaaaaa').enter({
-				usage: { type: 'reference', range: Range.create(1, 2) },
-			}, SymbolEnterType.InFileSymbol)
+				usage: { type: 'reference', followDocScope: true, range: Range.create(1, 2) },
+			})
 			const source = dependency.storage.global.objective!['aaaaaa']
 			SymbolImport.mergeDependencySymbols(
 				new SymbolService(service.project.symbolStorage),
@@ -102,16 +101,16 @@ describe('Service.getDefinitionLocations()', () => {
 				'aaaaaa',
 			)
 				.enter({
-					usage: { type: 'reference', range: Range.create(0, 4) },
-				}, SymbolEnterType.InFileSymbol)
+					usage: { type: 'reference', followDocScope: true, range: Range.create(0, 4) },
+				})
 			new SymbolService(service.project.symbolStorage).query(
 				consumerDoc,
 				'objective',
 				'aaaaaa',
 			)
 				.enter({
-					usage: { type: 'definition', range: Range.create(0, 4) },
-				}, SymbolEnterType.InFileSymbol)
+					usage: { type: 'implementation', followDocScope: true, range: Range.create(0, 4) },
+				})
 			const references = await service.getSymbolLocations(file(source), declarationDoc, 1, [
 				'reference',
 			])
@@ -163,8 +162,8 @@ describe('Service.getDefinitionLocations()', () => {
 		)
 		new SymbolService(service.project.symbolStorage).query(doc, 'objective', 'aaaaaa')
 			.enter({
-				usage: { type: 'reference' },
-			}, SymbolEnterType.InFileSymbol)
+				usage: { type: 'reference', followDocScope: true },
+			})
 		const result = await service.getSymbolLocations(
 			file(first.storage.global.objective!['aaaaaa']),
 			TextDocument.create('file:///dependency/first.mcfunction', 'mcfunction', 0, 'name'),
@@ -192,8 +191,8 @@ describe('Service.getDefinitionLocations()', () => {
 			)
 			new SymbolService(service.project.symbolStorage).query(doc, 'objective', 'aaaaaa')
 				.enter({
-					usage: { type: 'reference' },
-				}, SymbolEnterType.InFileSymbol)
+					usage: { type: 'reference', followDocScope: true },
+				})
 			const facet = source.scopes!.public!
 			delete source.scopes!.public
 			if (scope === SymbolIsotopeScope.Internal) {
@@ -213,25 +212,22 @@ describe('Service.getDefinitionLocations()', () => {
 	}
 	const cases: {
 		usages: SymbolUsageType[]
-		normal: SymbolUsageType | undefined
-		fileOrigin: SymbolUsageType | undefined
+		expected: SymbolUsageType | undefined
 	}[] = [
 		{
 			usages: ['definition', 'declaration', 'implementation'],
-			normal: 'definition',
-			fileOrigin: 'definition',
+			expected: 'definition',
 		},
 		{
 			usages: ['declaration', 'implementation'],
-			normal: 'declaration',
-			fileOrigin: 'implementation',
+			expected: 'declaration',
 		},
-		{ usages: ['implementation'], normal: 'implementation', fileOrigin: 'implementation' },
-		{ usages: ['declaration'], normal: 'declaration', fileOrigin: 'declaration' },
-		{ usages: [], normal: undefined, fileOrigin: undefined },
+		{ usages: ['implementation'], expected: 'implementation' },
+		{ usages: ['declaration'], expected: 'declaration' },
+		{ usages: [], expected: undefined },
 	]
 	for (const fromFile of [false, true]) {
-		for (const { usages, normal, fileOrigin } of cases) {
+		for (const { usages, expected } of cases) {
 			it(`selects the first available target (${usages.join(',')}; fromFile: ${fromFile})`, async t => {
 				const { service, symbol } = setup(t)
 				for (const type of usages) {
@@ -248,7 +244,6 @@ describe('Service.getDefinitionLocations()', () => {
 						usages: { implementation: [location('implementation', true)] },
 					}]
 				}
-				const expected = fromFile ? fileOrigin : normal
 				const result = await service.getDefinitionLocations(file(symbol), doc, 1)
 				t.assert.equal(result?.locations?.[0].uri, expected && location(expected).uri)
 			})
@@ -276,7 +271,7 @@ describe('Service.getDefinitionLocations()', () => {
 		const node = file(symbol)
 		t.assert.equal(
 			(await service.getDefinitionLocations(node, doc, 1))?.locations?.[0].uri,
-			location('implementation').uri,
+			location('declaration').uri,
 		)
 		const outside = TextDocument.create(
 			'file:///pack/outside.mcfunction',
@@ -286,7 +281,7 @@ describe('Service.getDefinitionLocations()', () => {
 		)
 		t.assert.equal(await service.getDefinitionLocations(node, outside, 1), undefined)
 	})
-	it('uses the file origin of the resolved alias target', async t => {
+	it('prioritizes the declaration of the resolved alias target', async t => {
 		const { service, symbol } = setup(t)
 		symbol.scopes!.public![0].usages.declaration = [location('declaration')]
 		symbol.scopes!.public![0].usages.implementation = [location('implementation', true)]
@@ -297,7 +292,7 @@ describe('Service.getDefinitionLocations()', () => {
 		const alias = service.project.symbolStorage.global.function!['demo:alias']
 		t.assert.equal(
 			(await service.getDefinitionLocations(file(alias), doc, 1))?.locations?.[0].uri,
-			location('implementation').uri,
+			location('declaration').uri,
 		)
 	})
 	it('falls back when a preferred target cannot be mapped to disk', async t => {
@@ -311,7 +306,7 @@ describe('Service.getDefinitionLocations()', () => {
 		service.project.fs.mapToDisk = async () => undefined
 		t.assert.equal(
 			(await service.getDefinitionLocations(file(symbol), doc, 1))?.locations?.[0].uri,
-			location('implementation').uri,
+			location('declaration').uri,
 		)
 	})
 	it('preserves combined usages and current-file filtering for other navigation requests', async t => {

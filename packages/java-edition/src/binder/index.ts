@@ -8,7 +8,6 @@ import type {
 	PlainPath,
 	ResourceLocation,
 	RootUriString,
-	SymbolEnterType,
 	TaggableResourceLocationCategory,
 	UriBinder,
 	UriBinderContext,
@@ -342,8 +341,8 @@ export const uriBinder: UriBinder = (uris: readonly string[], ctx: UriBinderCont
 		if (parts) {
 			ctx.symbols.query(uri, parts.category, `${parts.namespace}:${parts.identifier}`)
 				.enter({
-					usage: { type: 'definition' },
-				}, 'file' as SymbolEnterType)
+					usage: { type: 'definition', fromFile: true },
+				})
 		}
 	}
 }
