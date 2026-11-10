@@ -578,7 +578,8 @@ export interface SymbolLocationMetadata {
 	fromDocDeclaration?: boolean
 	/** If this symbol is defined by the exsistence of a file. */
 	fromFile?: boolean
-	originalUsageType?: SymbolUsageType
+	/** Route this usage by its document's scope when a doc declaration changes. */
+	followDocScope?: true
 	/**
 	 * @default SymbolAccessType.Read
 	 */

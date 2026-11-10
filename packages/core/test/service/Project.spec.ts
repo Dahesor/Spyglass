@@ -11,7 +11,6 @@ import {
 	Project,
 	resourceLocation,
 	Service,
-	SymbolEnterType,
 	SymbolService,
 	SymbolTable,
 	SymbolUtil,
@@ -349,7 +348,7 @@ describe('Project', () => {
 				meta.registerUriBinder((uris, ctx) => {
 					for (const uri of uris) {
 						ctx.symbols.query(uri, 'function', fileUtil.basename(uri)!)
-							.enter({ usage: {} }, SymbolEnterType.File)
+							.enter({ usage: { type: 'definition', fromFile: true } })
 					}
 				})
 				meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
@@ -391,7 +390,7 @@ describe('Project', () => {
 					1,
 				)
 				assert.equal(
-					symbols['public.spyglasstest'].scopes?.public?.[0]?.usages.implementation?.length,
+					symbols['public.spyglasstest'].scopes?.public?.[0]?.usages.definition?.length,
 					1,
 				)
 				assert.equal(project.cacheService.imports[0].uri, 'file:///c:/dependency/')
@@ -598,10 +597,9 @@ describe('Project', () => {
 		}, [({ meta }) => {
 			meta.registerUriBinder((uris, ctx) => {
 				for (const uri of uris) {
-					ctx.symbols.query(uri, 'function', 'demo:external').enter(
-						{ usage: {} },
-						SymbolEnterType.File,
-					)
+					ctx.symbols.query(uri, 'function', 'demo:external').enter({
+						usage: { type: 'definition', fromFile: true },
+					})
 				}
 			})
 			meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
@@ -648,8 +646,8 @@ describe('Project', () => {
 				for (const uri of uris.filter(uri => uri.endsWith('.spyglasstest'))) {
 					const name = fileUtil.basename(uri).replace('.spyglasstest', '')
 					ctx.symbols.query(uri, 'function', `demo:${name}`).enter({
-						usage: {},
-					}, SymbolEnterType.File)
+						usage: { type: 'definition', fromFile: true },
+					})
 				}
 			})
 			meta.registerBinder<LiteralNode>('literal', async (node, ctx) => {
@@ -742,7 +740,7 @@ describe('Project', () => {
 				'public base',
 			)
 			assert.equal(
-				SymbolUtil.viewFromContext(symbols['demo:public'], ProjectRoot)?.implementation?.length,
+				SymbolUtil.viewFromContext(symbols['demo:public'], ProjectRoot)?.definition?.length,
 				1,
 			)
 			assert.equal(symbols['demo:internal'], undefined)
@@ -758,7 +756,7 @@ describe('Project', () => {
 				assert.equal(symbol.scopes?.public?.length ?? 0, 0)
 				assert.equal(symbol.data, undefined)
 				assert.equal(symbol.scopes?.public?.[0]?.desc, undefined)
-				assert.equal(symbol.scopes?.public?.[0]?.usages.implementation?.length ?? 0, 0)
+				assert.equal(symbol.scopes?.public?.[0]?.usages.definition?.length ?? 0, 0)
 				assert.equal(symbol.scopes?.restricted?.length, 1)
 				const view = SymbolUtil.viewFromContext(
 					symbol,
@@ -766,7 +764,7 @@ describe('Project', () => {
 					project.symbolStorage.resolveResourceLocation,
 				)
 				assert.equal(view?.desc, 'namespace documentation')
-				assert.equal(view?.implementation?.length, 1)
+				assert.equal(view?.definition?.length, 1)
 				assert.equal(
 					SymbolUtil.viewFromContext(
 						symbol,
@@ -919,8 +917,8 @@ describe('Project', () => {
 				meta.registerUriBinder((uris, ctx) => {
 					if (uris.includes(source)) {
 						ctx.symbols.query(source, 'function', 'demo:example').enter({
-							usage: {},
-						}, SymbolEnterType.File)
+							usage: { type: 'definition', fromFile: true },
+						})
 					}
 				})
 			},
@@ -962,8 +960,8 @@ describe('Project', () => {
 			meta.registerUriBinder((uris, ctx) => {
 				for (const fileUri of uris) {
 					ctx.symbols.query(fileUri, 'function', 'test:folder/inner').enter({
-						usage: { type: 'definition' },
-					}, SymbolEnterType.File)
+						usage: { type: 'definition', fromFile: true },
+					})
 				}
 			})
 		}])
@@ -978,7 +976,7 @@ describe('Project', () => {
 					'function',
 					'test:folder/inner',
 				)
-					.enter({ usage: { type: 'reference' } }, SymbolEnterType.InFileSymbol)
+					.enter({ usage: { type: 'reference', followDocScope: true } })
 			})
 			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
 			await project.ensureClientManagedChecked(uri)

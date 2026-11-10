@@ -671,7 +671,7 @@ describe('doc access and command usages', () => {
 			t.assert.equal(env.view(inside)?.declaration?.length, 1)
 			t.assert.equal(env.view(inside)?.implementation?.length, 2)
 			t.assert.equal(env.view(inside)?.definition, undefined)
-			t.assert.equal(env.view(outside)?.definition?.length, 1)
+			t.assert.equal(env.view(outside)?.implementation?.length, 1)
 			t.assert.equal(env.view(outside)?.declaration?.length ?? 0, 0)
 		})
 		for (const modifier of ['@public', '@internal', '']) {
@@ -714,7 +714,7 @@ describe('doc access and command usages', () => {
 			undefined,
 		)
 	})
-	it('restores definitions after deleting the doc source even when references remain', t => {
+	it('restores public implementations after deleting the doc source even when references remain', t => {
 		const env = setup()
 		const source = root + 'private/doc.mcfunction'
 		env.declaration(source)
@@ -725,9 +725,9 @@ describe('doc access and command usages', () => {
 			contributor: 'binder',
 		})
 		t.assert.equal(env.raw().scopes?.restricted?.length ?? 0, 0)
-		t.assert.equal(env.view(root)?.definition?.length, 1)
+		t.assert.equal(env.view(root)?.definition?.length ?? 0, 0)
 		t.assert.equal(env.view(root)?.reference?.length, 1)
-		t.assert.equal(env.view(root)?.implementation?.length ?? 0, 0)
+		t.assert.equal(env.view(root)?.implementation?.length, 1)
 	})
 	it('private function headers declare the name and hide the file definition outside', t => {
 		const env = setup()
@@ -735,8 +735,8 @@ describe('doc access and command usages', () => {
 		const symbols = new core.SymbolService(env.project.symbolStorage)
 		symbols.contributeAs('uri_binder', () => {
 			symbols.query(uri, 'function', 'demo:private/doc').enter({
-				usage: { type: 'definition' },
-			}, core.SymbolEnterType.File)
+				usage: { type: 'definition', fromFile: true },
+			})
 		})
 		t.assert.deepEqual(
 			env.declaration(uri, '@private', '#> @private function demo:private/doc description')
@@ -745,7 +745,7 @@ describe('doc access and command usages', () => {
 		)
 		const symbol = env.project.symbolStorage.global.function!['demo:private/doc']
 		t.assert.equal(core.SymbolUtil.viewFromContext(symbol, uri)?.declaration?.length, 1)
-		t.assert.equal(core.SymbolUtil.viewFromContext(symbol, uri)?.implementation?.length, 1)
+		t.assert.equal(core.SymbolUtil.viewFromContext(symbol, uri)?.definition?.length, 1)
 		t.assert.equal(
 			core.SymbolUtil.viewFromContext(symbol, root + 'outside.mcfunction'),
 			undefined,
@@ -758,7 +758,7 @@ describe('doc access and command usages', () => {
 		t.assert.equal(symbol.scopes?.restricted?.length ?? 0, 0)
 	})
 
-	it('removing internal documentation restores public command definitions', t => {
+	it('removing internal documentation restores public command implementations', t => {
 		const env = setup()
 		const uri = root + 'doc.mcfunction'
 		env.declaration(uri, '@internal')
@@ -767,8 +767,8 @@ describe('doc access and command usages', () => {
 			uri,
 			contributor: 'binder',
 		})
-		t.assert.equal(env.view(root)?.definition?.length, 1)
-		t.assert.equal(env.view(root)?.implementation?.length ?? 0, 0)
+		t.assert.equal(env.view(root)?.definition?.length ?? 0, 0)
+		t.assert.equal(env.view(root)?.implementation?.length, 1)
 		t.assert.equal(env.raw().scopes?.internal?.length, 0)
 		t.assert.equal(env.raw().scopes?.public?.length, 1)
 	})

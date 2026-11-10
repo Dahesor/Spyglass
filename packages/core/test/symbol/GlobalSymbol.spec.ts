@@ -4,7 +4,6 @@ import {
 	LocalSymbol,
 	Range,
 	StateProxy,
-	SymbolEnterType,
 	SymbolImport,
 	SymbolService,
 	SymbolStorage,
@@ -28,8 +27,8 @@ describe('GlobalSymbol', () => {
 		t.assert.equal(LocalSymbol.isTable(secondProxy.locals!), true)
 		t.assert.equal(LocalSymbol.isMap(secondProxy.locals!.function), true)
 		util.query({ doc, node: secondProxy }, 'function', 'demo:test').enter({
-			usage: { type: 'reference' },
-		}, SymbolEnterType.InFileSymbol)
+			usage: { type: 'reference', followDocScope: true },
+		})
 		const symbol = node.locals!.function!['demo:test']
 		t.assert.equal(LocalSymbol.is(symbol), true)
 		t.assert.equal(symbol.scopes, undefined)
@@ -93,7 +92,7 @@ describe('GlobalSymbol', () => {
 		service.contributeAs('binder', () => {
 			service.query('file:///first', 'test', 'shared').enter({ usage: { type: 'definition' } })
 			service.query('file:///second', 'test', 'shared').enter({
-				usage: { type: 'reference', originalUsageType: 'reference' },
+				usage: { type: 'reference', followDocScope: true },
 			})
 		})
 		const facet = service.storage.global['test']!['shared'].scopes!.public!

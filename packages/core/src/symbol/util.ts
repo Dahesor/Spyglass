@@ -165,11 +165,11 @@ export namespace SymbolUtil {
 	}
 
 	/**
-	 * @returns If the symbol has declarations or definitions.
+	 * @returns If the symbol has declarations, definitions, or implementations.
 	 */
 	export function isDeclared(symbol: DeepReadonly<Symbol> | undefined): boolean {
 		const view = locationsFor(symbol)
-		return !!(view.declaration?.length || view.definition?.length)
+		return !!(view.declaration?.length || view.definition?.length || view.implementation?.length)
 	}
 
 	/**
@@ -204,11 +204,11 @@ export namespace SymbolUtil {
 	}
 
 	/**
-	 * @throws If the symbol does not have any declarations or definitions.
+	 * @throws If the symbol has no declarations, definitions, or implementations.
 	 */
 	export function getDeclaredLocation(symbol: DeepReadonly<Symbol>): SymbolLocation {
 		const view = locationsFor(symbol)
-		return (view.declaration?.[0] ?? view.definition?.[0] ?? (() => {
+		return (view.declaration?.[0] ?? view.definition?.[0] ?? view.implementation?.[0] ?? (() => {
 			throw new Error(
 				`Cannot get declared location of ${JSON.stringify(SymbolPath.fromSymbol(symbol))}`,
 			)

@@ -12,10 +12,9 @@ import type {
 } from '../processor/index.js'
 import { ColorPresentation, completer, traversePreOrder } from '../processor/index.js'
 import { Range } from '../source/index.js'
-import type { Symbol, SymbolLocation, SymbolUsageType } from '../symbol/index.js'
+import type { SymbolLocation, SymbolUsageType } from '../symbol/index.js'
 import { SymbolImport, SymbolUsageTypes } from '../symbol/index.js'
 import { SymbolService } from '../symbol/Service.js'
-import { SymbolUtil } from '../symbol/util.js'
 import {
 	CodeActionProviderContext,
 	ColorizerContext,
@@ -267,29 +266,28 @@ export class Service {
 			file,
 			doc,
 			offset,
-			() => [searchedUsages],
+			[searchedUsages],
 			currentFileOnly,
 		)
 	}
 
-	/** File definitions prefer implementations over doc declarations */
 	async getDefinitionLocations(
 		file: FileNode<AstNode>,
 		doc: TextDocument,
 		offset: number,
 	): Promise<SymbolLocations | undefined> {
-		return this.getSymbolLocationsByPriority(file, doc, offset, symbol => {
-			return SymbolUtil.isFromFile(symbol)
-				? [['definition'], ['implementation'], ['declaration']]
-				: [['definition'], ['declaration'], ['implementation']]
-		})
+		return this.getSymbolLocationsByPriority(file, doc, offset, [
+			['definition'],
+			['declaration'],
+			['implementation'],
+		])
 	}
 
 	private async getSymbolLocationsByPriority(
 		file: FileNode<AstNode>,
 		doc: TextDocument,
 		offset: number,
-		usageGroups: (symbol: Symbol) => readonly (readonly SymbolUsageType[])[],
+		usageGroups: readonly (readonly SymbolUsageType[])[],
 		currentFileOnly = false,
 	): Promise<SymbolLocations | undefined> {
 		try {
@@ -307,7 +305,7 @@ export class Service {
 						raw,
 						doc.uri,
 					)
-					for (const searchedUsages of usageGroups(raw)) {
+					for (const searchedUsages of usageGroups) {
 						this.debug(
 							`Getting symbol locations of usage '${
 								searchedUsages.join(',')

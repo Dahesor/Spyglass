@@ -1,6 +1,5 @@
 import {
 	Isotope,
-	SymbolEnterType,
 	SymbolIsotopeProvider as Provider,
 	SymbolIsotopeScope as Scope,
 	SymbolService,
@@ -117,7 +116,7 @@ describe('symbol scopes', () => {
 		util.clear({ uri })
 		t.assert.equal(util.storage.getPaths().size, 0)
 	})
-	it('deduplicates file usages against preceding command usages in the shared facet', t => {
+	it('deduplicates file definitions without losing command implementations in the shared facet', t => {
 		const util = new SymbolService(new SymbolStorage({}))
 		const symbol = add(util, 'doc', Scope.Public)
 		const facet = symbol.scopes!.public!
@@ -125,12 +124,16 @@ describe('symbol scopes', () => {
 		facet[0].usages.declaration![0].fromDocDeclaration = true
 		const command: SymbolLocation = {
 			uri,
-			originalUsageType: 'definition',
+			followDocScope: true,
 			isotopeIdentifier: 'doc',
 		}
-		facet[0].usages.implementation = [command, { ...command, fromFile: true }]
+		const file: SymbolLocation = { uri, isotopeIdentifier: 'doc', fromFile: true }
+		facet[0].usages.definition = [file, { ...file }]
+		facet[0].usages.implementation = [command]
 		util.storage.rebuildIndex()
 		Isotope.reconcileDocUsages(util, symbol)
+		t.assert.deepEqual(facet[0].usages.definition, [file])
+		t.assert.equal(facet[0].usages.definition?.[0], file)
 		t.assert.deepEqual(facet[0].usages.implementation, [command])
 		t.assert.equal(facet[0].usages.implementation?.[0], command)
 	})
@@ -141,8 +144,8 @@ describe('symbol scopes', () => {
 		facet[0].source = Provider.DocBlock
 		facet[0].usages.declaration = []
 		facet[0].usages.reference = [
-			{ uri, originalUsageType: 'reference', isotopeIdentifier: 'stale-doc' },
-			{ uri: outside, originalUsageType: 'reference', isotopeIdentifier: 'stale-doc' },
+			{ uri, followDocScope: true, isotopeIdentifier: 'stale-doc' },
+			{ uri: outside, followDocScope: true, isotopeIdentifier: 'stale-doc' },
 		]
 		util.storage.rebuildIndex()
 		Isotope.reconcileDocUsages(util, symbol)
@@ -164,8 +167,8 @@ describe('symbol scopes', () => {
 		const facet = symbol.scopes!.public!
 		facet[0].usages.declaration = []
 		facet[0].usages.reference = [
-			{ uri, originalUsageType: 'reference', isotopeIdentifier: 'regular' },
-			{ uri: outside, originalUsageType: 'reference', isotopeIdentifier: 'regular' },
+			{ uri, followDocScope: true, isotopeIdentifier: 'regular' },
+			{ uri: outside, followDocScope: true, isotopeIdentifier: 'regular' },
 		]
 		util.storage.rebuildIndex()
 		Isotope.reconcileDocUsages(util, symbol)
@@ -261,10 +264,9 @@ describe('symbol scopes', () => {
 	it('records inaccessible references without creating a public facet', t => {
 		const service = new SymbolService(new SymbolStorage({}))
 		const symbol = add(service, 'private', Scope.Private)
-		service.query(outside, 'tag', 'test').enter(
-			{ usage: { type: 'reference' } },
-			SymbolEnterType.InFileSymbol,
-		)
+		service.query(outside, 'tag', 'test').enter({
+			usage: { type: 'reference', followDocScope: true },
+		})
 		t.assert.equal(symbol.scopes?.restricted?.[0].usages.reference?.length, 1)
 		t.assert.equal(symbol.scopes?.public, undefined)
 		t.assert.equal(SymbolUtil.viewFromContext(symbol, outside), undefined)

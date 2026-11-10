@@ -14,13 +14,12 @@ export const entry = core.AsyncBinder.create<McfunctionNode>(async (node, ctx) =
 				location.uri === ctx.doc.uri && location.contributor === 'uri_binder'
 				&& location.fromFile
 			return owner.definition?.some(isFileDefinition)
-				|| owner.implementation?.some(isFileDefinition)
 		})
 		if (!restored) {
 			ctx.symbols.contributeAs('uri_binder', () => {
 				ctx.symbols.query(ctx.doc.uri, 'function', identifier).enter({
-					usage: { type: 'definition' },
-				}, core.SymbolEnterType.File)
+					usage: { type: 'definition', fromFile: true },
+				})
 			})
 		}
 		privateFunctions.delete(ctx.doc.uri)

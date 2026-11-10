@@ -436,17 +436,18 @@ const particle: Completer<ParticleNode> = (node, ctx) => {
 }
 
 const scoreHolder: Completer<ScoreHolderNode> = (node, ctx) => {
+	const fakeName = node.fakeName?.parent ? node.fakeName : {
+		...(node.fakeName ?? SymbolNode.mock(node, { category: 'score_holder' })),
+		parent: node as ScoreHolderNode,
+	}
 	let ans: CompletionItem[]
 	if (node.selector && Range.contains(node.selector, ctx.offset, true)) {
 		ans = selector(node.selector, ctx)
 		if (Range.contains(node.children[0], ctx.offset, true)) {
-			ans.push(...completer.symbol(SymbolNode.mock(node, { category: 'score_holder' }), ctx))
+			ans.push(...completer.symbol(fakeName, ctx))
 		}
 	} else {
-		ans = completer.symbol(
-			node.fakeName ?? SymbolNode.mock(node, { category: 'score_holder' }),
-			ctx,
-		)
+		ans = completer.symbol(fakeName, ctx)
 		ans.push(
 			...completer.literal(LiteralNode.mock(node, { pool: ['*'] }), ctx),
 			...selector(

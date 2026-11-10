@@ -481,9 +481,7 @@ export class SymbolService {
 				skipRenaming: addition.skipRenaming,
 				...(addition.fromDocDeclaration ? { fromDocDeclaration: true } : {}),
 				...(addition.fromFile ? { fromFile: true } : {}),
-				...(addition.originalUsageType
-					? { originalUsageType: addition.originalUsageType }
-					: {}),
+				...(addition.followDocScope ? { followDocScope: true } : {}),
 			})
 			if (!doc.uri.startsWith('file:') && !doc.uri.startsWith('archive:')) {
 				delete location.range

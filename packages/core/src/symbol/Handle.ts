@@ -16,11 +16,6 @@ import type {
 import { type LookupResult, SymbolUtil } from './util.js'
 import { Isotope, type SymbolIsotopeAddition } from './util/isotope.js'
 
-export enum SymbolEnterType {
-	None = 'none',
-	File = 'file',
-	InFileSymbol = 'inFileSymbol',
-}
 export interface SymbolAddition {
 	data?: SymbolMetadata & {
 		desc?: string
@@ -261,7 +256,7 @@ export class SymbolHandle {
 	}
 
 	/**
-	 * Calls `fn` if the queried symbol has declarations or definitions.
+	 * Calls `fn` if the queried symbol has declarations, definitions, or implementations.
 	 */
 	ifDeclared(fn: HandleCallback<SymbolView>): this {
 		return this.if((s): s is SymbolView => SymbolUtil.isDeclared(s), fn)
@@ -308,8 +303,8 @@ export class SymbolHandle {
 	/**
 	 * Enters the target symbol if none of the former `if` conditions are met.
 	 */
-	elseEnter(symbol: SymbolAddition, type: SymbolEnterType = SymbolEnterType.None): this {
-		return this.else(() => this.enter(symbol as any, type))
+	elseEnter(symbol: SymbolAddition): this {
+		return this.else(() => this.enter(symbol))
 	}
 
 	/**
@@ -327,18 +322,27 @@ export class SymbolHandle {
 	 * @throws If the parent of this symbol doesn't exist either.
 	 */
 	@delayModeSupport
-	enter(addition: SymbolAddition, type: SymbolEnterType = SymbolEnterType.None): this {
+	enter(addition: SymbolAddition): this {
 		this.refreshWriteTarget()
-		switch (type) {
-			case SymbolEnterType.None:
-				this.enterImmediately(addition)
-				break
-			case SymbolEnterType.File:
-				this.enterFileDefinition(addition)
-				break
-			case SymbolEnterType.InFileSymbol:
-				this.enterInFileSymbol(addition)
-				break
+		// Treat the range as zero-width when the handle was created with only a URI.
+		if (this.#createdWithUri && SymbolAdditionUsageWithRange.is(addition.usage)) {
+			addition = { ...addition, usage: { ...addition.usage, range: Range.create(0, 0) } }
+		}
+		this.#map = this.getMap()
+		this.#symbol = this.service.enterMap(
+			{
+				parentSymbol: this.#parentSymbol,
+				map: this.#map,
+				category: this.category,
+				path: this.path,
+				identifier: this.path[this.path.length - 1],
+			},
+			addition,
+			this.#doc,
+			this.#currentContributor,
+		)
+		if (addition.usage?.node) {
+			addition.usage.node.symbol = this.#symbol
 		}
 		return this
 	}
@@ -513,29 +517,6 @@ export class SymbolHandle {
 		return `${this.category}.${this.path.join('/')}`
 	}
 
-	/** Bind a symbol defined by the file itself, rather than its contents. */
-	private enterFileDefinition(addition: SymbolAddition): this {
-		const raw = this.#lookup(this.category, this.path).symbol
-		this.#symbol = raw
-		if (raw) {
-			this.#map = raw.parentMap
-		}
-		const usage: SymbolAdditionUsage = {
-			...addition.usage,
-			type: 'definition',
-			originalUsageType: 'definition',
-			fromFile: true,
-		}
-		if (this.#createdWithUri && SymbolAdditionUsageWithRange.is(usage)) {
-			usage.range = Range.create(0, 0)
-		}
-		this.enterImmediately({ ...addition, usage })
-		if (!LocalSymbol.is(this.#symbol)) {
-			Isotope.reconcileDocUsages(this.service, this.#symbol!)
-		}
-		return this
-	}
-
 	private refreshWriteTarget(): void {
 		const current = this.#lookup(this.category, this.path)
 		this.#symbol = current.symbol
@@ -555,65 +536,6 @@ export class SymbolHandle {
 			return this.#getRootMap()
 		}
 		throw new Error('Could not find the map for “' + this.representation + '”')
-	}
-
-	private enterImmediately(addition: SymbolAddition): void {
-		// Treat `usage.range` as `[0, 0)` if this class was constructed with a string URI (instead of a `TextDocument`).
-		if (this.#createdWithUri && SymbolAdditionUsageWithRange.is(addition.usage)) {
-			addition.usage.range = Range.create(0, 0)
-		}
-
-		this.#map = this.getMap()
-		this.#symbol = this.service.enterMap(
-			{
-				parentSymbol: this.#parentSymbol,
-				map: this.#map,
-				category: this.category,
-				path: this.path,
-				identifier: this.path[this.path.length - 1],
-			},
-			addition,
-			this.#doc,
-			this.#currentContributor,
-		)
-		if (addition.usage?.node) {
-			addition.usage.node.symbol = this.#symbol
-		}
-	}
-
-	private enterInFileSymbol(addition: SymbolAddition): this {
-		const raw = this.#lookup(this.category, this.path).symbol
-		const originalType = addition.usage?.type ?? 'reference'
-
-		if (this.isLocalSymbol) {
-			this.enterImmediately({
-				...addition,
-				usage: {
-					...addition.usage,
-					originalUsageType: originalType,
-					type: originalType === 'definition' && LocalSymbol.is(raw)
-							&& raw.declaration?.some(value => value.fromDocDeclaration)
-						? 'implementation'
-						: originalType,
-				},
-			})
-			return this
-		}
-
-		const usage = Isotope.enterInFileUsage(
-			this.service,
-			raw,
-			addition,
-			this.#doc,
-			this.#currentContributor,
-		)
-		if (usage) {
-			this.enterImmediately({ ...addition, usage })
-		} else if (raw) {
-			this.#symbol = raw
-			this.#map = raw.parentMap
-		}
-		return this
 	}
 }
 
