@@ -18,6 +18,10 @@ export function register(bench: BenchContext): void {
 		// Retain branches so the optimizer cannot eliminate the allocation.
 		branches[index++ % 128] = service.cloneDelayed()
 	})
+	bench.add('symbol indexed file lookup in 20000 symbols', () => {
+		const id = index++ % 20_000
+		service.getSymbolsInFile(`file:///symbol${id}`)
+	})
 	bench.add('symbol indexed file cleanup in 20000 symbols', () => {
 		service.query('file:///temporary', 'test', 'temporary').enter({
 			usage: { type: 'definition' },

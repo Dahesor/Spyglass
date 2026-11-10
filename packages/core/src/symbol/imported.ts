@@ -144,8 +144,11 @@ export namespace SymbolImport {
 			&& candidate.origin?.uri === source.origin?.uri
 			&& candidate.origin?.contributor === source.origin?.contributor
 			&& candidate.scope === scope
-			&& candidate.identifier
-				=== JSON.stringify([candidate.providerName, 'isotope', source.identifier])
+			&& (source.source === SymbolIsotopeProvider.Imported
+				? candidate.providerName === source.providerName
+					&& candidate.identifier === source.identifier
+				: candidate.identifier
+					=== JSON.stringify([candidate.providerName, 'isotope', source.identifier]))
 		)
 		return isotope && isotope.usages
 	}

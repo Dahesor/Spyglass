@@ -143,9 +143,11 @@ export class FileServiceImpl implements FileService {
 		try {
 			let mappedUri = this.map.getKey(virtualUri)
 			if (mappedUri === undefined) {
-				mappedUri = normalizeUri(`${this.virtualUrisRoot}${await getSha1(virtualUri)}/${
-					fileUtil.basename(virtualUri)
-				}`)
+				mappedUri = normalizeUri(
+					`${this.virtualUrisRoot}${await getSha1(virtualUri)}/${
+						fileUtil.basename(virtualUri)
+					}`,
+				)
 
 				// Delete old mapped file if it exists. This makes sure the
 				// readonly permission on the file is not removed by it being

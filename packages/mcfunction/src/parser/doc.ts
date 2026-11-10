@@ -202,7 +202,7 @@ export function declareDocSymbol(
 			category,
 			identifier,
 		)
-		: ctx.symbols.query({ doc: ctx.doc, node: field }, category, identifier)
+		: ctx.symbols.query(ctx.doc, category, identifier)
 	if (local) {
 		return handle.enter({
 			data: { desc: node.description ?? '', deprecated: node.deprecated },

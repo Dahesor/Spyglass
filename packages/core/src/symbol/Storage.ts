@@ -4,8 +4,7 @@ import { SymbolUtil } from './util.js'
 import type { ResourceLocationResolver } from './util/visibility.js'
 
 interface UriSymbolCache {
-	uris: Record<string, Map<string, number>>
-	size: number
+	uris: Map<string, Map<string, number>>
 }
 
 /**
@@ -44,7 +43,7 @@ export class SymbolStorage {
 		const caches = contributor ? selected ? [selected] : [] : this.#cache.values()
 		const paths = new Set<string>()
 		for (const cache of caches) {
-			for (const set of uri !== undefined ? [cache.uris[uri]] : Object.values(cache.uris)) {
+			for (const set of uri !== undefined ? [cache.uris.get(uri)] : cache.uris.values()) {
 				for (const path of set?.keys() ?? []) {
 					paths.add(path)
 				}
@@ -94,12 +93,11 @@ export class SymbolStorage {
 	private indexLocation(symbol: Symbol, location: SymbolLocation): void {
 		let cache = this.#cache.get(location.contributor)
 		if (!cache) {
-			this.#cache.set(location.contributor, cache = { uris: Object.create(null), size: 0 })
+			this.#cache.set(location.contributor, cache = { uris: new Map() })
 		}
-		let paths = cache.uris[location.uri]
+		let paths = cache.uris.get(location.uri)
 		if (!paths) {
-			cache.uris[location.uri] = paths = new Map()
-			cache.size++
+			cache.uris.set(location.uri, paths = new Map())
 		}
 		const path = SymbolPath.toString(symbol)
 		paths.set(path, (paths.get(path) ?? 0) + 1)
@@ -108,7 +106,7 @@ export class SymbolStorage {
 
 	private unindexLocation(symbol: Symbol, location: SymbolLocation): void {
 		const cache = this.#cache.get(location.contributor)
-		const paths = cache?.uris[location.uri]
+		const paths = cache?.uris.get(location.uri)
 		const path = SymbolPath.toString(symbol)
 		const count = paths?.get(path)
 		if (count === undefined) {
@@ -119,9 +117,8 @@ export class SymbolStorage {
 		} else {
 			paths!.delete(path)
 			if (!paths!.size) {
-				delete cache!.uris[location.uri]
-				cache!.size--
-				if (!cache!.size) {
+				cache!.uris.delete(location.uri)
+				if (!cache!.uris.size) {
 					this.#cache.delete(location.contributor)
 				}
 			}

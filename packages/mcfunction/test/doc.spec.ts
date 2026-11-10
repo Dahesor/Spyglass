@@ -491,6 +491,24 @@ function setup() {
 }
 
 describe('doc access and command usages', () => {
+	it('binds explicit global declarations independently of a same-named local declaration', async t => {
+		const env = setup()
+		const text = '\n#> @local objective coins Local\n#> @public objective coins Public'
+		const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
+		const node = core.file(entry({ type: 'root' }, () => undefined))(
+			new core.Source(text),
+			core.ParserContext.create(env.project, { doc }),
+		)
+		const ctx = core.BinderContext.create(env.project, { doc })
+		await env.project.meta.getBinder(node.type)(node, ctx)
+		t.assert.deepEqual(ctx.err.errors, [])
+		t.assert.equal(
+			core.SymbolUtil.viewFromContext(node.locals?.objective?.['coins'], doc.uri)?.desc,
+			' Local',
+		)
+		t.assert.equal(env.view(root)?.desc, ' Public')
+	})
+
 	it('shares usages between public doc overrides and restores metadata after deleting the winning doc', t => {
 		const env = setup()
 		class PublicOverride extends DefaultDocDirective {
