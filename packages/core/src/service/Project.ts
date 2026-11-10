@@ -222,6 +222,7 @@ export class Project extends EventDispatcher<{
 	/** URI of files that are currently managed by the language client. */
 	readonly #clientManagedUris = new Set<string>()
 	readonly #clientManagedDocAndNodes = new Map<string, DocAndNode>()
+	readonly #documentAnalysis = new Map<string, Promise<void>>()
 	readonly #configService: ConfigService
 	readonly #symbolUpToDateUris = new Set<string>()
 	readonly #initializers: readonly ProjectInitializer[]
@@ -964,6 +965,26 @@ export class Project extends EventDispatcher<{
 
 	@SingletonPromise()
 	private async bindAndCheck(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
+		const previous = this.#documentAnalysis.get(doc.uri)
+		const pending = (async () => {
+			await previous?.catch(() => {})
+			const current = this.#clientManagedDocAndNodes.get(doc.uri)
+			if (current && current.doc !== doc) {
+				return
+			}
+			await this.analyzeDocument(doc, node)
+		})()
+		this.#documentAnalysis.set(doc.uri, pending)
+		try {
+			await pending
+		} finally {
+			if (this.#documentAnalysis.get(doc.uri) === pending) {
+				this.#documentAnalysis.delete(doc.uri)
+			}
+		}
+	}
+
+	private async analyzeDocument(doc: TextDocument, node: FileNode<AstNode>): Promise<void> {
 		if (this.isIgnoredDependency(doc.uri)) {
 			return
 		}
@@ -983,15 +1004,6 @@ export class Project extends EventDispatcher<{
 		const storage = this.createViewStorage(doc.uri)
 		await this.bindDocument(doc, node, storage)
 		await this.check(doc, node, storage)
-		const symbolService = new SymbolService(this.symbolStorage)
-		traversePreOrder(node, () => true, () => true, child => {
-			if (child.symbol && !LocalSymbol.is(child.symbol)) {
-				child.symbol = symbolService.lookup(
-					child.symbol.category,
-					child.symbol.path,
-				).symbol ?? child.symbol
-			}
-		})
 	}
 
 	private createViewStorage(uri: string): SymbolStorage {

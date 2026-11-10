@@ -700,8 +700,8 @@ function identifierToUri(module: string, ctx: McdocBinderContext): string | unde
 }
 
 function uriToIdentifier(uri: string, ctx: CheckerContext): string | undefined {
-	return Object.values(ctx.symbols.storage.global.mcdoc ?? {}).find((symbol) => {
-		return (symbol.subcategory === 'module'
+	return ctx.symbols.getSymbolsInFile(uri).find((symbol) => {
+		return (symbol.category === 'mcdoc' && symbol.subcategory === 'module'
 			&& symbol.scopes?.public?.[0]?.usages.definition?.some((loc) => loc.uri === uri))
 	})?.identifier
 }

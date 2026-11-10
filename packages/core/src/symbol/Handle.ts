@@ -107,11 +107,14 @@ type QueryMemberCallback = (this: void, handle: SymbolHandle) => unknown
  * Holdes a reference to the {@link SymbolService} that created it.
  */
 export class SymbolHandle {
-	readonly category: string
+	#category: string
+	get category(): string {
+		return this.#category
+	}
 	path: readonly string[]
 	readonly #doc: TextDocument
-	readonly #lookup: (category: string, path: readonly string[]) => LookupResult
-	readonly #getRootMap: () => SymbolMap
+	#lookup: (category: string, path: readonly string[]) => LookupResult
+	#getRootMap: () => SymbolMap
 	/**
 	 * If only a string URI (instead of a {@link TextDocument}) is provided when constructing this class.
 	 *
@@ -153,7 +156,7 @@ export class SymbolHandle {
 				getRootMap: () => SymbolMap
 			},
 	) {
-		this.category = category
+		this.#category = category
 		this.path = path
 
 		if (typeof doc === 'string') {
@@ -325,6 +328,7 @@ export class SymbolHandle {
 	 */
 	@delayModeSupport
 	enter(addition: SymbolAddition, type: SymbolEnterType = SymbolEnterType.None): this {
+		this.refreshWriteTarget()
 		switch (type) {
 			case SymbolEnterType.None:
 				this.enterImmediately(addition)
@@ -351,15 +355,10 @@ export class SymbolHandle {
 	 */
 	@delayModeSupport
 	enterIsotope(identifier: string, addition: SymbolIsotopeAddition): this {
+		this.refreshWriteTarget()
 		if (this.isLocalSymbol) {
 			throw new Error('Local symbols do not support isotopes.')
 		}
-		const current = this.#lookup(this.category, this.path)
-		this.#symbol = current.symbol
-		if (current.symbol) {
-			this.#map = current.symbol.parentMap
-		}
-
 		if (!this.#symbol) {
 			if (addition.data?.scope === undefined) {
 				throw new Error('Creating an isotope requires a scope.')
@@ -426,10 +425,15 @@ export class SymbolHandle {
 			if (!result) {
 				throw new Error('The current symbol points to an non-existent symbol.')
 			}
+			if (result !== this.#symbol) {
+				this.#lookup = (category, path) => this.service.lookup(category, path)
+				this.#getRootMap = () => this.service.storage.global[this.category] ??= {}
+			}
 			this.#symbol = result
 			this.#map = result.parentMap
 			this.#parentSymbol = result.parentSymbol
 			this.path = result.path
+			this.#category = result.category
 		}
 		return this
 	}
@@ -530,6 +534,13 @@ export class SymbolHandle {
 			Isotope.reconcileDocUsages(this.service, this.#symbol!)
 		}
 		return this
+	}
+
+	private refreshWriteTarget(): void {
+		const current = this.#lookup(this.category, this.path)
+		this.#symbol = current.symbol
+		this.#parentSymbol = current.parentSymbol
+		this.#map = current.parentMap
 	}
 
 	private getMap(): SymbolMap {

@@ -87,6 +87,9 @@ describe('Service.getDefinitionLocations()', () => {
 				new SymbolService(service.project.symbolStorage),
 				SymbolTable.getDependencyExports(dependency.storage.global, 'package'),
 			)
+			const importedView = SymbolTable.link(
+				SymbolTable.unlink(service.project.symbolStorage.global),
+			).objective!['aaaaaa']
 			const consumerDoc = TextDocument.create(
 				'file:///pack/data/demo/function/use.mcfunction',
 				'mcfunction',
@@ -124,6 +127,18 @@ describe('Service.getDefinitionLocations()', () => {
 				'reference',
 			], true)
 			t.assert.deepEqual(local?.locations?.map(value => value.uri), [declarationDoc.uri])
+			const viewedReferences = await service.getSymbolLocations(
+				file(importedView),
+				declarationDoc,
+				1,
+				[
+					'reference',
+				],
+			)
+			t.assert.deepEqual(
+				viewedReferences?.locations?.map(value => value.uri),
+				references?.locations?.map(value => value.uri),
+			)
 		})
 	}
 	it('does not associate same-named dependency isotopes with a different package', async t => {

@@ -118,6 +118,70 @@ async function setup(
 }
 
 describe('Project', () => {
+	it('replaces older asynchronous analysis when edits overlap', async () => {
+		const uri = `${ProjectRoot}edit.spyglasstest`
+		let release!: () => void
+		let started!: () => void
+		const gate = new Promise<void>(resolve => {
+			release = resolve
+		})
+		const binding = new Promise<void>(resolve => {
+			started = resolve
+		})
+		const { project } = await setup({ '/root/edit.spyglasstest': 'foo' }, [({ meta }) => {
+			meta.registerLanguage('spyglasstest', {
+				extensions: ['.spyglasstest'],
+				parser: literal('foo', 'bar'),
+			})
+			meta.registerBinder<LiteralNode>('literal', async (node, ctx) => {
+				if (ctx.doc.version === 1) {
+					started()
+					await gate
+				}
+				ctx.symbols.query(ctx.doc, 'test', node.value).enter({
+					usage: { type: 'definition', node },
+				})
+			})
+		}])
+		try {
+			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
+			const older = project.onDidChange(uri, [{ text: 'foo' }], 1)
+			await binding
+			const newer = project.onDidChange(uri, [{ text: 'bar' }], 2)
+			release()
+			await Promise.all([older, newer])
+			assert.deepEqual(Object.keys(project.symbolStorage.global['test']!), ['bar'])
+			assert.equal(project.getClientManaged(uri)?.doc.version, 2)
+		} finally {
+			release()
+			await project.close()
+		}
+	})
+
+	it('keeps view-specific metadata when a project symbol has the same name', async () => {
+		const uri = 'file:///external/view.spyglasstest'
+		const { project } = await setup({ '/root/local.spyglasstest': 'foo' }, [({ meta }) => {
+			meta.registerBinder<LiteralNode>('literal', (node, ctx) => {
+				ctx.symbols.query(ctx.doc, 'test', 'shared').enter({
+					data: { desc: ctx.doc.uri },
+					usage: { type: 'definition', node },
+				})
+			})
+			meta.registerChecker<LiteralNode>('literal', () => {})
+		}])
+		try {
+			const before = SymbolTable.serialize(project.symbolStorage.global)
+			await project.onDidOpen(uri, 'spyglasstest', 0, 'foo')
+			const viewed = await project.ensureClientManagedChecked(uri)
+			assert.ok(viewed)
+			const symbol = viewed.node.children[0].symbol
+			assert.ok(SymbolUtil.viewFromContext(symbol, uri)?.definition?.some(l => l.uri === uri))
+			assert.equal(SymbolTable.serialize(project.symbolStorage.global), before)
+		} finally {
+			await project.close()
+		}
+	})
+
 	it('replaces binder and checker contributions on repeated edits', async () => {
 		const uri = `${ProjectRoot}edit.spyglasstest`
 		const { project } = await setup({ '/root/edit.spyglasstest': 'foo' }, [({ meta }) => {
@@ -813,6 +877,32 @@ describe('Project', () => {
 			} finally {
 				await reloaded.close()
 			}
+		} finally {
+			await project.close()
+		}
+	})
+	it('suppresses undeclared symbol diagnostics in dependency files', async () => {
+		const dependencyFile = 'file:///dependency/reference.spyglasstest'
+		const projectFile = `${ProjectRoot}reference.spyglasstest`
+		const reference = 'demo:missing'
+		const { project, errors } = await setup({
+			'/root/spyglass.json': JSON.stringify({ env: { dependencies: ['file:///dependency/'] } }),
+			'/dependency/reference.spyglasstest': reference,
+		}, [({ meta }) => {
+			meta.registerLanguage('spyglasstest', {
+				extensions: ['.spyglasstest'],
+				parser: resourceLocation({ category: 'function', usageType: 'reference' }),
+			})
+		}])
+		try {
+			await project.onDidOpen(dependencyFile, 'spyglasstest', 0, reference)
+			await project.ensureClientManagedChecked(dependencyFile)
+			assert.deepEqual(errors.get(dependencyFile), [])
+
+			await project.onDidOpen(projectFile, 'spyglasstest', 0, reference)
+			await project.ensureClientManagedChecked(projectFile)
+			assert.equal(errors.get(projectFile)?.length, 1)
+			assert.ok(errors.get(projectFile)?.[0].message.includes('undeclaredSymbol'))
 		} finally {
 			await project.close()
 		}

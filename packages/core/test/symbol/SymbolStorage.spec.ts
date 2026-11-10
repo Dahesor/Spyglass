@@ -4,6 +4,8 @@ import {
 	BinderContext,
 	LocalSymbol,
 	Range,
+	SymbolIsotopeProvider,
+	SymbolIsotopeScope,
 	SymbolService,
 	SymbolStorage,
 	UriBinderContext,
@@ -13,6 +15,69 @@ import { mockProjectData } from '../utils.ts'
 const doc = TextDocument.create('file:///test.mcfunction', 'mcfunction', 0, '')
 
 describe('SymbolStorage ownership', () => {
+	it('resolves delayed isotope writes after a parent is created', t => {
+		const service = new SymbolService(new SymbolStorage())
+		const branch = service.cloneDelayed()
+		branch.query(doc, 'test', 'parent').enter({ usage: { type: 'definition' } })
+		branch.query(doc, 'test', 'parent', 'child').enterIsotope('doc', {
+			data: { scope: SymbolIsotopeScope.Public, source: SymbolIsotopeProvider.DocBlock },
+			usage: { type: 'declaration' },
+		})
+		branch.applyDelayedEdits()
+		t.assert.equal(
+			service.query(doc, 'test', 'parent', 'child').symbolView?.declaration?.length,
+			1,
+		)
+	})
+
+	it('preserves a local write target when resolveAlias has no alias to follow', t => {
+		const service = new SymbolService(new SymbolStorage())
+		const table = LocalSymbol.createTable()
+		service.queryInTable(table, doc, 'test', 'local').enter({ usage: { type: 'definition' } })
+		service.queryInTable(table, doc, 'test', 'local').resolveAlias().enter({
+			usage: { type: 'reference' },
+		})
+		t.assert.equal(
+			service.queryInTable(table, doc, 'test', 'local').symbolView?.reference?.length,
+			1,
+		)
+		t.assert.equal(service.lookup('test', ['local']).symbol, undefined)
+	})
+
+	it('refreshes a resolved local alias in the global destination category', t => {
+		const service = new SymbolService(new SymbolStorage())
+		service.query(doc, 'target', 'value').enter({ usage: { type: 'definition' } })
+		const table = LocalSymbol.createTable()
+		service.queryInTable(table, doc, 'alias', 'local').enter({
+			data: { relations: { aliasOf: { category: 'target', path: ['value'] } } },
+			usage: { type: 'definition' },
+		})
+		const handle = service.queryInTable(table, doc, 'alias', 'local').resolveAlias()
+		handle.enter({ usage: { type: 'reference' } })
+		t.assert.equal(handle.category, 'target')
+		t.assert.equal(service.query(doc, 'target', 'value').symbolView?.reference?.length, 1)
+		t.assert.equal(table['target'], undefined)
+	})
+
+	it('commits delayed members into the current parent after clearing and rebuilding it', t => {
+		const service = new SymbolService(new SymbolStorage())
+		service.query(doc, 'test', 'parent').enter({ usage: { type: 'definition' } })
+		const oldParent = service.lookup('test', ['parent']).symbol!
+		const branch = service.cloneDelayed()
+		branch.clear({ uri: doc.uri })
+		branch.query(doc, 'test', 'parent').enter({ usage: { type: 'definition' } })
+		branch.query(doc, 'test', 'parent', 'child').enter({ usage: { type: 'definition' } })
+		branch.applyDelayedEdits()
+		const parent = service.lookup('test', ['parent']).symbol!
+		const child = service.lookup('test', ['parent', 'child']).symbol
+		t.assert.notEqual(parent, oldParent)
+		t.assert.notEqual(child, undefined)
+		t.assert.equal(child?.parentSymbol, parent)
+		t.assert.equal(service.storage.getPaths(doc.uri).size, 2)
+		service.clear({ uri: doc.uri })
+		t.assert.equal(service.storage.getPaths().size, 0)
+	})
+
 	it('trims unused ancestors while preserving parents with live members', t => {
 		const storage = new SymbolStorage()
 		const service = new SymbolService(storage)
