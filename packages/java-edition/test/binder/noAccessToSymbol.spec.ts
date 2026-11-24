@@ -31,10 +31,9 @@ function setup(category = 'function', extension = '.mcfunction', withFile = true
 		ctx.symbols.contributeAs('uri_binder', () => uriBinder([fileUri], ctx))
 	}
 	const declare = (uri = privateDoc, modifier = '@private') => {
-		const text = `\n#> ${modifier} ${category} demo:example Documentation`
+		const text = `say hi\n#> ${modifier} ${category} demo:example Documentation`
 		const doc = TextDocument.create(uri, 'mcfunction', 0, text)
-		const source = new core.Source(text)
-		source.skip()
+		const source = new core.Source(text).nextLine()
 		const parserCtx = core.ParserContext.create(project, { doc })
 		const node = parseDoc(source, parserCtx)
 		const binderCtx = core.BinderContext.create(project, { doc })

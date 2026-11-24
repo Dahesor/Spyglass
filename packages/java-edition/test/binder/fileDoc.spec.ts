@@ -21,12 +21,11 @@ function setup(category = 'function', ext = '.mcfunction', delayed = false) {
 	}
 	const fileUri = root + `data/demo/${category}/example${ext}`
 	const declare = (uri = privateDoc, modifier = '@private', header = false) => {
-		const text = `${header ? '' : '\n'}#> ${modifier} ${category} demo:example Documentation`
+		const text = `${
+			header ? '' : 'say hi\n'
+		}#> ${modifier} ${category} demo:example Documentation`
 		const doc = TextDocument.create(uri, 'mcfunction', 0, text)
-		const source = new core.Source(text)
-		if (!header) {
-			source.skip()
-		}
+		const source = new core.Source(text).skip(text.indexOf('#>'))
 		const parserCtx = core.ParserContext.create(project, { doc })
 		const node = parseDoc(source, parserCtx)
 		const binderCtx = core.BinderContext.create(project, { doc, symbols })

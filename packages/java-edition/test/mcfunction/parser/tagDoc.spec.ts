@@ -22,7 +22,7 @@ for (const docFirst of [false, true]) {
 			root + 'folder/inner.mcfunction',
 			'mcfunction',
 			0,
-			'\n#>@private tag myTag balabala',
+			'say hi\n#>@private tag myTag balabala',
 		)
 		const tagTree = getPatch('1.21').children!['tag']!.children!['targets']!.children!
 		const add = tagTree['add']!.children!['name']!
@@ -44,8 +44,7 @@ for (const docFirst of [false, true]) {
 			return node
 		}
 		const declaration = () => {
-			const source = new core.Source(inner.getText())
-			source.skip()
+			const source = new core.Source(inner.getText()).nextLine()
 			const node = parseDoc(source, core.ParserContext.create(project, { doc: inner }))
 			bindDoc(node, core.BinderContext.create(project, { doc: inner }))
 		}

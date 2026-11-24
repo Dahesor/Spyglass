@@ -25,9 +25,12 @@ export function registerDocDirectives(meta: core.MetaRegistry): void {
 		new DeprecatedDirective(),
 		new OverrideDirective(),
 		new ReturnsDirective(),
+		DirectiveAlias('return', new ReturnsDirective()),
 		new ContextDirective(),
 		new ReadsDirective(),
+		DirectiveAlias('read', new ReadsDirective()),
 		new WritesDirective(),
+		DirectiveAlias('write', new WritesDirective()),
 		new InputDirective(),
 		new ResultDirective(),
 		new SuccessDirective(),
@@ -416,7 +419,44 @@ export class DeprecatedDirective extends GreedyStringDirective {
 
 export class OverrideDirective extends AccessModifierDirective {
 	override readonly identifier = 'override'
-	// TODO
+
+	override parseArguments(
+		src: core.Source,
+		directive: DocDirectiveNode,
+		ctx: core.ParserContext,
+	): void {
+		if (!src.skipSpace().canReadInLine()) {
+			return
+		}
+		const start = src.cursor
+		const raw = src.readUntil(...core.Whitespaces)
+		directive.arguments.push(raw)
+		const range = core.Range.create(start, src)
+		const value = Number(raw)
+		if (!/^[+-]?\d+$/.test(raw) || !Number.isInteger(value)) {
+			ctx.err.report(localize('expected', localize('integer')), range)
+			return
+		}
+		if (src.skipSpace().canReadInLine()) {
+			const extra = src.cursor
+			ctx.err.report(
+				localize('mcfunction.parser.trailing', src.readLine()),
+				core.Range.create(extra, src),
+			)
+			return
+		}
+		const level: core.IntegerNode = { type: 'integer', range, value }
+		directive.argumentNode = level
+		directive.children.push(level)
+	}
+
+	override modifyAccess(directive: core.DeepReadonly<DocDirectiveNode>) {
+		if (!directive.arguments.length) {
+			return { overrideLevel: 1 }
+		}
+		const level = directive.argumentNode
+		return level && core.IntegerNode.is(level) ? { overrideLevel: level.value } : undefined
+	}
 }
 
 export class ContextDirective extends CommandTreeDocDirective {

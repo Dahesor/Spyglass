@@ -40,12 +40,12 @@ describe('score doc target', () => {
 		it(`completes the correct score parameter: ${JSON.stringify(input)}`, t => {
 			const project = mockProjectData()
 			initialize(project)
-			const marked = '\n#> score ' + input
+			const marked = 'say hi\n#> score ' + input
 			const offset = marked.indexOf('|')
 			const text = marked.replace('|', '')
 			const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 			const node = parseDoc(
-				new core.Source(text).skip(),
+				new core.Source(text).skip(text.indexOf('#>')),
 				core.ParserContext.create(project, { doc }),
 			)
 			const ctx = core.CompleterContext.create(project, { doc, offset })
@@ -59,10 +59,10 @@ describe('score doc target', () => {
 		it(`accepts an optional objective: ${JSON.stringify(suffix)}`, (t: TestContext) => {
 			const project = mockProjectData()
 			initialize(project)
-			const text = '\n#> score $holder' + suffix + '\n# Description'
+			const text = 'say hi\n#> score $holder' + suffix + '\n# Description'
 			const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 			const ctx = core.ParserContext.create(project, { doc })
-			const node = parseDoc(new core.Source(text).skip(), ctx)
+			const node = parseDoc(new core.Source(text).skip(text.indexOf('#>')), ctx)
 			t.assert.deepEqual(ctx.err.errors, [])
 			t.assert.equal(node.valid, true)
 			t.assert.deepEqual(
@@ -107,7 +107,11 @@ describe('within visibility parameters', () => {
 						: undefined
 				}
 				t.assert.deepEqual(
-					env.declaration(root + source + '.mcfunction', '', `\n#> objective coins\n#${scope}`)
+					env.declaration(
+						root + source + '.mcfunction',
+						'',
+						`say hi\n#> objective coins\n#${scope}`,
+					)
 						.errors,
 					[],
 				)
@@ -179,7 +183,7 @@ describe('within visibility parameters', () => {
 				const { errors } = env.declaration(
 					self,
 					'',
-					`\n#> objective coins\n#@${modifier} within ${scope}`,
+					`say hi\n#> objective coins\n#@${modifier} within ${scope}`,
 				)
 				t.assert.deepEqual(errors, [])
 				t.assert.ok(env.view(self))
@@ -203,7 +207,7 @@ describe('within visibility parameters', () => {
 				const { errors } = env.declaration(
 					self,
 					'',
-					`\n#> objective coins\n#@${modifier} within ${scope}`,
+					`say hi\n#> objective coins\n#@${modifier} within ${scope}`,
 				)
 				t.assert.ok(errors.length)
 				t.assert.ok(env.view(self))
@@ -285,6 +289,37 @@ describe('within visibility parameters', () => {
 				)
 			}
 		})
+	}
+})
+
+describe('function header placement', () => {
+	for (const newline of ['\n', '\r\n']) {
+		for (
+			const [prefix, expected] of [
+				[['', ' \t', '\t# license', '# comment containing #>', ''], true],
+				[['help', '', '# comment'], false],
+				[['#> function demo:self', '', '# comment'], false],
+				[['#> objective coins', '# description'], false],
+			] as const
+		) {
+			it(`checks the header after ${JSON.stringify(prefix.join(newline))}`, (t: TestContext) => {
+				const project = mockProjectData()
+				initialize(project)
+				const text = [...prefix, '  #> demo:self'].join(newline)
+				const doc = TextDocument.create(root + 'self.mcfunction', 'mcfunction', 0, text)
+				const parser = entry({
+					type: 'root',
+					children: { help: { type: 'literal', executable: true } },
+				}, () => undefined)
+				const file = parser(new core.Source(text), core.ParserContext.create(project, { doc }))
+				t.assert.ok(file && file !== core.Failure)
+				const block = file.children.at(-1)
+				t.assert.ok(block?.type === 'mcfunction:doc')
+				t.assert.equal(block.isFunctionHeader, expected)
+				t.assert.equal(block.isImplicitFunction, expected)
+				t.assert.equal(block.valid, expected)
+			})
+		}
 	}
 })
 
@@ -464,12 +499,9 @@ function setup() {
 	project.meta.resolveResourceLocation = mockResourceLocation
 	initialize(project)
 	function declaration(uri: string, modifier = '@private', sourceText?: string) {
-		const text = sourceText ?? `\n#> ${modifier} objective coins 金币`
+		const text = sourceText ?? `say hi\n#> ${modifier} objective coins 金币`
 		const doc = TextDocument.create(uri, 'mcfunction', 0, text)
-		const src = new core.Source(text)
-		if (text.startsWith('\n')) {
-			src.skip()
-		}
+		const src = new core.Source(text).skip(text.indexOf('#>'))
 		const parserCtx = core.ParserContext.create(project, { doc })
 		const node = parseDoc(src, parserCtx)
 		const ctx = core.BinderContext.create(project, { doc })
@@ -493,7 +525,7 @@ function setup() {
 describe('doc access and command usages', () => {
 	it('binds explicit global declarations independently of a same-named local declaration', async t => {
 		const env = setup()
-		const text = '\n#> @local objective coins Local\n#> @public objective coins Public'
+		const text = '#> demo:doc\n#> @local objective coins Local\n#> @public objective coins Public'
 		const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 		const node = core.file(entry({ type: 'root' }, () => undefined))(
 			new core.Source(text),
@@ -511,17 +543,14 @@ describe('doc access and command usages', () => {
 
 	it('shares usages between public doc overrides and restores metadata after deleting the winning doc', t => {
 		const env = setup()
-		class PublicOverride extends DefaultDocDirective {
-			override readonly identifier = 'public'
-			override readonly isAccessModifier = true
-			override modifyAccess() {
-				return { visibility: core.SymbolIsotopeScope.Public, overrideLevel: 7 }
-			}
-		}
 		env.declaration(root + 'first.mcfunction', '')
-		registerDocDirective(env.project.meta, new PublicOverride())
 		const second = root + 'second.mcfunction'
-		env.declaration(second, '@public', '\n#> @public objective coins Override documentation')
+		env.declaration(
+			second,
+			'',
+			'say hi\n#> @override objective coins Override documentation',
+		)
+		t.assert.equal(env.raw().scopes?.public?.[0].overrideLevel, 1)
 		env.command(root + 'command.mcfunction')
 		t.assert.equal(env.raw().scopes?.public?.length, 2)
 		t.assert.equal(env.view(root)?.desc, ' Override documentation')
@@ -535,6 +564,43 @@ describe('doc access and command usages', () => {
 		t.assert.equal(env.view(root)?.declaration?.length, 1)
 		t.assert.equal(env.view(root)?.implementation?.length, 1)
 	})
+	for (
+		const [inline, block, level] of [
+			['@private @override', '', 1],
+			['', '\n# @override 0\n# @private', 0],
+			['@private', '\n# @override', 1],
+			['@private', '\n# @override +2', 2],
+			['@override', '\n# @private', 1],
+			['', '\n# @override -5\n# @private', -5],
+		] as const
+	) {
+		it(`applies the override level alongside private visibility: ${inline}${block}`, t => {
+			const env = setup()
+			const uri = root + 'folder/doc.mcfunction'
+			const { errors } = env.declaration(uri, '', `say hi\n#> ${inline} objective coins${block}`)
+			t.assert.deepEqual(errors, [])
+			t.assert.equal(env.raw().scopes?.restricted?.[0].overrideLevel, level)
+			t.assert.equal(env.view(root + 'outside.mcfunction'), undefined)
+		})
+	}
+	it('leaves the token after inline @override for the doc target parser', t => {
+		const env = setup()
+		const { node } = env.declaration(root + 'doc.mcfunction', '@override -2')
+		t.assert.deepEqual(node.docDirectives[0].arguments, [])
+		t.assert.equal(node.directive.value, '-2')
+	})
+	for (const argument of ['abc', '2 extra', '1e999', '2.5', '2.0', '1e2']) {
+		it(`reports an invalid override level: ${argument}`, t => {
+			const env = setup()
+			const { errors } = env.declaration(
+				root + 'doc.mcfunction',
+				'',
+				`say hi\n#> objective coins\n# @override ${argument}`,
+			)
+			t.assert.equal(errors.length, 1)
+			t.assert.equal(env.raw().scopes?.public?.[0].overrideLevel, undefined)
+		})
+	}
 	it('keeps multiple Internal declarations in one shared facet ahead of Public', t => {
 		const env = setup()
 		env.declaration(root + 'public.mcfunction', '@public')
@@ -563,7 +629,7 @@ describe('doc access and command usages', () => {
 				env.declaration(
 					root + 'private/doc.mcfunction',
 					'@private',
-					'\n#> @private function demo:value Documentation',
+					'say hi\n#> @private function demo:value Documentation',
 				)
 			if (docFirst) {
 				declaration()
@@ -864,7 +930,7 @@ describe('doc directive descriptions', () => {
 		const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 		const parse = () => {
 			const ctx = core.ParserContext.create(service.project, { doc })
-			const node = parseDoc(new core.Source(text).skip(), ctx)
+			const node = parseDoc(new core.Source(text).skip(text.indexOf('#>')), ctx)
 			const file: core.FileNode<core.AstNode> = {
 				type: 'file',
 				range: core.Range.create(0, text.length),
@@ -884,7 +950,9 @@ describe('doc directive descriptions', () => {
 	}
 
 	for (const inline of [true, false]) {
-		const text = inline ? '\n#> @private objective coins' : '\n#> objective coins\n# @private'
+		const text = inline
+			? 'say hi\n#> @private objective coins'
+			: 'say hi\n#> objective coins\n# @private'
 		it(`shows the actual built-in directive description in completion and hover (inline: ${inline})`, t => {
 			const env = setupDescriptions(t, text)
 			const { node, file } = env.parse()
@@ -925,7 +993,7 @@ describe('doc directive descriptions', () => {
 	}
 	for (const keys of [undefined, []]) {
 		it(`omits completion documentation and hover when the description is absent or empty (${keys})`, t => {
-			const text = '\n#> @private objective coins'
+			const text = 'say hi\n#> @private objective coins'
 			const env = setupDescriptions(t, text)
 			class UndescribedPrivate extends DefaultDocDirective {
 				override readonly identifier = 'private'
@@ -945,7 +1013,7 @@ describe('doc directive descriptions', () => {
 		})
 	}
 	it('documents directives suggested after the doc marker', t => {
-		const env = setupDescriptions(t, '\n#> @')
+		const env = setupDescriptions(t, 'say hi\n#> @')
 		const { node } = env.parse()
 		t.assert.equal(
 			env.complete(node, env.doc.getText().length).find(item => item.label === '@public')
@@ -954,7 +1022,7 @@ describe('doc directive descriptions', () => {
 		)
 	})
 	it('provides localized descriptions for all built-in block directives', t => {
-		const text = '\n#> function demo:test\n# @'
+		const text = 'say hi\n#> function demo:test\n# @'
 		const env = setupDescriptions(t, text)
 		const { node } = env.parse()
 		const completions = env.complete(node, text.length)
@@ -971,7 +1039,7 @@ describe('doc directive descriptions', () => {
 })
 
 describe('multiple inline doc directives', () => {
-	for (const prefix of ['', '\n']) {
+	for (const prefix of ['', 'say hi\n']) {
 		it(`parses multiple inline directives (prefix: ${JSON.stringify(prefix)})`, t => {
 			const env = setup()
 			const text = prefix + '#> @private @chatonly @override function demo:test Description'
@@ -999,18 +1067,24 @@ describe('multiple inline doc directives', () => {
 		const { node, errors } = env.declaration(
 			root + 'doc.mcfunction',
 			'',
-			'\n#> @private @required function demo:test',
+			'say hi\n#> @private @required function demo:test',
 		)
 		t.assert.equal(node.valid, false)
 		t.assert.equal(errors.length, 1)
 		t.assert.equal(errors[0]?.message, localize('mcfunction.doc.directive.diagnostic.inline'))
 	})
-	for (const text of ['\n#> ', '\n#> @private ', '\n#> @private @ch function demo:test']) {
+	for (
+		const text of [
+			'say hi\n#> ',
+			'say hi\n#> @private ',
+			'say hi\n#> @private @ch function demo:test',
+		]
+	) {
 		it('completes targets and non-access directives after earlier directives: ' + text, t => {
 			const env = setup()
 			const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 			const node = parseDoc(
-				new core.Source(text).skip(),
+				new core.Source(text).skip(text.indexOf('#>')),
 				core.ParserContext.create(env.project, { doc }),
 			)
 			const offset = text.includes('@ch') ? text.indexOf('@ch') + 3 : text.length
@@ -1026,14 +1100,14 @@ describe('multiple inline doc directives', () => {
 
 describe('doc directive completion duplicates', () => {
 	const cases: [string, string, boolean][] = [
-		['new inline directive', '\n#> @private @|', false],
-		['partial inline directive', '\n#> @private @pr| function demo:test', false],
-		['inline to block', '\n#> @private function demo:test\n# @|', false],
-		['block to inline', '\n#> @| function demo:test\n# @private', false],
-		['block to block', '\n#> function demo:test\n# @private\n# @|', false],
-		['editing inline occurrence', '\n#> @pr|ivate function demo:test', true],
-		['editing block occurrence', '\n#> function demo:test\n# @pr|ivate', true],
-		['editing duplicate occurrence', '\n#> @private @pr|ivate function demo:test', false],
+		['new inline directive', 'say hi\n#> @private @|', false],
+		['partial inline directive', 'say hi\n#> @private @pr| function demo:test', false],
+		['inline to block', 'say hi\n#> @private function demo:test\n# @|', false],
+		['block to inline', 'say hi\n#> @| function demo:test\n# @private', false],
+		['block to block', 'say hi\n#> function demo:test\n# @private\n# @|', false],
+		['editing inline occurrence', 'say hi\n#> @pr|ivate function demo:test', true],
+		['editing block occurrence', 'say hi\n#> function demo:test\n# @pr|ivate', true],
+		['editing duplicate occurrence', 'say hi\n#> @private @pr|ivate function demo:test', false],
 	]
 	for (const [name, markedText, expected] of cases) {
 		it(name, t => {
@@ -1047,7 +1121,7 @@ describe('doc directive completion duplicates', () => {
 			const text = markedText.replace('|', '') + '\n# @repeatable'
 			const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 			const node = parseDoc(
-				new core.Source(text).skip(),
+				new core.Source(text).skip(text.indexOf('#>')),
 				core.ParserContext.create(env.project, { doc }),
 			)
 			const items = completeDoc(node, core.CompleterContext.create(env.project, { doc, offset }))
@@ -1068,7 +1142,7 @@ describe('directive controlled input', () => {
 		configure?.(project)
 		const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 		const parserCtx = core.ParserContext.create(project, { doc })
-		const node = parseDoc(new core.Source(text).skip(text.startsWith('\r\n') ? 2 : 1), parserCtx)
+		const node = parseDoc(new core.Source(text).skip(text.indexOf('#>')), parserCtx)
 		const ctx = core.BinderContext.create(project, { doc })
 		const bind = () => ctx.symbols.contributeAs('binder', () => bindDoc(node, ctx))
 		bind()
@@ -1078,7 +1152,7 @@ describe('directive controlled input', () => {
 		for (const identifier of ['input', 'reads', 'writes', 'context']) {
 			it(`reads consecutive indented ${identifier} comments: ${JSON.stringify(newline)}`, t => {
 				const env = parseAndBind([
-					'',
+					'say hi',
 					'#> function demo:test',
 					`# @${identifier} score @s foo.bar`,
 					'#  First line',
@@ -1103,7 +1177,7 @@ describe('directive controlled input', () => {
 				t => {
 					let read = 0
 					const text = [
-						'',
+						'say hi',
 						'#> function demo:test',
 						'# @reads score @s foo.bar',
 						`#${indentation}How many bar to do`,
@@ -1180,7 +1254,7 @@ describe('directive controlled input', () => {
 	) {
 		it('leaves same-level comments, declarations and commands unconsumed: ' + suffix, t => {
 			const env = parseAndBind(
-				'\n#> function demo:test\n# @reads score @s foo.bar\n' + suffix,
+				'say hi\n#> function demo:test\n# @reads score @s foo.bar\n' + suffix,
 				project => {
 					class Reads extends DefaultDocDirective {
 						override readonly identifier = 'reads'
@@ -1208,7 +1282,7 @@ describe('directive controlled input', () => {
 	}
 	it('allows a directive to reject an indented comment without consuming it', t => {
 		const env = parseAndBind(
-			'\n#> function demo:test\n# @reads score @s foo.bar\n#  Keep outside',
+			'say hi\n#> function demo:test\n# @reads score @s foo.bar\n#  Keep outside',
 			project => {
 				class Reads extends DefaultDocDirective {
 					override readonly identifier = 'reads'
@@ -1238,7 +1312,7 @@ describe('directive controlled input', () => {
 			'reads greedy strings once and appends only the parent result ' + JSON.stringify(newline),
 			t => {
 				const env = parseAndBind([
-					'',
+					'say hi',
 					'#> function demo:test Intro',
 					'# Continued',
 					'# @returns score sometparam',
@@ -1265,7 +1339,7 @@ describe('directive controlled input', () => {
 	}
 	it('separates documentation blocks while preserving lines within each block', t => {
 		const env = parseAndBind(
-			'\n#> function demo:test Intro\n# Continued\n# @first\n# @second',
+			'say hi\n#> function demo:test Intro\n# Continued\n# @first\n# @second',
 			project => {
 				class First extends DefaultDocDirective {
 					override readonly identifier = 'first'
@@ -1308,7 +1382,7 @@ describe('directive controlled input', () => {
 		]
 	) {
 		it('renders returns without losing child information: ' + JSON.stringify(children), t => {
-			const env = parseAndBind('\n#> function demo:test\n# @returns' + children)
+			const env = parseAndBind('say hi\n#> function demo:test\n# @returns' + children)
 			t.assert.deepEqual(env.errors, [])
 			t.assert.equal(env.node.description, expected)
 			env.bind()
@@ -1316,7 +1390,9 @@ describe('directive controlled input', () => {
 		})
 	}
 	it('preserves actual trailing comment blank lines before directive documentation', t => {
-		const env = parseAndBind('\n#> function demo:test Intro\n#\n# @returns\n#  @result value')
+		const env = parseAndBind(
+			'say hi\n#> function demo:test Intro\n#\n# @returns\n#  @result value',
+		)
 		t.assert.equal(env.node.commentDescription, ' Intro\n')
 		t.assert.equal(
 			env.node.description,
@@ -1326,7 +1402,7 @@ describe('directive controlled input', () => {
 	it('leaves a rejected indented directive for the outer parser', t => {
 		let calls = 0
 		const env = parseAndBind(
-			'\n#> function demo:test\n# @returns\n#    @result hello\n#    @returnsdoesnottakeme',
+			'say hi\n#> function demo:test\n# @returns\n#    @result hello\n#    @returnsdoesnottakeme',
 			project => {
 				class Rejected extends DefaultDocDirective {
 					override readonly identifier = 'returnsdoesnottakeme'
@@ -1351,7 +1427,7 @@ describe('directive controlled input', () => {
 	})
 	it('warns and skips duplicate child execution', t => {
 		const env = parseAndBind(
-			'\n#> function demo:test\n# @returns\n#    @result first\n#    @result second\n#    @success yes',
+			'say hi\n#> function demo:test\n# @returns\n#    @result first\n#    @result second\n#    @success yes',
 		)
 		t.assert.equal(env.errors.length, 1)
 		t.assert.equal(env.errors[0]?.severity, core.ErrorSeverity.Warning)
@@ -1360,7 +1436,7 @@ describe('directive controlled input', () => {
 	})
 	for (const identifier of ['result', 'success']) {
 		it('reports a missing returns caller for ' + identifier, t => {
-			const env = parseAndBind('\n#> function demo:test\n# @' + identifier + ' some param')
+			const env = parseAndBind('say hi\n#> function demo:test\n# @' + identifier + ' some param')
 			t.assert.equal(env.errors.length, 1)
 			t.assert.equal(
 				env.errors[0]?.message,
@@ -1375,7 +1451,7 @@ describe('directive controlled input', () => {
 	it('lets each directive choose consumption and invoke nested handlers recursively', t => {
 		const calls: string[] = []
 		const env = parseAndBind(
-			'\n#> function demo:test\n# @returns score sometparam\n#    @success some param\n#       @more some param\n#    @result result text',
+			'say hi\n#> function demo:test\n# @returns score sometparam\n#    @success some param\n#       @more some param\n#    @result result text',
 			project => {
 				class RecursiveSuccess extends DefaultDocDirective {
 					override readonly identifier = 'success'
@@ -1444,7 +1520,7 @@ describe('directive controlled input', () => {
 			}
 		}
 		const env = parseAndBind(
-			'\n#> function demo:test\n# @returns\n#    @result hello',
+			'say hi\n#> function demo:test\n# @returns\n#    @result hello',
 			project => {
 				registerDocDirective(project.meta, new NoChildExecution())
 				registerDocDirective(project.meta, new Child())
@@ -1467,7 +1543,7 @@ describe('directive controlled input', () => {
 			}
 		}
 		const env = parseAndBind(
-			'\n#> function demo:test\n# @returns\n#    @result hello',
+			'say hi\n#> function demo:test\n# @returns\n#    @result hello',
 			project => {
 				registerDocDirective(project.meta, new NoLookahead())
 			},
@@ -1486,7 +1562,7 @@ describe('directive controlled input', () => {
 
 describe('directive suggestion policy', () => {
 	it('dispatches argument completion to the directive instance', t => {
-		const { labels } = complete('\n#> function demo:test\n#@custom |', project => {
+		const { labels } = complete('say hi\n#> function demo:test\n#@custom |', project => {
 			class CustomDirective extends DefaultDocDirective {
 				override readonly identifier = 'custom'
 				override completer(
@@ -1511,7 +1587,7 @@ describe('directive suggestion policy', () => {
 		const text = marked.replace('|', '')
 		const doc = TextDocument.create(root + 'doc.mcfunction', 'mcfunction', 0, text)
 		const node = parseDoc(
-			new core.Source(text).skip(),
+			new core.Source(text).skip(text.indexOf('#>')),
 			core.ParserContext.create(project, { doc }),
 		)
 		return {
@@ -1535,10 +1611,10 @@ describe('directive suggestion policy', () => {
 				['team red', false],
 			] as const
 		) {
-			const { node, labels } = complete(`\n#> ${target}\n# @custom|`, configure)
+			const { node, labels } = complete(`say hi\n#> ${target}\n# @custom|`, configure)
 			t.assert.equal(node.docDirectives[0]?.valid, allowed, target)
 			t.assert.equal(labels.includes('@custom'), allowed, target)
-			const inline = complete(`\n#> @custom| ${target}`, configure)
+			const inline = complete(`say hi\n#> @custom| ${target}`, configure)
 			t.assert.equal(inline.node.docDirectives[0]?.valid, allowed, target)
 		}
 	})
@@ -1566,7 +1642,7 @@ describe('directive suggestion policy', () => {
 	for (const suffix of ['#@|']) {
 		it('hides returns arguments at top level: ' + suffix, t => {
 			const { labels } = complete(
-				'\n#> @private function demo:test\n#@returns\n#  @result 123231dddsa\n#  @success true\n'
+				'say hi\n#> @private function demo:test\n#@returns\n#  @result 123231dddsa\n#  @success true\n'
 					+ suffix,
 			)
 			t.assert.equal(labels.includes('@void'), false)
@@ -1578,32 +1654,33 @@ describe('directive suggestion policy', () => {
 	for (const suffix of ['#|', '#  |']) {
 		it('provides no directive completion without @: ' + suffix, t => {
 			t.assert.deepEqual(
-				complete('\n#> function demo:test\n#@returns\n#  @result value\n' + suffix).labels,
+				complete('say hi\n#> function demo:test\n#@returns\n#  @result value\n' + suffix)
+					.labels,
 				[],
 			)
 		})
 	}
 	it('retains the child being edited and filters its used siblings', t => {
 		const { labels } = complete(
-			'\n#> function demo:test\n# @returns\n#  @res|ult hello\n#  @success yes',
+			'say hi\n#> function demo:test\n# @returns\n#  @res|ult hello\n#  @success yes',
 		)
 		t.assert.deepEqual(labels, ['@result', '@void'])
 	})
 	it('suggests all returns argument directives in an empty parameter position', t => {
-		t.assert.deepEqual(complete('\n#> function demo:test\n#@returns\n#  @|').labels, [
+		t.assert.deepEqual(complete('say hi\n#> function demo:test\n#@returns\n#  @|').labels, [
 			'@result',
 			'@success',
 			'@void',
 		])
 	})
 	it('does not infer parameter ownership from indentation alone', t => {
-		const { labels } = complete('\n#> function demo:test\n#@chatonly\n#  @|')
+		const { labels } = complete('say hi\n#> function demo:test\n#@chatonly\n#  @|')
 		t.assert.equal(labels.includes('@void'), false)
 		t.assert.equal(labels.includes('@public'), true)
 	})
 	it('does not alter validity for a directive hidden from suggestions', t => {
 		let checks = 0
-		const { node, labels } = complete('\n#> @hidden function demo:test\n#@|', project => {
+		const { node, labels } = complete('say hi\n#> @hidden function demo:test\n#@|', project => {
 			class Hidden extends DefaultDocDirective {
 				override readonly identifier = 'hidden'
 				override includeInSuggestion(

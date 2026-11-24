@@ -231,6 +231,9 @@ export function declareDocSymbol(
 }
 
 export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
+	// Only empty line and normal comments may precede the function header.
+	const preamble = /^(?:[ \t\r\n]|#(?!>)[^\r\n]*)*/.exec(src.string)![0]
+	const isFunctionHeader = src.innerCursor === preamble.length
 	const start = src.cursor
 	src.skip(2).skipSpace()
 	const inlineDirectives: DocDirectiveNode[] = []
@@ -240,7 +243,6 @@ export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
 	}
 	const directiveStart = src.cursor
 	const docTargets = ctx.meta.getCustom<DocTargets>('impdoc:target')
-	const isFunctionHeader = ctx.doc.positionAt(start).line === 0
 	const names = isFunctionHeader ? ['function'] : [...(docTargets?.keys() ?? [])]
 	const directive: core.LiteralNode = {
 		type: 'literal',
@@ -349,6 +351,7 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 	node.access = undefined
 	node.deprecated = undefined
 	const accessModifierSeen = new Set<string>()
+	let overrideLevel: number | undefined
 	for (const occurrence of node.docDirectives) {
 		const docDirective = getDocDirective(ctx.meta, occurrence.identifier)
 		if (
@@ -360,9 +363,16 @@ export const bindDoc = core.SyncBinder.create<DocNode>((node, ctx) => {
 		accessModifierSeen.add(docDirective.identifier)
 		if (docDirective.isAccessModifier) {
 			const access = docDirective.modifyAccess(occurrence, node, ctx)
-			if (access) {
+			if (access?.visibility !== undefined) {
 				node.access = access
 			}
+			overrideLevel = access?.overrideLevel ?? overrideLevel
+		}
+	}
+	if (overrideLevel !== undefined) {
+		node.access = {
+			...(node.access ?? { visibility: core.SymbolIsotopeScope.Public }),
+			overrideLevel,
 		}
 	}
 	for (const occurrence of node.docDirectives) {
