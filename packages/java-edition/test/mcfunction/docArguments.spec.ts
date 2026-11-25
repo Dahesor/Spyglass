@@ -34,11 +34,10 @@ describe('doc argument framework', () => {
 		type: 'root',
 		children: expandSequence([
 			['flag', { type: 'literal' }],
-			['enabled', { type: 'argument', parser: 'brigadier:bool' }],
+			['enabled', { type: 'argument', argument: { type: 'minecraft:bool' } }],
 			['count', {
 				type: 'argument',
-				parser: 'brigadier:integer',
-				properties: { min: 1, max: 5 },
+				argument: { type: 'minecraft:integer', min: 1, max: 5 },
 			}],
 		]),
 	}
@@ -64,13 +63,14 @@ describe('doc argument framework', () => {
 				['read', { type: 'literal' }],
 				['source', {
 					type: 'argument',
-					parser: 'minecraft:resource_location',
-					properties: { category: 'storage' },
+					argument: { type: 'minecraft:resource_location', options: { category: 'storage' } },
 				}],
 				['value', {
 					type: 'argument',
-					parser: 'minecraft:nbt_path',
-					properties: { dispatcher: 'minecraft:storage', dispatchedBy: 'source' },
+					argument: {
+						type: 'minecraft:nbt_path',
+						options: { dispatcher: 'minecraft:storage', dispatchedBy: 'source' },
+					},
 				}],
 			]),
 		}, 'read demo:ram ')

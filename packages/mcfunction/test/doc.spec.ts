@@ -865,7 +865,7 @@ describe('doc access and command usages', () => {
 										children: {
 											name: {
 												type: 'argument',
-												parser: 'test:objective',
+												argument: { type: 'test:objective' },
 												executable: true,
 											},
 										},

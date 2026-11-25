@@ -4,7 +4,7 @@ import * as nbt from '@spyglassmc/nbt'
 import * as completer from '../completer/index.js'
 import type { NbtPathNode } from '../node/index.js'
 import * as parser from '../parser/index.js'
-import type { NbtParserProperties } from '../tree/argument.js'
+import type { NbtParserOptions } from '../tree/argument.js'
 
 export type EmptyDocArgumentParser = (node: mcf.ArgumentTreeNode) => core.Parser
 
@@ -21,7 +21,7 @@ const emptyNbtPath: EmptyDocArgumentParser = treeNode =>
 		type: 'mcfunction:nbt_path',
 		range: path.range,
 		children: [path],
-		properties: treeNode.properties as NbtParserProperties | undefined,
+		properties: treeNode.argument['options'] as NbtParserOptions | undefined,
 	} satisfies NbtPathNode))
 
 export function registerDocArguments(
@@ -75,8 +75,8 @@ export function registerDocArguments(
 			const next = Object.entries(treeNode?.children ?? {})
 			if (next.length === 1 && next[0][1].type === 'argument') {
 				const [name, argument] = next[0] as [string, mcf.ArgumentTreeNode]
-				const emptyParser = definition.emptyArguments?.get(argument.parser)
-					?? (argument.parser === 'minecraft:nbt_path' ? emptyNbtPath : undefined)
+				const emptyParser = definition.emptyArguments?.get(argument.argument.type)
+					?? (argument.argument.type === 'minecraft:nbt_path' ? emptyNbtPath : undefined)
 				const value = emptyParser?.(argument)(src, ctx)
 				if (value && value !== core.Failure) {
 					command.children.push({

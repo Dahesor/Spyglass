@@ -24,12 +24,11 @@ const commands: McmetaCommands = {
 							children: {
 								target: {
 									type: 'argument',
-									parser: 'minecraft:entity',
-									properties: { amount: 'single', type: 'entities' },
+									argument: { type: 'minecraft:entity', single_result: true },
 									children: {
 										path: {
 											type: 'argument',
-											parser: 'minecraft:nbt_path',
+											argument: { type: 'minecraft:nbt_path' },
 											executable: true,
 										},
 									},
@@ -46,12 +45,11 @@ const commands: McmetaCommands = {
 							children: {
 								target: {
 									type: 'argument',
-									parser: 'minecraft:entity',
-									properties: { amount: 'single', type: 'entities' },
+									argument: { type: 'minecraft:entity', single_result: true },
 									children: {
 										nbt: {
 											type: 'argument',
-											parser: 'minecraft:nbt_compound_tag',
+											argument: { type: 'minecraft:nbt_compound_tag' },
 											executable: true,
 										},
 									},

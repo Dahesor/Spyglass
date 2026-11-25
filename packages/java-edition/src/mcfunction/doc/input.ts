@@ -9,10 +9,9 @@ const score_target: NodeComponent = {
 		children: expandSequence([
 			['score', {
 				type: 'argument',
-				parser: 'minecraft:score_holder',
-				properties: { amount: 'single', usageType: 'reference' },
+				argument: { type: 'minecraft:score_holder', usageType: 'reference' },
 			}],
-			['objective', { type: 'argument', parser: 'minecraft:objective' }],
+			['objective', { type: 'argument', argument: { type: 'minecraft:objective' } }],
 		]),
 	},
 }
@@ -22,16 +21,20 @@ const storage_target: NodeComponent = {
 		children: expandSequence([
 			['storage', {
 				type: 'argument',
-				parser: 'minecraft:resource_location',
-				properties: { category: 'storage', accessType: 'read' },
+				argument: {
+					type: 'minecraft:resource_location',
+					options: { category: 'storage', accessType: 'read' },
+				},
 			}],
 			['path', {
 				type: 'argument',
-				parser: 'minecraft:nbt_path',
-				properties: {
-					dispatcher: 'minecraft:storage',
-					dispatchedBy: 'storage',
-					accessType: 'read',
+				argument: {
+					type: 'minecraft:nbt_path',
+					options: {
+						dispatcher: 'minecraft:storage',
+						dispatchedBy: 'storage',
+						accessType: 'read',
+					},
 				},
 			}],
 		]),
@@ -44,16 +47,18 @@ const block_target: NodeComponent = {
 			['target', {
 				type: 'argument',
 				executable: true,
-				parser: 'minecraft:block_pos',
+				argument: { type: 'minecraft:block_pos' },
 			}],
 			['path', {
 				type: 'argument',
 				executable: true,
-				parser: 'minecraft:nbt_path',
-				properties: {
-					dispatcher: 'minecraft:block',
-					dispatchedBy: 'target',
-					accessType: 'read',
+				argument: {
+					type: 'minecraft:nbt_path',
+					options: {
+						dispatcher: 'minecraft:block',
+						dispatchedBy: 'target',
+						accessType: 'read',
+					},
 				},
 			}],
 		]),
@@ -66,17 +71,18 @@ const entity_target: NodeComponent = {
 			['target', {
 				type: 'argument',
 				executable: true,
-				parser: 'minecraft:entity',
-				properties: { amount: 'multiple', type: 'entities' },
+				argument: { type: 'minecraft:entity' },
 			}],
 			['path', {
 				type: 'argument',
 				executable: true,
-				parser: 'minecraft:nbt_path',
-				properties: {
-					dispatcher: 'minecraft:entity',
-					dispatchedBy: 'target',
-					accessType: 'read',
+				argument: {
+					type: 'minecraft:nbt_path',
+					options: {
+						dispatcher: 'minecraft:entity',
+						dispatchedBy: 'target',
+						accessType: 'read',
+					},
 				},
 			}],
 		]),
@@ -85,7 +91,7 @@ const entity_target: NodeComponent = {
 const message_target: NodeComponent = {
 	message: {
 		type: 'argument',
-		parser: 'minecraft:message',
+		argument: { type: 'minecraft:message' },
 		executable: true,
 	},
 }
@@ -127,7 +133,7 @@ const callbyArgTree: mcf.RootTreeNode = {
 				name: {
 					type: 'argument',
 					executable: true,
-					parser: 'minecraft:function',
+					argument: { type: 'minecraft:function' },
 				},
 			},
 		},
@@ -137,10 +143,7 @@ const callbyArgTree: mcf.RootTreeNode = {
 				name: {
 					type: 'argument',
 					executable: true,
-					parser: 'minecraft:resource',
-					properties: {
-						registry: 'minecraft:enchantment',
-					},
+					argument: { type: 'minecraft:resource', registry: 'minecraft:enchantment' },
 				},
 			},
 		},
@@ -150,10 +153,7 @@ const callbyArgTree: mcf.RootTreeNode = {
 				name: {
 					type: 'argument',
 					executable: true,
-					parser: 'minecraft:resource',
-					properties: {
-						registry: 'minecraft:advancement',
-					},
+					argument: { type: 'minecraft:resource', registry: 'minecraft:advancement' },
 				},
 			},
 		},

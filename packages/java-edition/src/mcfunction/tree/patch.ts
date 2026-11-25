@@ -863,6 +863,7 @@ export function getPatch(release: ReleaseVersion): PartialRootTreeNode {
 									name: {
 										argument: {
 											type: 'spyglassmc:tag',
+											usageType: 'definition',
 										},
 									},
 								},

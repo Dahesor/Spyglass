@@ -28,13 +28,12 @@ for (const docFirst of [false, true]) {
 		const add = tagTree['add']!.children!['name']!
 		const remove = tagTree['remove']!.children!['name']!
 		const bindCommand = (doc: TextDocument, tree = add) => {
-			if (!('parser' in tree) || !tree.parser) {
+			if (!('argument' in tree) || !tree.argument?.type) {
 				throw new Error('Expected tag argument patch')
 			}
 			const parser = argument({
 				type: 'argument',
-				parser: tree.parser,
-				properties: tree.properties,
+				argument: { ...tree.argument, type: tree.argument.type },
 			}, [])!
 			const node = parser(new core.Source('myTag'), core.ParserContext.create(project, { doc }))
 			if (node === core.Failure || !core.SymbolNode.is(node)) {
