@@ -21,7 +21,7 @@ import type {
 	MetaRegistry,
 	RangeLike,
 	Symbol,
-	SymbolHandle,
+	SymbolQuery,
 } from '@spyglassmc/core'
 import { localeQuote, localize } from '@spyglassmc/locales'
 import type {
@@ -514,21 +514,21 @@ function bindEnum(node: EnumNode, ctx: McdocBinderContext): void {
 		return
 	}
 
-	const handle = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
-	Dev.assertDefined(handle.symbol)
-	bindEnumBlock(block, ctx, handle)
+	const query = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
+	Dev.assertDefined(query.symbol)
+	bindEnumBlock(block, ctx, query)
 }
 
 function bindEnumBlock(
 	node: EnumBlockNode,
 	ctx: McdocBinderContext,
-	handle: SymbolHandle,
+	query: SymbolQuery,
 	options: { extendsTypeDefData?: boolean } = {},
 ): void {
 	const { fields } = EnumBlockNode.destruct(node)
 	for (const field of fields) {
 		const { identifier } = EnumFieldNode.destruct(field)
-		handle.member(
+		query.member(
 			identifier.value,
 			(fieldQuery) =>
 				fieldQuery.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, identifier))
@@ -553,15 +553,15 @@ async function bindStruct(node: StructNode, ctx: McdocBinderContext): Promise<vo
 		return
 	}
 
-	const handle = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
-	Dev.assertDefined(handle.symbol)
-	await bindStructBlock(block, ctx, handle)
+	const query = ctx.symbols.query({ doc: ctx.doc, node }, 'mcdoc', ...symbol.path)
+	Dev.assertDefined(query.symbol)
+	await bindStructBlock(block, ctx, query)
 }
 
 async function bindStructBlock(
 	node: StructBlockNode,
 	ctx: McdocBinderContext,
-	handle: SymbolHandle,
+	query: SymbolQuery,
 	options: { extendsTypeDefData?: boolean } = {},
 ): Promise<void> {
 	const { fields } = StructBlockNode.destruct(node)
@@ -569,10 +569,10 @@ async function bindStructBlock(
 		if (StructPairFieldNode.is(field)) {
 			const { key, type } = StructPairFieldNode.destruct(field)
 			if (!StructMapKeyNode.is(key)) {
-				handle.member(
+				query.member(
 					key.value,
-					(fieldHandle) =>
-						fieldHandle.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, key))
+					(fieldQuery) =>
+						fieldQuery.ifDeclared((symbol) => reportDuplicatedDeclaration(ctx, symbol, key))
 							.elseEnter({ usage: { type: 'definition', node: key, fullRange: field } }),
 				)
 			}

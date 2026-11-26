@@ -19,7 +19,9 @@ export function registerDocDirectives(meta: core.MetaRegistry): void {
 		new ProtectedDirective(),
 		new PrivateDirective(),
 		new LocalDirective(),
-		new CallbyDirective(),
+		new HandlesDirective(),
+		DirectiveAlias('handle', new HandlesDirective()),
+		DirectiveAlias('callby', new HandlesDirective()),
 		new UserDirective(),
 		new ChatOnlyDirective(),
 		new DeprecatedDirective(),
@@ -36,6 +38,7 @@ export function registerDocDirectives(meta: core.MetaRegistry): void {
 		new SuccessDirective(),
 		new VoidDirective(),
 		new TypeDirective(),
+		new MacroDirective(),
 		new AuthorDirective(),
 		new PredicateDirective(),
 		new ReadonlyDirective(),
@@ -47,7 +50,7 @@ export function registerDocDirectives(meta: core.MetaRegistry): void {
 
 // #region Abstract Directives
 /** Reads a greedy string as argument */
-class GreedyStringDirective extends DefaultDocDirective {
+abstract class GreedyStringDirective extends DefaultDocDirective {
 	override parseArguments(src: core.Source, directive: DocDirectiveNode): void {
 		src.skipSpace()
 		if (src.canReadInLine()) {
@@ -58,7 +61,86 @@ class GreedyStringDirective extends DefaultDocDirective {
 	}
 }
 
-class CommandTreeDocDirective extends DefaultDocDirective {
+abstract class McdocDirective extends DefaultDocDirective {
+	protected parseType(input: core.Source, ctx: core.ParserContext) {
+		return ctx.meta.getParser('mcdoc:type')(input, ctx)
+	}
+	override readonly hasMandatoryArgument: boolean = true
+	override parseArguments(
+		src: core.Source,
+		directive: DocDirectiveNode,
+		ctx: core.ParserContext,
+	): void {
+		src.skipSpace()
+		if (!ctx.meta.hasParser('mcdoc:type')) {
+			directive.arguments.push(src.readLine())
+			return
+		}
+		const start = src.innerCursor
+		const source = src.clone()
+		source.readLine()
+		const possibleEnds = [source.innerCursor]
+		let text = src.string.slice(0, source.innerCursor)
+		while (source.canRead()) {
+			const newlineStart = source.innerCursor
+			source.nextLine().skipSpace()
+			if (!source.trySkip('#') || source.tryPeek('>')) {
+				break
+			}
+			const contentStart = source.innerCursor
+			if (/^@(?:[a-zA-Z_]|$)/.test(source.clone().skipSpace().peekLine())) {
+				break
+			}
+			source.readLine()
+			text += src.string.slice(newlineStart, contentStart - 1) + ' '
+				+ src.string.slice(contentStart, source.innerCursor)
+			possibleEnds.push(source.innerCursor)
+		}
+		const parse = (end: number) => {
+			const input = new core.Source(text.slice(0, end), src.indexMap)
+			input.innerCursor = start
+			const err = new core.ErrorReporter(ctx.err.source)
+			const node = this.parseType(input, { ...ctx, err })
+			return { input, err, node, end }
+		}
+		let result = parse(possibleEnds.at(-1)!)
+		if (result.err.errors.length) {
+			// Consume as many lines of valid mcdoc as possible
+			for (let idx = possibleEnds.length - 2; idx >= 0; idx--) {
+				const candidate = parse(possibleEnds[idx])
+				if (candidate.node !== core.Failure && !candidate.err.errors.length) {
+					result = candidate
+					break
+				}
+			}
+		}
+		const consumed = text.slice(start, result.input.innerCursor).trimEnd()
+		const end = Math.max(possibleEnds[0], start + consumed.length)
+		src.innerCursor = possibleEnds.find(lineEnd => lineEnd >= end) ?? end
+		if (result.end !== src.innerCursor) {
+			result = parse(src.innerCursor)
+		}
+		if (result.input.skipSpace().canReadInLine()) {
+			const trailing = core.Range.create(result.input.cursor, src)
+			result.err.report(
+				localize('mcfunction.parser.trailing', localeQuote(result.input.readLine())),
+				trailing,
+			)
+		}
+		if (typeof result.node !== 'symbol') {
+			result.node.range = core.Range.create(
+				core.IndexMap.toOuterOffset(src.indexMap, start),
+				src,
+			)
+			directive.argumentNode = result.node
+			directive.children.push(result.node)
+		}
+		directive.arguments.push(text.slice(start, src.innerCursor).trimEnd())
+		ctx.err.absorb(result.err)
+	}
+}
+
+abstract class CommandTreeDocDirective extends DefaultDocDirective {
 	readonly parser_id: string = 'impdoc:read_write_arguments'
 	override readonly hasMandatoryArgument: boolean = true
 	override parseArguments(
@@ -91,11 +173,11 @@ class CommandTreeDocDirective extends DefaultDocDirective {
 }
 
 /** Access modifier directive */
-class AccessModifierDirective extends DefaultDocDirective {
+abstract class AccessModifierDirective extends DefaultDocDirective {
 	override readonly isAccessModifier = true
 }
 
-class ScopedAccessModifierDirective extends AccessModifierDirective {
+abstract class ScopedAccessModifierDirective extends AccessModifierDirective {
 	override parseArguments(
 		src: core.Source,
 		directive: DocDirectiveNode,
@@ -323,8 +405,8 @@ export class LocalDirective extends AccessModifierDirective {
 	}
 }
 
-export class CallbyDirective extends CommandTreeDocDirective {
-	override readonly identifier = 'callby'
+export class HandlesDirective extends CommandTreeDocDirective {
+	override readonly identifier = 'handles'
 	override readonly allowedTargets = ['function']
 	override readonly parser_id: string = 'impdoc:callby_arguments'
 	override handleDirective(
@@ -721,81 +803,45 @@ export class PredicateDirective extends GreedyStringDirective {
 	}
 }
 
-export class TypeDirective extends DefaultDocDirective {
+export class TypeDirective extends McdocDirective {
 	override readonly identifier = 'type'
-	override readonly hasMandatoryArgument: boolean = true
 	override readonly allowDuplicates: boolean = true
-	override parseArguments(
-		src: core.Source,
-		directive: DocDirectiveNode,
-		ctx: core.ParserContext,
-	): void {
-		src.skipSpace()
-		if (!ctx.meta.hasParser('mcdoc:type')) {
-			directive.arguments.push(src.readLine())
-			return
+}
+
+export class MacroDirective extends McdocDirective {
+	override readonly identifier = 'macro'
+	override readonly allowedTargets = ['function']
+	override readonly allowDuplicates: boolean = false
+	protected override parseType(input: core.Source, ctx: core.ParserContext) {
+		input.skipWhitespace()
+		let source = input
+		const structLiteral = 'struct'
+		if (input.tryPeek('{')) {
+			const shift = structLiteral.length - input.innerCursor
+			source = new core.Source(structLiteral + input.string.slice(input.innerCursor), [
+				{
+					inner: core.Range.create(0, structLiteral.length),
+					outer: core.Range.create(input.cursor),
+				},
+				...input.indexMap.filter(pair => pair.inner.end > input.innerCursor).map(pair => ({
+					inner: core.Range.create(
+						Math.max(structLiteral.length, pair.inner.start + shift),
+						pair.inner.end + shift,
+					),
+					outer: pair.outer,
+				})),
+			])
 		}
-		const start = src.innerCursor
-		const lookahead = src.clone()
-		lookahead.readLine()
-		const ends = [lookahead.innerCursor]
-		let text = src.string.slice(0, lookahead.innerCursor)
-		while (lookahead.canRead()) {
-			const newlineStart = lookahead.innerCursor
-			lookahead.nextLine().skipSpace()
-			if (!lookahead.trySkip('#') || lookahead.tryPeek('>')) {
-				break
-			}
-			const contentStart = lookahead.innerCursor
-			if (/^@(?:[a-zA-Z_]|$)/.test(lookahead.clone().skipSpace().peekLine())) {
-				break
-			}
-			lookahead.readLine()
-			text += src.string.slice(newlineStart, contentStart - 1) + ' '
-				+ src.string.slice(contentStart, lookahead.innerCursor)
-			ends.push(lookahead.innerCursor)
+		const type = super.parseType(source, ctx)
+		if (source !== input) {
+			input.innerCursor += source.innerCursor - structLiteral.length
 		}
-		const parser = ctx.meta.getParser('mcdoc:type')
-		const parse = (end: number) => {
-			const input = new core.Source(text.slice(0, end), src.indexMap)
-			input.innerCursor = start
-			const err = new core.ErrorReporter(ctx.err.source)
-			const node = parser(input, { ...ctx, err })
-			return { input, err, node, end }
+		const root = type !== core.Failure ? type.children?.[0] : undefined
+		if (root?.type === 'mcdoc:struct' || root?.type === 'mcdoc:type/reference') {
+			return root
 		}
-		let result = parse(ends.at(-1)!)
-		if (result.err.errors.length) {
-			for (let i = ends.length - 2; i >= 0; i--) {
-				const candidate = parse(ends[i])
-				if (candidate.node !== core.Failure && !candidate.err.errors.length) {
-					result = candidate
-					break
-				}
-			}
-		}
-		const consumed = text.slice(start, result.input.innerCursor).trimEnd()
-		const end = Math.max(ends[0], start + consumed.length)
-		src.innerCursor = ends.find(lineEnd => lineEnd >= end) ?? end
-		if (result.end !== src.innerCursor) {
-			result = parse(src.innerCursor)
-		}
-		if (result.input.skipSpace().canReadInLine()) {
-			const trailing = core.Range.create(result.input.cursor, src)
-			result.err.report(
-				localize('mcfunction.parser.trailing', localeQuote(result.input.readLine())),
-				trailing,
-			)
-		}
-		if (typeof result.node !== 'symbol') {
-			result.node.range = core.Range.create(
-				core.IndexMap.toOuterOffset(src.indexMap, start),
-				src,
-			)
-			directive.argumentNode = result.node
-			directive.children.push(result.node)
-		}
-		directive.arguments.push(text.slice(start, src.innerCursor).trimEnd())
-		ctx.err.absorb(result.err)
+		ctx.err.report(localize('expected', localize('mcdoc.type.struct')), root ?? input)
+		return core.Failure
 	}
 }
 

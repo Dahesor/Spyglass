@@ -98,3 +98,62 @@ describe('@type', () => {
 		)
 	})
 })
+
+describe('@macro', () => {
+	for (const newline of ['\n', '\r\n']) {
+		it(
+			'parses an implicit struct at its original comment positions ' + JSON.stringify(newline),
+			t => {
+				const text = [
+					'#>function demo:self',
+					'#@macro {',
+					'#    value: int',
+					'#}',
+					'# Description',
+					'#@returns',
+				].join(newline)
+				const { node, ctx, project, doc } = parse(text)
+				t.assert.deepEqual(ctx.err.errors, [])
+				t.assert.deepEqual(node.docDirectives.map(d => d.identifier), ['macro', 'returns'])
+				const argument = node.docDirectives[0].argumentNode
+				t.assert.equal(argument?.type, 'mcdoc:struct')
+				t.assert.deepEqual(
+					argument?.range,
+					core.Range.create(text.indexOf('{'), text.indexOf('}') + 1),
+				)
+				t.assert.equal(node.commentDescription, ' Description')
+				const start = text.indexOf('int')
+				const tokens = core.colorizer.fallback(
+					node,
+					core.ColorizerContext.create(project, { doc, range: node.range }),
+				)
+				t.assert.equal(
+					tokens.some(token =>
+						token.type === 'type' && token.range.start === start
+						&& token.range.end === start + 3
+					),
+					true,
+				)
+			},
+		)
+	}
+	it('accepts an explicit struct and nested mcdoc types', t => {
+		const { ctx } = parse(
+			'#>function demo:self\n#@macro struct { nested: struct { list: [int] } }',
+		)
+		t.assert.deepEqual(ctx.err.errors, [])
+	})
+	for (const path of ['::java::world::item::ItemStack', 'example::Unknown', 'LocalType']) {
+		it('accepts the mcdoc path ' + path, t => {
+			const { node, ctx } = parse('#>function demo:self\n#@macro ' + path)
+			t.assert.deepEqual(ctx.err.errors, [])
+			t.assert.equal(node.docDirectives[0].argumentNode?.type, 'mcdoc:type/reference')
+		})
+	}
+	for (const value of ['int', '[int]', '{}[key]']) {
+		it('rejects a non-struct root ' + value, t => {
+			const { ctx } = parse('#>function demo:self\n#@macro ' + value)
+			t.assert.equal(ctx.err.errors.length > 0, true)
+		})
+	}
+})

@@ -1,6 +1,6 @@
-export * from './Handle.js'
 export * from './imported.js'
 export * from './local.js'
+export * from './Query.js'
 export * from './Service.js'
 export * from './Storage.js'
 export * from './Symbol.js'

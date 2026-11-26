@@ -1020,7 +1020,7 @@ export class Project extends EventDispatcher<{
 				continue
 			}
 			const deleted = new Set<string | symbol>()
-			const map: SymbolMap = new Proxy<SymbolMap>({}, {
+			const map: SymbolMap = new Proxy<SymbolMap>(Object.create(null), {
 				get: (target, key, receiver) => {
 					if (
 						typeof key !== 'string' || Object.hasOwn(target, key) || deleted.has(key)
@@ -1028,9 +1028,7 @@ export class Project extends EventDispatcher<{
 					) {
 						return Reflect.get(target, key, receiver)
 					}
-					const copied = SymbolTable.link(SymbolTable.unlink({
-						[category]: { [key]: source[key] },
-					}))[category]!
+					const copied = SymbolTable.copyForView(source[key])
 					const symbol = target[key] = copied[key]
 					symbol.parentMap = map
 					SymbolUtil.forEachSymbolInMap(copied, child => {
@@ -1068,7 +1066,7 @@ export class Project extends EventDispatcher<{
 					return Reflect.deleteProperty(target, key)
 				},
 			})
-			storage.global[category] = map
+			SymbolUtil.put(storage.global, category, map)
 		}
 		const symbols = new SymbolService(storage)
 		for (const key of this.symbolStorage.getPaths(uri)) {

@@ -224,6 +224,8 @@ describe('Service.getDefinitionLocations()', () => {
 		},
 		{ usages: ['implementation'], expected: 'implementation' },
 		{ usages: ['declaration'], expected: 'declaration' },
+		{ usages: ['typeDefinition'], expected: 'typeDefinition' },
+		{ usages: ['declaration', 'typeDefinition'], expected: 'declaration' },
 		{ usages: [], expected: undefined },
 	]
 	for (const fromFile of [false, true]) {

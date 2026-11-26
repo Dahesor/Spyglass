@@ -1,7 +1,7 @@
 import type { TextDocument } from 'vscode-languageserver-textdocument'
 import { StateProxy } from '../common/StateProxy.js'
 import type { AstNode } from '../node/index.js'
-import type { SymbolAddition, SymbolHandle as SymbolHandle } from './Handle.js'
+import type { SymbolAddition, SymbolQuery } from './Query.js'
 import type { SymbolClearOptions, SymbolService } from './Service.js'
 import type { Symbol, SymbolMap, SymbolTable, SymbolView } from './Symbol.js'
 import { SymbolUsageTypes } from './Symbol.js'
@@ -176,14 +176,14 @@ export namespace LocalSymbol {
 		return current.locals
 	}
 
-	/** Return a {@link SymbolHandle} for the symbol.*/
+	/** Return a {@link SymbolQuery} for the symbol.*/
 	export function queryInsideScope(
 		service: SymbolService,
 		doc: LocalSymbolContext,
 		scope: LocalSymbolVisibility,
 		category: string,
 		...path: string[]
-	): SymbolHandle {
+	): SymbolQuery {
 		const table = findTable(doc.node, scope)
 		registerTable(table)
 		return service.queryInTable(table, doc.doc, category, ...path)

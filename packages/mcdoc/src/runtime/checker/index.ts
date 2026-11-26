@@ -1,5 +1,5 @@
 import { Range, Source, SymbolUtil } from '@spyglassmc/core'
-import type { CheckerContext, FullResourceLocation, Symbol, SymbolHandle } from '@spyglassmc/core'
+import type { CheckerContext, FullResourceLocation, Symbol, SymbolQuery } from '@spyglassmc/core'
 import { localize } from '@spyglassmc/locales'
 import { TypeDefSymbolData } from '../../binder/index.js'
 import type {
@@ -945,13 +945,13 @@ function simplifyIndexed<T>(
 function resolveIndices<T>(
 	parallelIndices: ParallelIndices,
 	symbolMap: { [key: string]: Pick<Symbol, 'data' | 'scopes'> },
-	symbolHandle: SymbolHandle | undefined,
+	symbolQuery: SymbolQuery | undefined,
 	context: SimplifyContext<T>,
 ): SimplifyResult<SimplifiedMcdocType> {
 	let dynamicData = false
 	let values: SimplifiedMcdocTypeNoUnion[] = []
 	const dataAt = (key: string): unknown =>
-		symbolHandle
+		symbolQuery
 			? SymbolUtil.getCanonicalData(symbolMap[key])
 			: symbolMap[key]?.data
 	function pushValue(key: string, data: TypeDefSymbolData) {
@@ -969,8 +969,8 @@ function resolveIndices<T>(
 			const simplifiedResult = simplify(data.typeDef, context)
 			if (simplifiedResult.dynamicData) {
 				dynamicData = true
-			} else if (context.ctx.config.env.enableMcdocCaching && symbolHandle) {
-				symbolHandle.member(
+			} else if (context.ctx.config.env.enableMcdocCaching && symbolQuery) {
+				symbolQuery.member(
 					key,
 					s =>
 						s.amend({

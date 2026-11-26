@@ -1,6 +1,6 @@
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import type { ResourceLocation } from '../../common/index.js'
-import type { SymbolAddition, SymbolAdditionUsage } from '../Handle.js'
+import type { SymbolAddition, SymbolAdditionUsage } from '../Query.js'
 import type { SymbolService } from '../Service.js'
 import type {
 	Symbol,

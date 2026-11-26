@@ -9,6 +9,7 @@ import { completeDoc } from '../lib/completer/doc.js'
 import { entry, initialize } from '../lib/index.js'
 import type { DocDirectiveNode, DocNode } from '../lib/node/doc.js'
 import type {
+	DocDirective,
 	DocDirectiveHandlerContext,
 	DocDirectiveParserContext,
 	DocDirectiveSuggestCtx,
@@ -17,6 +18,7 @@ import {
 	bindDoc,
 	DefaultDocDirective,
 	doc as parseDoc,
+	getDirectiveDescription,
 	registerDocDirective,
 } from '../lib/parser/doc.js'
 import { ReturnsDirective } from '../lib/parser/doc/directives.js'
@@ -1021,19 +1023,36 @@ describe('doc directive descriptions', () => {
 			localize('mcfunction.doc.directive.desc.public'),
 		)
 	})
-	it('provides localized descriptions for all built-in block directives', t => {
+	it('provides localized descriptions for all built-in block directives', (t: TestContext) => {
 		const text = 'say hi\n#> function demo:test\n# @'
 		const env = setupDescriptions(t, text)
 		const { node } = env.parse()
 		const completions = env.complete(node, text.length)
 		t.assert.equal(completions.some(item => item.label === '@input'), true)
-		for (const item of completions) {
-			t.assert.equal(typeof item.documentation, 'string')
-			t.assert.equal(
-				item.documentation?.includes('mcfunction.doc.directive.desc.'),
-				false,
-				item.label,
-			)
+		const directives = env.service.project.meta.getCustom<DocDirective>('impdoc:directive')
+		t.assert.ok(directives?.size)
+		const aliases: Record<string, string> = {
+			api: 'public',
+			handle: 'handles',
+			callby: 'handles',
+			return: 'returns',
+			read: 'reads',
+			write: 'writes',
+		}
+		for (const [id, directive] of directives) {
+			const key = 'mcfunction.doc.directive.desc.' + (aliases[id] ?? id)
+			const expected = localize(key)
+			t.assert.notEqual(expected, key, id)
+			t.assert.ok(expected.trim(), id)
+			const description = getDirectiveDescription(directive)
+			t.assert.ok(description, id)
+			t.assert.ok(description.split('  \n').includes(expected), id)
+			t.assert.ok(!description.includes('mcfunction.doc.directive.desc.'), id)
+		}
+		for (const { label, documentation } of completions) {
+			const directive = directives.get(label.slice(1))
+			t.assert.ok(directive, label)
+			t.assert.equal(documentation, getDirectiveDescription(directive), label)
 		}
 	})
 })

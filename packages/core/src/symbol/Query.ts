@@ -89,11 +89,11 @@ export namespace SymbolAdditionUsageWithNode {
 }
 
 type HandleCallback<S extends SymbolView | undefined = SymbolView | undefined> = (
-	this: SymbolHandle,
+	this: SymbolQuery,
 	symbol: S,
-	handle: SymbolHandle,
+	query: SymbolQuery,
 ) => unknown
-type QueryMemberCallback = (this: void, handle: SymbolHandle) => unknown
+type QueryMemberCallback = (this: void, query: SymbolQuery) => unknown
 
 /* istanbul ignore next */
 /**
@@ -101,7 +101,7 @@ type QueryMemberCallback = (this: void, handle: SymbolHandle) => unknown
  *
  * Holdes a reference to the {@link SymbolService} that created it.
  */
-export class SymbolHandle {
+export class SymbolQuery {
 	#category: string
 	get category(): string {
 		return this.#category
@@ -179,7 +179,7 @@ export class SymbolHandle {
 	}
 
 	/**
-	 * @returns the target symbol's view in the context of this handle's document.
+	 * @returns the target symbol's view in the context of this query's document.
 	 * Returns `undefined` if no symbol is selected or no view is available.
 	 */
 	get symbolView(): SymbolView | undefined {
@@ -187,7 +187,7 @@ export class SymbolHandle {
 	}
 
 	/**
-	 * The selected symbol's members visible from this handle's document.
+	 * The selected symbol's members visible from this query's document.
 	 * For an empty path, returns the visible symbols in the category's root map.
 	 */
 	get visibleMembers(): SymbolMap {
@@ -211,7 +211,7 @@ export class SymbolHandle {
 	}
 
 	/**
-	 * @returns the data of the target symbol from the handle's context.
+	 * @returns the data of the target symbol from the query's context.
 	 * Returns `undefined` if the symbol does not exist or the data does not match the predicate.
 	 */
 	getData<T>(predicate: (this: void, value: unknown) => value is T): T | undefined {
@@ -324,7 +324,7 @@ export class SymbolHandle {
 	@delayModeSupport
 	enter(addition: SymbolAddition): this {
 		this.refreshWriteTarget()
-		// Treat the range as zero-width when the handle was created with only a URI.
+		// Treat the range as zero-width when the query was created with only a URI.
 		if (this.#createdWithUri && SymbolAdditionUsageWithRange.is(addition.usage)) {
 			addition = { ...addition, usage: { ...addition.usage, range: Range.create(0, 0) } }
 		}
@@ -353,7 +353,7 @@ export class SymbolHandle {
 	 *
 	 * @param identifier The isotope identifier, should be unique within the target symbol.
 	 * @param addition The metadata to merge and usage to append.
-	 * @returns This handle.
+	 * @returns This query.
 	 * @throws If the target is local, the parent is missing, or the isotope
 	 * metadata is invalid.
 	 */
@@ -406,7 +406,7 @@ export class SymbolHandle {
 	 *
 	 * This is equivalent to calling
 	 * ```typescript
-	 * handle.ifKnown(function () {
+	 * query.ifKnown(function () {
 	 * 	this.enter(symbol)
 	 * })
 	 * ```
@@ -431,7 +431,7 @@ export class SymbolHandle {
 			}
 			if (result !== this.#symbol) {
 				this.#lookup = (category, path) => this.service.lookup(category, path)
-				this.#getRootMap = () => this.service.storage.global[this.category] ??= {}
+				this.#getRootMap = () => SymbolUtil.ensureCategory(this.service.storage.global, this.category)
 			}
 			this.#symbol = result
 			this.#map = result.parentMap
@@ -451,7 +451,7 @@ export class SymbolHandle {
 	member(identifier: string, fn: QueryMemberCallback): this
 	member(doc: TextDocument | string, identifier: string, fn: QueryMemberCallback): this
 	member(): this {
-		// Handle overloads.
+		// query overloads.
 		let doc: TextDocument | string, identifier: string, fn: QueryMemberCallback
 		if (arguments.length === 2) {
 			// Ensure the member query result will not unknowingly have a dummy TextDocument passed down from this class.
@@ -476,8 +476,8 @@ export class SymbolHandle {
 			? this.#doc
 			: doc
 		const memberMap = this.#symbol.members
-		const memberSymbol = memberMap?.[identifier]
-		const memberQueryResult = new SymbolHandle({
+		const memberSymbol = SymbolUtil.own(memberMap, identifier)
+		const memberQueryResult = new SymbolQuery({
 			category: this.category,
 			doc: memberDoc,
 			contributor: this.#currentContributor,
@@ -495,7 +495,7 @@ export class SymbolHandle {
 	}
 
 	/**
-	 * Do something with this handle on each value in a given iterable. The handle itself will be included
+	 * Do something with this query on each value in a given iterable. The query itself will be included
 	 * in the callback function as the second parameter.
 	 */
 	onEach<T>(values: Iterable<T>, fn: (this: this, value: T, query: this) => unknown): this {
@@ -506,7 +506,7 @@ export class SymbolHandle {
 	}
 
 	/** Do something with each member of the current symbol. */
-	forEachMember(fn: (this: void, identifier: string, query: SymbolHandle) => unknown): this {
+	forEachMember(fn: (this: void, identifier: string, query: SymbolQuery) => unknown): this {
 		return this.onEach(
 			Object.keys(this.#symbol?.members ?? {}),
 			(identifier) => this.member(identifier, (query) => fn(identifier, query)),

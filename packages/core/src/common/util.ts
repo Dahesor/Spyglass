@@ -257,17 +257,21 @@ export function getStates(
 	ids: readonly string[],
 	ctx: ProcessorContext,
 ): Record<string, string[]> {
-	const ans: Record<string, Set<string>> = {}
+	const ans: Record<string, Set<string>> = Object.create(null)
 	ids = ids.map(ResourceLocation.lengthen)
 	for (const id of ids) {
-		ctx.symbols.query(ctx.doc, category, id).forEachMember((state, stateHandle) => {
-			const values = Object.keys(stateHandle.symbol?.members ?? {})
-			const set = (ans[state] ??= new Set())
-			const defaultValue = stateHandle.symbol?.relations?.['default']
-			if (defaultValue) {
-				set.add(defaultValue.path[defaultValue.path.length - 1])
+		ctx.symbols.query(ctx.doc, category, id).forEachMember((state, query) => {
+			const view = query.symbolView
+			if (!view) {
+				return
 			}
-			for (const value of values) {
+			const members = query.visibleMembers
+			const set = (ans[state] ??= new Set())
+			const defaultValue = view.relations?.['default']?.path.at(-1)
+			if (defaultValue !== undefined && Object.hasOwn(members, defaultValue)) {
+				set.add(defaultValue)
+			}
+			for (const value of Object.keys(members)) {
 				set.add(value)
 			}
 		})

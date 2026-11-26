@@ -332,7 +332,9 @@ export class Service {
 							if (currentFileOnly) {
 								locs = locs.filter((l) => l.uri === doc.uri)
 							}
-							rawLocations.push(...locs)
+							for (const location of locs) {
+								rawLocations.push(location)
+							}
 						}
 						const locations: SymbolLocation[] = []
 						for (const loc of rawLocations) {

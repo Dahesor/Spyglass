@@ -8,6 +8,7 @@ import {
 	SymbolIsotopeScope,
 	SymbolService,
 	SymbolStorage,
+	SymbolTable,
 	UriBinderContext,
 } from '../../lib/index.js'
 import { mockProjectData } from '../utils.ts'
@@ -15,6 +16,34 @@ import { mockProjectData } from '../utils.ts'
 const doc = TextDocument.create('file:///test.mcfunction', 'mcfunction', 0, '')
 
 describe('SymbolStorage ownership', () => {
+	it('treats inherited object names as ordinary category and member names', t => {
+		const service = new SymbolService(new SymbolStorage())
+		const query = service.query(doc, 'constructor', 'toString')
+		t.assert.equal(query.symbol, undefined)
+		query.enter({ usage: { type: 'definition' } })
+		query.member('__proto__', child => child.enter({ usage: { type: 'definition' } }))
+		t.assert.deepEqual(Object.keys(query.visibleMembers), ['__proto__'])
+		const exported = SymbolTable.getDependencyExports(service.storage.global, 'package')
+		const imports = new SymbolService(new SymbolStorage(exported))
+		for (const symbols of [service, imports]) {
+			const child = symbols.lookup('constructor', ['toString', '__proto__']).symbol
+			t.assert.equal(child?.identifier, '__proto__')
+		}
+		const copy = SymbolTable.copyForView(query.symbol!)
+		t.assert.deepEqual(Object.keys(Object.values(copy)[0].members!), ['__proto__'])
+	})
+
+	it('terminates alias resolution when the chain revisits a symbol', t => {
+		const service = new SymbolService(new SymbolStorage())
+		for (const [from, to] of [['a', 'b'], ['b', 'a']]) {
+			service.query(doc, 'test', from).enter({
+				data: { relations: { aliasOf: { category: 'test', path: [to] } } },
+				usage: { type: 'definition' },
+			})
+		}
+		t.assert.equal(service.resolveAlias(service.lookup('test', ['a']).symbol), undefined)
+	})
+
 	it('resolves delayed isotope writes after a parent is created', t => {
 		const service = new SymbolService(new SymbolStorage())
 		const branch = service.cloneDelayed()
@@ -52,9 +81,9 @@ describe('SymbolStorage ownership', () => {
 			data: { relations: { aliasOf: { category: 'target', path: ['value'] } } },
 			usage: { type: 'definition' },
 		})
-		const handle = service.queryInTable(table, doc, 'alias', 'local').resolveAlias()
-		handle.enter({ usage: { type: 'reference' } })
-		t.assert.equal(handle.category, 'target')
+		const query = service.queryInTable(table, doc, 'alias', 'local').resolveAlias()
+		query.enter({ usage: { type: 'reference' } })
+		t.assert.equal(query.category, 'target')
 		t.assert.equal(service.query(doc, 'target', 'value').symbolView?.reference?.length, 1)
 		t.assert.equal(table['target'], undefined)
 	})

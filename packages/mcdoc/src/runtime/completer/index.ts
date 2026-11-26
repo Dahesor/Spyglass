@@ -102,8 +102,8 @@ export function getValues(
 			if (!typeDef.path) {
 				return []
 			}
-			const handle = ctx.symbols.query(ctx.doc, 'mcdoc', typeDef.path)
-			const data = SymbolUtil.getCanonicalData(handle.symbol)
+			const query = ctx.symbols.query(ctx.doc, 'mcdoc', typeDef.path)
+			const data = SymbolUtil.getCanonicalData(query.symbol)
 			if (!TypeDefSymbolData.is(data)) {
 				return []
 			}

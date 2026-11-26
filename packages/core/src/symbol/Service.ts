@@ -1,12 +1,12 @@
 import type { TextDocument } from 'vscode-languageserver-textdocument'
 import { Range } from '../source/index.js'
+import { LocalSymbol, type LocalSymbolContext } from './local.js'
 import {
 	type SymbolAddition,
 	type SymbolAdditionUsage,
 	SymbolAdditionUsageWithNode,
-	SymbolHandle,
-} from './Handle.js'
-import { LocalSymbol, type LocalSymbolContext } from './local.js'
+	SymbolQuery,
+} from './Query.js'
 import type { SymbolStorage } from './Storage.js'
 import type {
 	AllCategory,
@@ -168,7 +168,7 @@ export class SymbolService {
 	}
 
 	/**
-	 * @returns a {@link SymbolHandle} object.
+	 * @returns a {@link SymbolQuery} object.
 	 * @param doc A {@link TextDocument}, a {@link LocalSymbolContext}, or a string URI.
 	 * It is used to both check the visibility of symbols and serve as the location of future entered symbol usages.
 	 * If a URI is provided, it will use `[0, 0)` as `node.range`.
@@ -177,17 +177,17 @@ export class SymbolService {
 		doc: LocalSymbolContext | TextDocument | string,
 		category: AllCategory,
 		...path: string[]
-	): SymbolHandle
+	): SymbolQuery
 	query(
 		doc: LocalSymbolContext | TextDocument | string,
 		category: string,
 		...path: string[]
-	): SymbolHandle
+	): SymbolQuery
 	query(
 		doc: LocalSymbolContext | TextDocument | string,
 		category: string,
 		...path: string[]
-	): SymbolHandle {
+	): SymbolQuery {
 		if (typeof doc !== 'string' && 'doc' in doc) {
 			// Search local tables first and go up to the root, then global table.
 			for (const table of LocalSymbol.getLocalsToRoot(doc.node)) {
@@ -200,16 +200,16 @@ export class SymbolService {
 		return this.queryInTable(this.storage.global, doc, category, ...path)
 	}
 
-	/** @returns a {@link SymbolHandle} object against an explicitly selected table. */
+	/** @returns a {@link SymbolQuery} object against an explicitly selected table. */
 	queryInTable(
 		table: SymbolTable,
 		doc: TextDocument | string,
 		category: string,
 		...path: string[]
-	): SymbolHandle {
+	): SymbolQuery {
 		const local = LocalSymbol.isTable(table)
 		if (local) {
-			LocalSymbol.registerMap(table[category] ??= {})
+			LocalSymbol.registerMap(SymbolUtil.ensureCategory(table, category))
 		}
 		const lookup = (category: string, path: readonly string[]) =>
 			SymbolUtil.lookupInTable(table, category, path)
@@ -217,7 +217,7 @@ export class SymbolService {
 		const visible = symbol
 			? this.isVisible(symbol, SymbolUtil.toUri(doc))
 			: true
-		return new SymbolHandle({
+		return new SymbolQuery({
 			category,
 			doc,
 			contributor: this.#currentContributor,
@@ -227,8 +227,10 @@ export class SymbolService {
 			symbol: visible ? symbol : undefined,
 			service: this,
 			lookup,
-			getRootMap: () =>
-				local ? LocalSymbol.registerMap(table[category] ??= {}) : table[category] ??= {},
+			getRootMap: () => {
+				const map = SymbolUtil.ensureCategory(table, category)
+				return local ? LocalSymbol.registerMap(map) : map
+			},
 		})
 	}
 
@@ -301,7 +303,10 @@ export class SymbolService {
 			this.queryInTable(this.storage.global, doc.doc, category, ...path).visibleMembers
 		for (const table of [...LocalSymbol.getLocalsToRoot(doc.node)].reverse()) {
 			const result = SymbolUtil.lookupInTable(table, category, path)
-			Object.assign(symbols, path.length ? result.symbol?.members : table[category])
+			const members = path.length ? result.symbol?.members : SymbolUtil.own(table, category)
+			for (const [key, symbol] of Object.entries(members ?? {})) {
+				SymbolUtil.put(symbols, key, symbol)
+			}
 		}
 		return symbols
 	}
@@ -382,7 +387,7 @@ export class SymbolService {
 		contributor: string | undefined,
 	): Symbol {
 		const { map, identifier } = target
-		let ans = map[identifier]
+		let ans = SymbolUtil.own(map, identifier)
 		if (ans) {
 			if (addition.data || addition.usage) {
 				this.amendSymbol(ans, addition, doc, contributor)
@@ -409,7 +414,7 @@ export class SymbolService {
 		contributor: string | undefined,
 	): Symbol {
 		const { category, parentSymbol, map: parentMap, path, identifier } = target
-		const ans = (parentMap[identifier] = {
+		const ans = SymbolUtil.put<Symbol>(parentMap, identifier, {
 			...(LocalSymbol.isMap(parentMap) || LocalSymbol.is(parentSymbol)
 				? { isLocal: true as const }
 				: {}),
@@ -500,16 +505,20 @@ export class SymbolService {
 	 * @returns The ultimate symbol being pointed by the passed-in `symbol`'s alias.
 	 */
 	resolveAlias(symbol: Symbol | undefined): Symbol | undefined {
-		symbol = symbol ? Isotope.rawSymbol(symbol) : undefined
-		return symbol?.relations?.aliasOf
-			? this.resolveAlias(
-				SymbolUtil.lookupInTable(
-					this.storage.global,
-					symbol.relations.aliasOf.category,
-					symbol.relations.aliasOf.path,
-				).symbol,
-			)
-			: symbol
+		symbol = symbol && Isotope.rawSymbol(symbol)
+		if (!symbol?.relations?.aliasOf) {
+			return symbol
+		}
+		const visited = new Set<Symbol>()
+		while (symbol?.relations?.aliasOf) {
+			if (visited.has(symbol)) {
+				return undefined
+			}
+			visited.add(symbol)
+			const alias: SymbolPath = symbol.relations.aliasOf
+			symbol = this.lookup(alias.category, alias.path).symbol
+		}
+		return symbol
 	}
 
 	/** Remove unused global symbols recorded by the global cache. */
@@ -523,7 +532,7 @@ export class SymbolService {
 		for (const identifier of Object.keys(map)) {
 			const symbol = map[identifier]
 			if (SymbolUtil.isVisible(symbol, uri, this.storage.resolveResourceLocation)) {
-				ans[identifier] = symbol
+				SymbolUtil.put(ans, identifier, symbol)
 			}
 		}
 		return ans

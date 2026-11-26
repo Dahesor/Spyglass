@@ -31,10 +31,13 @@ function mcfunction(
 			children: [],
 		}
 
+		let headerAllowed = src.innerCursor === 0 ? true : undefined
 		while (src.skipWhitespace().canReadInLine()) {
 			let result: core.CommentNode | CommandNode | MacroNode | DocNode | core.ErrorNode
 			if (src.peek() === '#') {
-				result = src.tryPeek('#>') ? doc(src, ctx) : comment(src, ctx) as core.CommentNode
+				result = src.tryPeek('#>')
+					? doc(src, ctx, headerAllowed)
+					: comment(src, ctx) as core.CommentNode
 			} else if (src.peek() === '$') {
 				const start = src.cursor
 				if (options.macros) {
@@ -50,6 +53,9 @@ function mcfunction(
 				}
 			} else {
 				result = command(commandTree, argument, options.commandOptions)(src, ctx)
+			}
+			if (result.type !== 'comment') {
+				headerAllowed = false
 			}
 			ans.children.push(result)
 			src.nextLine()

@@ -39,6 +39,34 @@ export interface LookupResult {
 
 /** Stateless operations on symbol data. */
 export namespace SymbolUtil {
+	export function own<T>(map: Record<string, T> | undefined, key: string): T | undefined {
+		return map && Object.hasOwn(map, key) ? map[key] : undefined
+	}
+
+	export function put<T>(map: Record<string, T>, key: string, value: T): T {
+		if (key === '__proto__' && !Object.hasOwn(map, key)) {
+			Object.defineProperty(map, key, {
+				value,
+				enumerable: true,
+				configurable: true,
+				writable: true,
+			})
+		} else {
+			map[key] = value
+		}
+		return value
+	}
+
+	export function ensureCategory(table: SymbolTable, category: string): SymbolMap {
+		const existing = own(table, category)
+		if (existing) {
+			return existing
+		}
+		const map: SymbolMap = {}
+		put(table, category, map)
+		return map
+	}
+
 	export function toUri(uri: TextDocument | string): string {
 		if (typeof uri === 'string') {
 			return uri
@@ -64,11 +92,11 @@ export namespace SymbolUtil {
 		category: string,
 		path: readonly string[],
 	): LookupResult {
-		let parentMap: SymbolMap | undefined = table[category]
+		let parentMap: SymbolMap | undefined = own(table, category)
 		let parentSymbol: Symbol | undefined
 		let symbol: Symbol | undefined
 		for (let i = 0; i < path.length; i++) {
-			symbol = parentMap?.[path[i]]
+			symbol = own(parentMap, path[i])
 			if (!symbol) {
 				if (i !== path.length - 1) {
 					parentSymbol = undefined

@@ -1,4 +1,4 @@
-import { SymbolService } from '@spyglassmc/core'
+import { SymbolService, SymbolUtil } from '@spyglassmc/core'
 import * as mcdoc from '@spyglassmc/mcdoc'
 import * as cp from 'child_process'
 import { resolve } from 'path'
@@ -29,21 +29,22 @@ export async function exportCommand(args: Args) {
 		'mcdoc/dispatcher': new Map(),
 	}
 
-	const symbols = new SymbolService(project.symbolStorage).getVisibleSymbols('mcdoc')
+	const service = new SymbolService(project.symbolStorage)
+	const symbols = service.getVisibleSymbols('mcdoc')
 	for (const [name, symbol] of Object.entries(symbols)) {
-		if (mcdoc.binder.TypeDefSymbolData.is(symbol.data)) {
-			data.mcdoc.set(name, symbol.data.typeDef)
+		const type = SymbolUtil.getCanonicalData(symbol)
+		if (mcdoc.binder.TypeDefSymbolData.is(type)) {
+			data.mcdoc.set(name, type.typeDef)
 		}
 	}
-	const dispatchers = new SymbolService(project.symbolStorage).getVisibleSymbols(
-		'mcdoc/dispatcher',
-	)
+	const dispatchers = service.getVisibleSymbols('mcdoc/dispatcher')
 	for (const [name, symbol] of Object.entries(dispatchers)) {
 		const dispatcherMap = new Map()
 		data['mcdoc/dispatcher'].set(name, dispatcherMap)
 		for (const [id, member] of Object.entries(symbol.members ?? {})) {
-			if (mcdoc.binder.TypeDefSymbolData.is(member.data)) {
-				dispatcherMap.set(id, member.data.typeDef)
+			const type = SymbolUtil.getCanonicalData(member)
+			if (mcdoc.binder.TypeDefSymbolData.is(type)) {
+				dispatcherMap.set(id, type.typeDef)
 			}
 		}
 	}

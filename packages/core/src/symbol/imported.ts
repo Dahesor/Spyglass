@@ -173,16 +173,16 @@ export namespace SymbolImport {
 	): void {
 		const merge = (source: SymbolMap, target: SymbolMap, parent?: Symbol): void => {
 			for (const entry of Object.values(source)) {
-				let symbol = target[entry.identifier]
+				let symbol = SymbolUtil.own(target, entry.identifier)
 				if (!symbol) {
-					symbol = target[entry.identifier] = {
+					symbol = SymbolUtil.put<Symbol>(target, entry.identifier, {
 						category: entry.category,
 						identifier: entry.identifier,
 						path: entry.path,
 						parentMap: target,
 						parentSymbol: parent,
 						subcategory: entry.subcategory,
-					}
+					})
 					service.storage.markForTrim(symbol)
 				}
 				for (const isotope of entry.scopes?.public ?? []) {
@@ -254,7 +254,7 @@ export namespace SymbolImport {
 		}
 		for (const [category, map] of Object.entries(table)) {
 			if (map && category !== 'mcdoc' && category !== 'mcdoc/dispatcher') {
-				merge(map, service.storage.global[category] ??= {})
+				merge(map, SymbolUtil.ensureCategory(service.storage.global, category))
 			}
 		}
 	}

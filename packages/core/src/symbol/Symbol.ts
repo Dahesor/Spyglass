@@ -712,8 +712,9 @@ export namespace SymbolTable {
 	}
 
 	export function getDependencyExports(table: SymbolTable, checksum: string): SymbolTable {
+		const copyMetadata = rfdc()
 		const projectMap = (map: SymbolMap): UnlinkedSymbolMap => {
-			const result: UnlinkedSymbolMap = {}
+			const result: UnlinkedSymbolMap = Object.create(null)
 			for (const [name, symbol] of Object.entries(map)) {
 				const exported = symbol.scopes?.public?.filter(isotope =>
 					isotope.source !== SymbolIsotopeProvider.Imported
@@ -780,21 +781,21 @@ export namespace SymbolTable {
 				}
 				result[name] = {
 					subcategory: symbol.subcategory,
-					relations: symbol.relations,
-					scopes,
+					relations: copyMetadata(symbol.relations),
+					scopes: copyMetadata(scopes),
 					...(symbol.members ? { members: projectMap(symbol.members) } : {}),
 				}
 			}
 			return result
 		}
-		const exported: UnlinkedSymbolTable = {}
+		const exported: UnlinkedSymbolTable = Object.create(null)
 		for (const [category, map] of Object.entries(table)) {
 			// Shared mcdoc tables can be large and are never part of these exports.
 			if (map && category !== 'mcdoc' && category !== 'mcdoc/dispatcher') {
 				exported[category] = projectMap(map)
 			}
 		}
-		return link(exported)
+		return linkOwned(exported)
 	}
 
 	/**
@@ -803,6 +804,58 @@ export namespace SymbolTable {
 	 * @returns A copied table with parent links and shared usage references restored.
 	 */
 	export function link(table: UnlinkedSymbolTable): SymbolTable {
+		return linkOwned(rfdc()(table))
+	}
+
+	function unlinkSymbolData(symbol: Symbol, members?: UnlinkedSymbolMap): UnlinkedSymbol {
+		const {
+			category: _category,
+			identifier: _identifier,
+			parentMap: _parentMap,
+			parentSymbol: _parentSymbol,
+			path: _path,
+			members: _members,
+			scopes,
+			...metadata
+		} = symbol
+		const unlinkedScopes: UnlinkedSymbol['scopes'] = scopes ? {} : undefined
+		if (scopes && unlinkedScopes) {
+			for (const key of SymbolRestrictedScopeTypes) {
+				if (scopes[key]) {
+					unlinkedScopes[key] = scopes[key]
+				}
+			}
+			for (const key of SymbolGlobalScopeTypes) {
+				if (scopes[key]) {
+					unlinkedScopes[key] = unlinkIsotopes(scopes[key])
+				}
+			}
+		}
+		return {
+			...metadata,
+			...(members ? { members } : {}),
+			...(unlinkedScopes ? { scopes: unlinkedScopes } : {}),
+		}
+	}
+
+	/** Copy one subtree for a document view without following its parent links. */
+	export function copyForView(source: Symbol): SymbolMap {
+		const clone = rfdc({ circles: true })
+		const copy = (symbol: Symbol): UnlinkedSymbol => {
+			const detached = clone(unlinkSymbolData(symbol))
+			if (symbol.members) {
+				detached.members = Object.fromEntries(
+					Object.entries(symbol.members).map(([key, child]) => [key, copy(child)]),
+				)
+			}
+			return detached
+		}
+		const map = { [source.identifier]: copy(source) }
+		return linkOwned({ [source.category]: map })[source.category]!
+	}
+
+	function linkOwned(table: UnlinkedSymbolTable): SymbolTable {
+		const ans = table as SymbolTable
 		const linkSymbol = (
 			symbol: Symbol,
 			parentMap: SymbolMap,
@@ -842,8 +895,6 @@ export namespace SymbolTable {
 			}
 		}
 
-		const ans = rfdc()(table) as SymbolTable
-
 		for (const [category, map] of Object.entries(ans)) {
 			linkSymbolMap(map!, undefined, category, [])
 		}
@@ -857,41 +908,13 @@ export namespace SymbolTable {
 	 * @returns A copied table without parent links and shared usages occur only on the first isotope
 	 */
 	export function unlink(table: SymbolTable): UnlinkedSymbolTable {
-		const unlinkSymbol = (symbol: Symbol): UnlinkedSymbol => {
-			const {
-				category: _category,
-				identifier: _identifier,
-				parentMap: _parentMap,
-				parentSymbol: _parentSymbol,
-				path: _path,
-				members,
-				scopes,
-				...metadata
-			} = symbol
-			const unlinkedScopes: UnlinkedSymbol['scopes'] = scopes ? {} : undefined
-			if (scopes && unlinkedScopes) {
-				for (const key of SymbolRestrictedScopeTypes) {
-					if (scopes[key]) {
-						unlinkedScopes[key] = scopes[key]
-					}
-				}
-				for (const key of SymbolGlobalScopeTypes) {
-					if (scopes[key]) {
-						unlinkedScopes[key] = unlinkIsotopes(scopes[key])
-					}
-				}
-			}
-			return {
-				...metadata,
-				...(members ? { members: unlinkSymbolMap(members) } : {}),
-				...(unlinkedScopes ? { scopes: unlinkedScopes } : {}),
-			}
-		}
-
 		const unlinkSymbolMap = (map: SymbolMap): UnlinkedSymbolMap => {
 			const result: UnlinkedSymbolMap = {}
 			for (const [identifier, childSymbol] of Object.entries(map)) {
-				result[identifier] = unlinkSymbol(childSymbol)
+				result[identifier] = unlinkSymbolData(
+					childSymbol,
+					childSymbol.members && unlinkSymbolMap(childSymbol.members),
+				)
 			}
 			return result
 		}

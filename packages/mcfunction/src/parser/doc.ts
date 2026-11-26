@@ -186,7 +186,7 @@ export function declareDocSymbol(
 	category: string,
 	identifier: string,
 	ctx: core.BinderContext,
-): core.SymbolHandle {
+): core.SymbolQuery {
 	const usage: core.SymbolAdditionUsage = {
 		type: 'declaration',
 		node: field,
@@ -194,7 +194,7 @@ export function declareDocSymbol(
 	}
 	const access = node.access
 	const local = access?.visibility === core.SymbolIsotopeScope.Local
-	const handle = local
+	const query = local
 		? core.LocalSymbol.queryInsideScope(
 			ctx.symbols,
 			{ doc: ctx.doc, node: field },
@@ -204,12 +204,12 @@ export function declareDocSymbol(
 		)
 		: ctx.symbols.query(ctx.doc, category, identifier)
 	if (local) {
-		return handle.enter({
+		return query.enter({
 			data: { desc: node.description ?? '', deprecated: node.deprecated },
 			usage,
 		})
 	}
-	return handle.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
+	return query.enterIsotope(`doc:${ctx.doc.uri}:${node.range.start}`, {
 		data: {
 			scope: access?.visibility ?? core.SymbolIsotopeScope.Public,
 			...(
@@ -230,10 +230,10 @@ export function declareDocSymbol(
 	})
 }
 
-export const doc: core.InfallibleParser<DocNode> = (src, ctx) => {
+export function doc(src: core.Source, ctx: core.ParserContext, isFunctionHeader?: boolean): DocNode {
 	// Only empty line and normal comments may precede the function header.
-	const preamble = /^(?:[ \t\r\n]|#(?!>)[^\r\n]*)*/.exec(src.string)![0]
-	const isFunctionHeader = src.innerCursor === preamble.length
+	isFunctionHeader ??= src.innerCursor
+		=== /^(?:[ \t\r\n]|#(?!>)[^\r\n]*)*/.exec(src.string)![0].length
 	const start = src.cursor
 	src.skip(2).skipSpace()
 	const inlineDirectives: DocDirectiveNode[] = []
